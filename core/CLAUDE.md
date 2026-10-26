@@ -24,12 +24,12 @@ The log lists `modules: N registered (...)` and one `module <name>: enabled | di
 |---|---|
 | `addr` | address table: verified addresses by Id (never raw addresses) |
 | `hooks` | `Create` (inline hook in a group), `OnFrameBegin` / `OnFrameEnd` / `OnLevelLoad` (`OnFrameEndLate` is gfx's only, R8) |
-| `cmd`, `console`, `binds` | variables, commands, config persistence (`RegisterConfigWriter`), `SetPracticeOnly` (refused in `fd_profile run`), console output, `console::GamePath` (a folder setting, absolute or under the game folder: the recorder and the replay share it); `binds::BindDefault(key, line)` for a feature's default key (the player's binds win), `binds::DescribeKey` for keys a feature reads itself |
-| `camera` | view size; one FOV filter (`fov` uses it); a world-transform override (`SetWorldOverride`, `LastWorldXForm`: the free camera) |
+| `cmd`, `console`, `binds` | variables, commands, config persistence (`RegisterConfigWriter`), `SetPracticeOnly` (refused in `fd_profile run`), console output, `console::GamePath` (a folder setting, absolute or under the game folder: the recorder and the replay share it); `binds::BindDefault(key, line)` for a feature's default key (the player's binds win), `binds::DescribeKey` for keys a feature reads itself; modal tools reserve keys/mouse look with `SetKeyCapture` / `SetPointerCapture` |
+| `camera` | view size; one FOV filter (`fov` uses it); a world-transform override (`SetWorldOverride`, `LastWorldXForm`: the free camera; `ViewXForm` includes the active override) |
 | `pause` | `Set(on, why)` / `Active()`: skip the simulation step and pause the game clock; ends itself on leaving the level. `textdraw::HideWhilePaused` for view-relative panels |
 | `state` | the frame's player snapshot |
-| `entities` | lazy Player/Victim initialization, update and destruction observers; original calls, last-error and FP state preserved. `FilterVictimSpot`: one filter that may move a victim's spawn spot before the floor snap (early step only; speedrun's static spawns) |
-| `gfx`, `textdraw` | in-frame drawing ("Drawing" below; `src/gfx.h`, `src/textdraw.h`) |
+| `entities` | lazy Player/Victim initialization, update and destruction observers; original calls, last-error and FP state preserved. `ObserveNativeContacts` + `AddNativeTrigger`: runtime trigger construction and contact notifications (world owns roots, service owns definitions until level entry). `FilterVictimSpot`: one filter that may move a victim's spawn spot before the floor snap (early step only; speedrun's static spawns) |
+| `gfx`, `textdraw` | in-frame drawing ("Drawing" below; `src/gfx.h`, `src/textdraw.h`); `gfx::ProjectWorld` / `ScreenRay` for pointer tools; `textdraw::GameHint` reuses the original native font/widget with a timed priority window, no custom surface |
 | `profile` | run/practice gates + watermark (reads `SetPracticeOnly`) |
 | `testpipe` (Debug) | `Register("<name>", handler)` for harness requests |
 | `log`, `crashlog`, `patches`, `levelwatch` | logging, crash reports, the core's startup patches, level events |

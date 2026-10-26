@@ -15,13 +15,9 @@ namespace {
 
 using addr::Id;
 
-// Game string = handle to a refcounted rep: [+0] refs, [+4] len, [+8] cap,
-// [+0xC] chars. Passed by value as one dword; the callee releases it.
 using StrHandle = uint32_t;
 using ExecLineFn = void(__thiscall*)(void* engine, StrHandle line);
 using AddLineFn = void(__thiscall*)(void* console, StrHandle line);
-using FromCstrFn = void(__thiscall*)(StrHandle* slot, const char* text);
-using FreeRepFn = void(__thiscall*)(StrHandle* slot);
 
 ExecLineFn g_origExecLine = nullptr;
 char g_gameDir[MAX_PATH];
@@ -36,27 +32,10 @@ void* GameConsole() {
     return reinterpret_cast<void*>(p);
 }
 
-// Drops the reference the caller handed to ExecLine, the way ExecLine does
-// at 0x00470F99: decrement, and FreeRep when it reaches zero.
-void Release(StrHandle h) {
-    auto* refs = reinterpret_cast<volatile long*>(h);
-    long left = InterlockedDecrement(refs);
-    if (left <= 0 && h != addr::ExportAddress(Id::str_empty_rep)) {
-        StrHandle slot = h;
-        reinterpret_cast<FreeRepFn>(addr::ExportAddress(Id::str_free_rep))(&slot);
-    }
-}
-
-StrHandle MakeString(const char* text) {
-    StrHandle slot = 0;
-    reinterpret_cast<FromCstrFn>(addr::ExportAddress(Id::str_from_cstr))(&slot, text);
-    return slot;
-}
-
 void __fastcall ExecLineDetour(void* engine, void* /*edx*/, StrHandle line) {
     const char* text = reinterpret_cast<const char*>(line + 0xC);
     if (cmd::Dispatch(text)) {
-        Release(line);  // ours: the game never sees it
+        ReleaseGameString(line);  // ours: the game never sees it
         return;
     }
     g_origExecLine(engine, line);
@@ -128,7 +107,7 @@ void FrameEnd() {
         uintptr_t engine = 0;
         addr::Resolve(Id::script_engine, &engine);
         log::Info("cmd: to game: %s", line);
-        g_origExecLine(reinterpret_cast<void*>(engine), MakeString(line));
+        g_origExecLine(reinterpret_cast<void*>(engine), MakeGameString(line));
     }
 }
 
@@ -138,6 +117,21 @@ const Id kNeeds[] = {Id::con_exec_line, Id::con_add_line, Id::str_from_cstr, Id:
                      Id::console_instance};
 
 } // namespace
+
+uint32_t MakeGameString(const char* text) {
+    uint32_t string = 0;
+    using FromCstr = void(__thiscall*)(uint32_t*, const char*);
+    reinterpret_cast<FromCstr>(addr::ExportAddress(Id::str_from_cstr))(&string, text);
+    return string;
+}
+
+void ReleaseGameString(uint32_t string) {
+    const LONG refs = InterlockedDecrement(reinterpret_cast<volatile LONG*>(string));
+    if (refs <= 0 && string != addr::ExportAddress(Id::str_empty_rep)) {
+        using Free = void(__thiscall*)(uint32_t*);
+        reinterpret_cast<Free>(addr::ExportAddress(Id::str_free_rep))(&string);
+    }
+}
 
 bool Init(const char* gameDir, const char* coreVersion) {
     lstrcpynA(g_gameDir, gameDir, sizeof(g_gameDir));
@@ -169,7 +163,7 @@ void Print(const char* fmt, ...) {
     va_end(ap);
     log::Info("console> %s", text);
     void* con = g_ready ? GameConsole() : nullptr;
-    if (con) reinterpret_cast<AddLineFn>(addr::ExportAddress(Id::con_add_line))(con, MakeString(text));
+    if (con) reinterpret_cast<AddLineFn>(addr::ExportAddress(Id::con_add_line))(con, MakeGameString(text));
 }
 
 const char* GameDir() { return g_gameDir; }

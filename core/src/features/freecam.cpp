@@ -186,7 +186,7 @@ void FrameBegin() {
     addr::ReadI32(Id::controls_mouse_x, &mx);
     addr::ReadI32(Id::controls_mouse_y, &my);
     const float sens = CvarF(g_fdSens, 0.075f);
-    if (binds::KeysLive()) {
+    if (binds::KeysLive() && !binds::PointerCaptured()) {
         // Yaw grows to the left (forward (sin, cos), right (-cos, sin)): mouse right = yaw down
         // (owner 2026-10-22: left and right were swapped). g_turn counts degrees to the right.
         g_turn += static_cast<float>(mx) * sens;
@@ -213,10 +213,10 @@ void FrameBegin() {
             uint32_t bit;
         } keys[] = {{'W', f, 1, 1}, {'S', f, -1, 2}, {'D', r, 1, 4}, {'A', r, -1, 8}};
         for (const auto& k : keys)
-            if (Down(k.vk))
+            if (Down(k.vk) && !binds::KeyCaptured(k.vk))
                 for (int i = 0; i < 3; ++i) d[i] += k.dir[i] * k.sign, mask |= k.bit;
-        if (Down('E')) d[1] += 1.0f, mask |= 16;
-        if (Down('Q')) d[1] -= 1.0f, mask |= 32;
+        if (Down('E') && !binds::KeyCaptured('E')) d[1] += 1.0f, mask |= 16;
+        if (Down('Q') && !binds::KeyCaptured('Q')) d[1] -= 1.0f, mask |= 32;
         float speed = CvarF(g_fdSpeed, 400.0f);
         if (Down(VK_SHIFT)) speed *= 4.0f, mask |= 64;
         if (Down(VK_CONTROL)) speed *= 0.25f, mask |= 128;

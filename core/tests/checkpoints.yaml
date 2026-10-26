@@ -1,0 +1,81 @@
+name: checkpoints
+# Real native contacts: file loading, native timestamp hint, once-per-attempt and saved toggle.
+pre_files:
+  - {src: tests/data/practice_training.txt, dst: Checkpoints/training.txt}
+  - {src: null, dst: FDNYCore.cfg}
+  - {src: null, dst: Checkpoints/training.txt.bak}
+  - {src: null, dst: Checkpoints/training.txt.tmp}
+setup: load_training
+record: false
+steps:
+  - assert_log: {contains: "module checkpoints: enabled"}
+  - console: "fd_profile practice"
+  - console: "fd_checkpoints 1"
+  - wait_log: {contains: "checkpoints: loaded 2 native checkpoints for training", since_console: true, timeout: 10}
+  - wait_pipe: {cmd: triggers, key: n, equals: 27, timeout: 10}
+  - console: "fd_tp_save"
+  - key: {key: w, hold: 2}
+  - console: "fd_tp_load"
+  - wait_log: {contains: "checkpoint Spawn:", since_console: true, timeout: 5}
+  - console: "hint 4 (This must not replace the checkpoint)"
+  - screenshot: timestamp_native_priority
+  - key: {key: w, hold: 2}
+  - console: "fd_tp_load"
+  - wait_s: 0.5
+  - assert_log_count: {contains: "checkpoint Spawn:", equals: 1}
+  - key: {key: n, hold: 0.1}
+  - assert_log: {contains: "checkpoints: timestamps off"}
+  - loadmap: training
+  - wait_pipe: {cmd: triggers, key: n, equals: 25, timeout: 10}
+  - key: {key: n, hold: 0.1}
+  - wait_log: {contains: "checkpoints: loaded 2 native checkpoints for training", timeout: 10}
+  - wait_pipe: {cmd: triggers, key: n, equals: 27, timeout: 10}
+  - console: "fd_profile run"
+  - console: "fd_checkpoints 1"
+  - assert_log: {contains: "fd_checkpoints is practice-only (fd_profile is run)"}
+  - console: "fd_profile practice"
+  # Edit a file without changing live native entities; the next mission load applies it.
+  - console: "fd_checkpoints_edit 1"
+  - assert_pipe_stat: {cmd: freecam, key: flying, equals: 1}
+  - sample_pipe: {cmd: freecam, as: editor_flight}
+  - key: {key: w, hold: 0.2}
+  - assert_pipe_stat: {cmd: freecam, key: moved, min: 100, since: editor_flight}
+  - mouse_rel: [30, 0]
+  - assert_pipe_stat: {cmd: freecam, key: turn, min: 10, since: editor_flight}
+  - key: {key: ins, hold: 0.1}
+  - wait_s: 1
+  - assert_file: {path: Checkpoints/training.txt, contains: "Checkpoint A"}
+  - console: 'fd_checkpoints_name "Editor test"'
+  - key: {key: right, hold: 0.1}
+  - key_down: lshift
+  - key: {key: pgup, hold: 0.1}
+  - key_up: lshift
+  - key_down: lctrl
+  - key: {key: c, hold: 0.1}
+  - key: {key: v, hold: 0.1}
+  - key_up: lctrl
+  - wait_s: 1
+  - assert_file: {path: Checkpoints/training.txt, contains: "FDNY_CHECKPOINTS_V1|training|4"}
+  - assert_file: {path: Checkpoints/training.txt, contains: "Checkpoint B"}
+  - key: {key: del, hold: 0.1}
+  - key: {key: home, hold: 0.1}
+  - wait_s: 1
+  - assert_file: {path: Checkpoints/training.txt, contains: "FDNY_CHECKPOINTS_V1|training|4"}
+  - assert_file: {path: Checkpoints/training.txt, contains: "Checkpoint B"}
+  - key: {key: end, hold: 0.1}
+  - wait_s: 1
+  - assert_file: {path: Checkpoints/training.txt, contains: "FDNY_CHECKPOINTS_V1|training|3"}
+  - assert_file: {path: Checkpoints/training.txt, contains: "Editor test"}
+  - assert_file: {path: Checkpoints/training.txt.bak, contains: "FDNY_CHECKPOINTS_V1|training|2"}
+  - screenshot: checkpoint_editor
+  - console: "fd_checkpoints_edit 0"
+  - assert_pipe_stat: {cmd: freecam, key: flying, equals: 0}
+  - loadmap: training
+  - wait_pipe: {cmd: triggers, key: n, equals: 28, timeout: 10}
+  - console: "fd_profile run"
+  - console: "fd_checkpoints_edit 1"
+  - assert_log: {contains: "fd_checkpoints_edit is practice-only (fd_profile is run)"}
+  - console: "fd_profile practice"
+expect:
+  no_crash: true
+  log_errors: 0

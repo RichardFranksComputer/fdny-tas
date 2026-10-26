@@ -17,6 +17,7 @@ int g_checks = 0, g_failures = 0;
 const char* g_test = "";
 } // namespace unit
 
+void TestCheckpoints();
 void TestAddrAllVerify();
 void TestAddrGenesisAtPreferredBase();
 void TestAddrUnknownVersion();
@@ -39,6 +40,7 @@ struct Test {
     void (*fn)();
 };
 const Test kTests[] = {
+    {"checkpoints", TestCheckpoints},
     {"addr_all_verify", TestAddrAllVerify},
     {"addr_genesis_at_preferred_base", TestAddrGenesisAtPreferredBase},
     {"addr_unknown_version", TestAddrUnknownVersion},

@@ -26,6 +26,7 @@ your changes are saved (FDNYCore.cfg). **Practice**: refused while `fd_profile` 
 | **J** | on / off: fire-juggling arrow: where a carried survivor lands if you pass out now; 0 = off | `toggle fd_juggle` | yes |
 | **P** | pause / resume with the free camera (fd_pause; default key P) | `fd_pause_toggle` | yes |
 | **V** | play / pause this map's recordings (with none loaded, loads its best finished and latest run first); from the end, start again (key V) | `fd_replay_toggle` | yes |
+| **N** | on / off: checkpoint names and elapsed level time (N toggles); 0 = off | `toggle fd_checkpoints` | yes |
 
 **Feature keys**: read by the feature itself while it is on; they can't be rebound.
 
@@ -43,6 +44,11 @@ your changes are saved (FDNYCore.cfg). **Practice**: refused while `fd_profile` 
 | **MOUSE** | free camera: look (fd_freecam_sens) | while fd_pause is 1 |
 | **W** **A** **S** **D** **UPARROW** **LEFTARROW** **DOWNARROW** **RIGHTARROW** **C** **CTRL** **SPACE** **SHIFT** **MOUSE1** **MOUSE2** **1** **2** **3** | sample raw virtual keys into JSONL (no input changes) | while fd_record is 1 and the game has focus |
 | **1** **2** **3** **4** **5** **6** **7** **8** **9** | replay picker: show / hide that run | while the fd_replay list is open |
+| **SPACE** **INS** **MOUSE1** **TAB** | checkpoint editor: place (Space or Insert) at pointer / select / select next | while fd_checkpoints_edit is 1 |
+| **LEFTARROW** **RIGHTARROW** **UPARROW** **DOWNARROW** **PGUP** **PGDN** | checkpoint editor: move on world X/Z/Y axes; Shift resizes; Ctrl uses 1 unit | while fd_checkpoints_edit is 1 |
+| **CTRL+C** **CTRL+V** **CTRL+D** **DEL** **BACKSPACE** | checkpoint editor: copy / paste at pointer / duplicate / delete | while fd_checkpoints_edit is 1 |
+| **HOME** **END** **ENTER** **CTRL+S** | checkpoint editor: undo / redo / save (also autosaves) | while fd_checkpoints_edit is 1 |
+| **MOUSE1** | checkpoint editor: left-drag boxes/arrows to move, face cubes to resize; normal mouse look resumes on release | while fd_checkpoints_edit is 1 |
 
 ## Features
 
@@ -62,6 +68,7 @@ your changes are saved (FDNYCore.cfg). **Practice**: refused while `fd_profile` 
 - **Pause and free camera**: freeze the game and fly a camera around; the view returns to the player on resume. (variables `fd_pause`, `fd_freecam_speed`, `fd_freecam_sens`; commands `fd_pause_toggle`; keys P, W S, A D, E Q, SHIFT, CTRL, MOUSE)
 - **Recorder**: automatically save player and victim trajectories as fdny-trajectory-v1 JSONL files in Recordings beside FDNYCore.asi. (variables `fd_record`, `fd_record_victims`, `fd_record_directory`; keys W A S D UPARROW LEFTARROW DOWNARROW RIGHTARROW C CTRL SPACE SHIFT MOUSE1 MOUSE2 1 2 3)
 - **Replay**: plays your recorded runs back in the level (trace, box, facing arrow): V plays this map's best and latest run, fd_replay picks from a list, fd_replay_ghost races one each spawn. (variables `fd_replay_speed`, `fd_replay_xray`, `fd_replay_ghost`; commands `fd_replay_load`, `fd_replay_clear`, `fd_replay_toggle`, `fd_replay_list`, `fd_replay`; keys V, 1 2 3 4 5 6 7 8 9)
+- **Practice checkpoints**: place and edit native checkpoint boxes, save per mission and show elapsed level time on contact. (variables `fd_checkpoints_edit`, `fd_checkpoints_distance`, `fd_checkpoints_step`, `fd_checkpoints`; commands `fd_checkpoints_name`, `fd_checkpoints_save`, `fd_checkpoints_status`; keys N, SPACE INS MOUSE1 TAB, LEFTARROW RIGHTARROW UPARROW DOWNARROW PGUP PGDN, CTRL+C CTRL+V CTRL+D DEL BACKSPACE, HOME END ENTER CTRL+S, MOUSE1)
 
 ## Variables
 
@@ -99,6 +106,10 @@ when changed. **Practice**: refused while `fd_profile` is `run`.
 | `fd_replay_speed` | `1` | playback speed: 0.25 / 0.5 / 1 / 2 / 4 (any value > 0) | yes | yes | Replay |
 | `fd_replay_xray` | `0` | 1 = the replay shows through walls (the trace dimmed there); 0 = walls hide it | yes | yes | Replay |
 | `fd_replay_ghost` | `0` | 1 = each time you spawn, your best finished run on the map starts with you (your latest if none is finished); 2 = your latest run; 0 = off | yes | yes | Replay |
+| `fd_checkpoints_edit` | `0` | 1 = pause and edit checkpoint boxes in the free camera; autosaves Checkpoints/<mission>.txt; 0 = exit; restart mission to apply |  | yes | Practice checkpoints |
+| `fd_checkpoints_distance` | `160` | new/pasted checkpoint distance ahead of the camera in units (32-2000) |  |  | Practice checkpoints |
+| `fd_checkpoints_step` | `8` | checkpoint move/resize step in units (1-256); hold Ctrl for 1 unit |  |  | Practice checkpoints |
+| `fd_checkpoints` | `0` | 1 = checkpoint names and elapsed level time (N toggles); 0 = off | yes | yes | Practice checkpoints |
 
 ## Commands
 
@@ -130,6 +141,9 @@ when changed. **Practice**: refused while `fd_profile` is `run`.
 | `fd_replay_toggle` | play / pause this map's recordings (with none loaded, loads its best finished and latest run first); from the end, start again (key V) | yes | Replay |
 | `fd_replay_list` | list the .jsonl recordings in the recordings folder |  | Replay |
 | `fd_replay` | fd_replay: pick this map's runs from a list (pauses); fd_replay <text>: load the first recording whose name contains text | yes | Replay |
+| `fd_checkpoints_name` | fd_checkpoints_name "Display text": rename the selected box in the checkpoint editor | yes | Practice checkpoints |
+| `fd_checkpoints_save` | retry saving the checkpoint draft; autosaved after edits, restart mission to apply | yes | Practice checkpoints |
+| `fd_checkpoints_status` | show timestamp enable state and number of loaded native checkpoints | yes | Practice checkpoints |
 
 ## Old names
 

@@ -41,6 +41,8 @@ SCAN = {
     "space": (0x39, False), "backspace": (0x0E, False), "grave": (0x29, False),
     "lshift": (0x2A, False), "lctrl": (0x1D, False), "alt": (0x38, False),
     "up": (0x48, True), "down": (0x50, True), "left": (0x4B, True), "right": (0x4D, True),
+    "ins": (0x52, True), "del": (0x53, True), "home": (0x47, True), "end": (0x4F, True),
+    "pgup": (0x49, True), "pgdn": (0x51, True),
     "minus": (0x0C, False), "equals": (0x0D, False), "period": (0x34, False),
     "slash": (0x35, False), "semicolon": (0x27, False), "quote": (0x28, False),
     "comma": (0x33, False), "f11": (0x57, False), "f12": (0x58, False),

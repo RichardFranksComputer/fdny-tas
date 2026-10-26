@@ -3,6 +3,7 @@
 
 #include <windows.h>
 
+#include "addr.h"
 #include "cmd.h"
 #include "console.h"
 #include "gfx.h"
@@ -288,6 +289,70 @@ bool Init() {
 #endif
     log::Info("textdraw: ready");
     return true;
+}
+
+// Native game hints: original bitmap font, checkpoint priority and position.
+namespace {
+using HintFn = uintptr_t(__thiscall*)(void*, float, uint32_t);
+using WidgetFn = uintptr_t(__thiscall*)(void*, uint32_t, const int*, int, int);
+HintFn g_hintOriginal;
+WidgetFn g_widgetOriginal;
+bool g_hintReady, g_ownHint, g_priority;
+void* g_hintOwner;
+uint32_t g_hintStart, g_hintDuration;
+bool Tick(uint32_t* tick) {
+    uintptr_t slot = 0;
+    return addr::Resolve(addr::Id::clock_elapsed_ms, &slot) && addr::SafeRead(slot, tick, 4);
+}
+void* HintOwner() {
+    uintptr_t slot = 0; uint32_t player = 0;
+    if (!addr::Resolve(addr::Id::player_object, &slot) || !addr::SafeRead(slot, &player, 4) || !player) return nullptr;
+    return reinterpret_cast<void*>(player+addr::Field(addr::Id::player_hint));
+}
+uintptr_t __fastcall Hint(void* owner, void*, float seconds, uint32_t text) {
+    const DWORD error = GetLastError(); uint32_t now = 0;
+    const bool suppress = g_priority && owner == g_hintOwner && Tick(&now) && now-g_hintStart < g_hintDuration;
+    SetLastError(error);
+    if (suppress) {
+        // The original consumes this by-value String, even when no widget is drawn.
+        console::ReleaseGameString(text); SetLastError(error); return 0;
+    }
+    if (owner == g_hintOwner) g_priority = false;
+    return g_hintOriginal(owner, seconds, text);
+}
+
+uintptr_t __fastcall Widget(void* widget, void*, uint32_t text, const int* rect, int xMode, int yMode) {
+    if (g_ownHint && rect) {
+        // Translate only checkpoint hints in the original 640x480 layout.
+        // Keep rectangle size, native wrapping/alignment, and bitmap font.
+        const int top[4] = {rect[0], rect[1], rect[2]-180, rect[3]-180};
+        return g_widgetOriginal(widget, text, top, xMode, yMode);
+    }
+    return g_widgetOriginal(widget, text, rect, xMode, yMode);
+}
+}
+bool InitGameHints() {
+    if (g_hintReady) return true;
+    if (!hooks::Create("game_hints", addr::Id::hint_show, reinterpret_cast<void*>(Hint), reinterpret_cast<void**>(&g_hintOriginal))) return false;
+    // If optional positioning is unavailable, preserve the original centered hint.
+    if (addr::Usable(addr::Id::hint_text_widget))
+        hooks::Create("game_hints", addr::Id::hint_text_widget, reinterpret_cast<void*>(Widget), reinterpret_cast<void**>(&g_widgetOriginal));
+    g_hintReady = hooks::SetEnabled("game_hints", true); return g_hintReady;
+}
+bool GameHint(const char* text, uint32_t milliseconds) {
+    void* owner = HintOwner(); uint32_t now = 0;
+    if (!g_hintReady || !owner || !milliseconds || !Tick(&now)) return false;
+    g_ownHint = true;
+    g_hintOriginal(owner, static_cast<float>(milliseconds)*.001f, console::MakeGameString(text));
+    g_ownHint = false;
+    g_hintOwner = owner; g_hintStart = now; g_hintDuration = milliseconds; g_priority = true;
+    return true;
+}
+void ClearGameHint(bool hide) {
+    uint32_t now = 0;
+    if (hide && g_priority && g_hintReady && HintOwner() == g_hintOwner && Tick(&now) && now-g_hintStart < g_hintDuration)
+        g_hintOriginal(g_hintOwner, 0, console::MakeGameString(""));
+    g_priority = false;
 }
 
 } // namespace fdcore::textdraw

@@ -39,6 +39,8 @@ bool WorldOverrideActive();
 // The game's transform on the last world render without an override (the free camera's
 // start pose). False before the first world render.
 bool LastWorldXForm(XForm* out);
+// Current view, including the free camera override; false before the first render.
+bool ViewXForm(XForm* out);
 void BeforeWorldRender(void* camera);  // gfx only
 
 } // namespace fdcore::camera

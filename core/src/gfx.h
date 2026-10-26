@@ -29,6 +29,10 @@ void* World();   // geWorld* rendered this frame (null when none was)
 bool BeginDraw();
 // The render view size (the camera rect; the window as fallback).
 void ViewSize(int* w, int* h);
+// Last rendered camera: screen projection and an unnormalised world picking ray.
+// False without a rendered world, or when projecting behind the near plane.
+bool ProjectWorld(const float* point, float* x, float* y);
+bool ScreenRay(float x, float y, float* origin, float* direction);
 
 // --- Canvas ------------------------------------------------------------------------
 // One shared font (Consolas, NONANTIALIASED, `fd_text_size` px). Text pixels are

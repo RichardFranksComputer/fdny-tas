@@ -308,3 +308,13 @@ later session might "simplify" away; change one only with the owner's approval
 - **D21 Tests are never weakened or deleted to pass.** An environmental failure (slow VM frame rate, a race in a read) is rerun and reported with evidence, for example the previous version failing identically.
 - **D22 Spikes don't touch working code:** standalone probes (`probes/`) and probe tests (`tests/probes/`, outside the suite).
 - **D23 Patterns live in the repo, enforced where possible** (this file, `CLAUDE.md`, `tools/arch_check.py`, the `new-feature` skill). Session memory is machine-local and doesn't transfer.
+
+- **D52 Practice checkpoints use native triggers and hints.** The entities service
+  owns BoundsTrigger creation/contact observation and retains definitions until
+  world teardown; one unused event binding enables native contact processing.
+  Textdraw uses the native bitmap font with upward positioning and four-second
+  priority. The existing free camera, input capture and gfx projection support
+  the editor. Drafts autosave to `Checkpoints/<mission>.txt`; restart applies them.
+  Player initialization starts timing; menu resume preserves it. Rejected: custom
+  overlap polling, replacing BSPs and custom hint surfaces. Evidence:
+  `evidence/checkpoints/README.md`.

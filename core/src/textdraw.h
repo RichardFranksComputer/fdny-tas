@@ -54,6 +54,13 @@ void Show(int panel, bool visible);
 // free camera: not drawn while the game is paused (pause service, D35).
 void HideWhilePaused(int panel, bool on);
 
+// The game's own bitmap-font hint renderer; no Canvas/AlphaSurface uploads.
+// A priority hint suppresses other hints until it expires; newer priority hints replace it.
+// Offsets checkpoint hints upward; retains the original center if positioning is unavailable.
+bool InitGameHints();
+bool GameHint(const char* text, uint32_t milliseconds);
+void ClearGameHint(bool hide = true);
+
 // Core service: registers the draw as a late frame-end subscriber, so it runs
 // after every module's frame-end update of its panels.
 bool Init();

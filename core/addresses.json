@@ -1974,6 +1974,134 @@
           },
           "ghidra": "Existing recorder primary Victim vtable identity check.",
           "note": "Compare live victim vptr before player-driven sampling."
+        },
+        "entity.trigger_factory": {
+          "module": "exe",
+          "rva": "0x41D70",
+          "chain": [],
+          "type": "ptr",
+          "sig": {
+            "rva": "0x41D70",
+            "bytes": "6A FF 68 AB F0 4C 00 64 A1 00 00 00 00 50 64 89",
+            "ref": "BoundsTrigger factory and spawn-queue disassembly"
+          },
+          "ghidra": "core/evidence/checkpoints/README.md",
+          "note": "entities: allocate native BoundsTrigger from a class descriptor and spawn request"
+        },
+        "entity.admit": {
+          "module": "exe",
+          "rva": "0x29490",
+          "chain": [],
+          "type": "ptr",
+          "sig": {
+            "rva": "0x29490",
+            "bytes": "56 8B 74 24 08 8B 06 57 8B F9 8B CE FF 50 1C 85",
+            "ref": "BoundsTrigger factory and spawn-queue disassembly"
+          },
+          "ghidra": "core/evidence/checkpoints/README.md",
+          "note": "entities: register a runtime trigger with the GameSession entity manager"
+        },
+        "entity.trigger_initialize": {
+          "module": "exe",
+          "rva": "0x41040",
+          "chain": [],
+          "type": "ptr",
+          "sig": {
+            "rva": "0x41040",
+            "bytes": "6A FF 68 98 EF 4C 00 64 A1 00 00 00 00 50 64 89",
+            "ref": "BoundsTrigger factory and spawn-queue disassembly"
+          },
+          "ghidra": "core/evidence/checkpoints/README.md",
+          "note": "entities: initialize trigger model, bounds and ScriptActor bindings"
+        },
+        "game.session": {
+          "module": "exe",
+          "rva": "0x102AAC",
+          "chain": [],
+          "type": "ptr",
+          "sig": {
+            "rva": "0x2465a",
+            "bytes": "8B 0D AC 2A 50 00 57 50 81 C1 AC 06",
+            "ref": "instruction at 0x0042465a embeds 0x00502aac",
+            "ghidra": "xref confirmed 2026-10-21: MOV ECX,[0x00502aac] in TPlayerInfo::RecordLevelComplete @0x00424650"
+          },
+          "ghidra": "GameSession::RecordLevelComplete 0x00424650 reads the global GameSession pointer",
+          "note": "GameSession pointer slot; entities service world-manager admission"
+        },
+        "entity.class": {
+          "module": "field",
+          "rva": "0xc",
+          "chain": [],
+          "type": "ptr",
+          "sig": null,
+          "ghidra": "core/evidence/checkpoints/README.md",
+          "note": "Native entity class descriptor used for runtime trigger construction"
+        },
+        "string.chars": {
+          "module": "field",
+          "rva": "0xc",
+          "chain": [],
+          "type": "ptr",
+          "sig": null,
+          "ghidra": "core/evidence/checkpoints/README.md",
+          "note": "Character buffer in a refcounted game String; native contact event decoding"
+        },
+        "script.fire_event": {
+          "module": "exe",
+          "rva": "0x705B0",
+          "chain": [],
+          "type": "ptr",
+          "sig": {
+            "rva": "0x705B0",
+            "bytes": "6A FF 68 E8 25 4D 00 64 A1 00 00 00 00 50 64 89",
+            "ref": "FireEvent entry; by-value String argument, RET 4"
+          },
+          "ghidra": "004705b0_FUN_004705b0.c; BoundsTrigger contact dispatcher 00470840",
+          "note": "Owned by entities: notify only runtime native trigger contacts, preserving the original call"
+        },
+        "entity.script_actor": {
+          "module": "field",
+          "rva": "0x24",
+          "chain": [],
+          "type": "ptr",
+          "sig": null,
+          "ghidra": "BoundsTrigger constructor and DispatchTouchEvents; native contact dispatcher",
+          "note": "Embedded ScriptActor in native BoundsTrigger root"
+        },
+        "hint.show": {
+          "module": "exe",
+          "rva": "0x564C0",
+          "chain": [],
+          "type": "ptr",
+          "sig": {
+            "rva": "0x564C0",
+            "bytes": "6A FF 68 D8 0A 4D 00 64 A1 00 00 00 00 50 64 89",
+            "ref": "Native hint constructor at 0x004564c0"
+          },
+          "ghidra": "core/evidence/checkpoints/README.md",
+          "note": "textdraw native hints: original bitmap font and four-second priority"
+        },
+        "hint.text_widget": {
+          "module": "exe",
+          "rva": "0x8C780",
+          "chain": [],
+          "type": "ptr",
+          "sig": {
+            "rva": "0x8C780",
+            "bytes": "6A FF 68 9A 3D 4D 00 64 A1 00 00 00 00 50 64 89",
+            "ref": "Native text-widget constructor at 0x0048c780"
+          },
+          "ghidra": "core/evidence/checkpoints/README.md",
+          "note": "textdraw: offset only checkpoint hint rectangle, preserving native font"
+        },
+        "player.hint": {
+          "module": "field",
+          "rva": "0x5F4",
+          "chain": [],
+          "type": "ptr",
+          "sig": null,
+          "ghidra": "PlayerRescueEnt root+0x5f4: constructor 0x44d550 and hint route 0x44ee50",
+          "note": "Native hint UI receiver, textdraw service"
         }
       },
       "classify": {

@@ -30,4 +30,13 @@ bool DescribedAt(int i, const char** key, const char** action, const char** when
 // is closed (the rule binds use; also used by the warp HUD's B/Z/X keys).
 bool KeysLive();
 
+// A modal tool may reserve keys from ordinary binds and free-camera movement.
+// The filter must include its own active-state check. Null releases the capture.
+using KeyCapture = bool (*)(int vk);
+void SetKeyCapture(KeyCapture filter);
+bool KeyCaptured(int vk);
+// A modal pointer tool takes mouse motion from free-camera look.
+void SetPointerCapture(bool (*filter)());
+bool PointerCaptured();
+
 } // namespace fdcore::binds

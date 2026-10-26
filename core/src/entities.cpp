@@ -148,4 +148,140 @@ bool ObserveVictims(EntityFn spawned, EntityFn updated, EntityFn destroying) {
     if (!hooks::SetEnabled("victim_observers", true)) { --g_nVictims; return false; }
     return true;
 }
+namespace {
+struct NativeDefinition {
+    uint32_t reserved;
+    const char* name;
+    void* model;
+    float reach;
+    const char* scripts[10];
+    float position[3];
+};
+static_assert(sizeof(NativeDefinition) == 0x44, "retail trigger definition");
+static_assert(__builtin_offsetof(NativeDefinition, position) == 0x38, "retail trigger position");
+struct NativeRequest { NativeDefinition* data; uint32_t unused; int message; void* descriptor; };
+struct NativeStorage { NativeDefinition definition; char name[64]; uintptr_t actor; };
+using FireEventFn = uintptr_t(__thiscall*)(void*, uint32_t);
+FireEventFn g_nativeFireOriginal;
+NativeContactFn g_nativeContact;
+bool g_nativeHook;
+NativeStorage g_native[32];
+int g_nativeCount;
+NativeDefinition g_donor;
+uintptr_t g_descriptor;
+bool NativeText(uintptr_t p, char* text, unsigned cap) {
+    for (unsigned i = 0; i < cap; ++i) {
+        if (!addr::SafeRead(p+i, text+i, 1)) return false;
+        if (!text[i]) return true;
+    }
+    return false;
+}
+bool HasHint(const char* text) {
+    for (; *text; ++text) {
+        const char* match = "hint"; unsigned i = 0;
+        while (match[i] && text[i] == match[i]) ++i;
+        if (!match[i]) return true;
+    }
+    return false;
+}
+bool FindNativeDonor() {
+    uintptr_t head = 0, type = 0; uint32_t node = 0;
+    if (!addr::Resolve(addr::Id::entities_head, &head) || !addr::SafeRead(head, &node, 4) ||
+        !addr::Resolve(addr::Id::trigger_vtbl, &type)) return false;
+    bool found = false;
+    for (int guard = 0; node && guard < 4096; ++guard) {
+        uint32_t root = 0, next = 0, vtbl = 0, data = 0, descriptor = 0; uint8_t escape = 0;
+        if (!addr::SafeRead(node+addr::Field(addr::Id::node_elem), &root, 4) ||
+            !addr::SafeRead(node+addr::Field(addr::Id::node_next), &next, 4)) return false;
+        if (addr::SafeRead(root, &vtbl, 4) && vtbl == type &&
+            addr::SafeRead(root+addr::Field(addr::Id::trigger_userdata), &data, 4) && data &&
+            addr::SafeRead(root+addr::Field(addr::Id::entity_class), &descriptor, 4) && descriptor &&
+            addr::SafeRead(root+addr::Field(addr::Id::trigger_escape), &escape, 1) && !escape) {
+            NativeDefinition d{};
+            if (addr::SafeRead(data, &d, sizeof(d)) && d.model) {
+                bool hint = false;
+                for (const char* line : d.scripts) {
+                    char text[256];
+                    if (line && NativeText(reinterpret_cast<uintptr_t>(line), text, sizeof(text)) && HasHint(text)) hint = true;
+                }
+                if (!found || hint) { g_donor = d; g_descriptor = descriptor; found = true; }
+                if (hint) return true;
+            }
+        }
+        node = next;
+    }
+    return found;
+}
+bool NativeTriggersReady() {
+    const addr::Id needs[] = {addr::Id::entity_trigger_factory, addr::Id::entity_admit,
+        addr::Id::entity_trigger_initialize, addr::Id::game_session, addr::Id::entities_head, addr::Id::trigger_vtbl, addr::Id::script_fire_event};
+    for (const auto id : needs) if (!addr::Usable(id)) return false;
+    return true;
+}
+uintptr_t __fastcall NativeFireEvent(void* actor, void*, uint32_t event) {
+    int index = -1;
+    for (int i = 0; i < g_nativeCount; ++i) if (g_native[i].actor == reinterpret_cast<uintptr_t>(actor)) { index = i; break; }
+    bool contact = false, entering = false;
+    if (index >= 0) {
+        const DWORD error = GetLastError(); char word[8] = {};
+        const uintptr_t chars = event+addr::Field(addr::Id::string_chars);
+        const bool readable = addr::SafeRead(chars, word, sizeof(word)) || NativeText(chars, word, sizeof(word));
+        if (readable && (!word[5] || !word[7])) {
+            entering = !word[5] && lstrcmpA(word, "touch") == 0;
+            contact = entering || (!word[7] && lstrcmpA(word, "untouch") == 0);
+        }
+        SetLastError(error);
+    }
+    // The game releases its by-value event String; copy the event kind first.
+    const uintptr_t result = g_nativeFireOriginal(actor, event);
+    if (contact && g_nativeContact) {
+        unsigned char fp[512] __attribute__((aligned(16)));
+        __asm__ volatile("fxsave %0" : "=m"(fp));
+        const DWORD error = GetLastError();
+        g_nativeContact(index, entering);
+        SetLastError(error);
+        __asm__ volatile("fxrstor %0" : : "m"(fp));
+    }
+    return result;
+}
+}
+void ResetNativeTriggers() { g_nativeCount = 0; g_descriptor = 0; }
+
+bool ObserveNativeContacts(NativeContactFn callback) {
+    if (g_nativeContact && g_nativeContact != callback) return false;
+    g_nativeContact = callback; return true;
+}
+bool AddNativeTrigger(const char* name, const float* min, const float* max) {
+    if (!NativeTriggersReady() || g_nativeCount == 32 || (!g_descriptor && !FindNativeDonor())) return false;
+    if (!g_nativeHook) {
+        if (!hooks::Create("native_contacts", addr::Id::script_fire_event, reinterpret_cast<void*>(NativeFireEvent), reinterpret_cast<void**>(&g_nativeFireOriginal)) ||
+            !hooks::SetEnabled("native_contacts", true)) return false;
+        g_nativeHook = true;
+    }
+    NativeStorage& storage = g_native[g_nativeCount];
+    storage.definition = g_donor;
+    lstrcpynA(storage.name, name, sizeof(storage.name));
+    NativeDefinition& d = storage.definition;
+    d.name = storage.name; d.reach = 0;
+    for (auto& script : d.scripts) script = nullptr;
+    // BoundsTrigger checks ScriptActor's event-table count before collecting
+    // contacts (0x440ce0 / 0x440dc0). An unused binding keeps that native path
+    // active without running an authored command on touch/untouch.
+    d.scripts[0] = "fd_checkpoints_contact: hint 0 (checkpoint)";
+    for (int a = 0; a < 3; ++a) d.position[a] = (min[a]+max[a])*.5f;
+    NativeRequest request = {&d, 0, 10000, reinterpret_cast<void*>(g_descriptor)};
+    uintptr_t slot = 0; uint32_t session = 0;
+    if (!addr::Resolve(addr::Id::game_session, &slot) || !addr::SafeRead(slot, &session, 4) || !session) return false;
+    using Factory = void*(__thiscall*)(void*, void*);
+    using Admit = void(__thiscall*)(void*, void*);
+    using Initialize = void(__thiscall*)(void*);
+    void* root = reinterpret_cast<Factory>(addr::ExportAddress(addr::Id::entity_trigger_factory))(request.descriptor, &request);
+    if (!root) return false;
+    storage.actor = reinterpret_cast<uintptr_t>(root)+addr::Field(addr::Id::entity_script_actor);
+    ++g_nativeCount; // definition belongs to this root even if a later check fails
+    reinterpret_cast<Admit>(addr::ExportAddress(addr::Id::entity_admit))(reinterpret_cast<void*>(session), root);
+    reinterpret_cast<Initialize>(addr::ExportAddress(addr::Id::entity_trigger_initialize))(root);
+    const uintptr_t box = reinterpret_cast<uintptr_t>(root)+addr::Field(addr::Id::trigger_box);
+    return addr::SafeWrite(box, min, 3*sizeof(float)) && addr::SafeWrite(box+3*sizeof(float), max, 3*sizeof(float));
+}
 } // namespace fdcore::entities

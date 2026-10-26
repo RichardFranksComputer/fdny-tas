@@ -43,6 +43,8 @@ const int kGameKeys[] = {'W', 'A', 'S', 'D', 'C', VK_SPACE, VK_SHIFT, VK_CONTROL
 constexpr int kVkCount = 256;
 char g_binds[kVkCount][160];
 bool g_prevDown[kVkCount];
+KeyCapture g_capture = nullptr;
+bool (*g_pointerCapture)() = nullptr;
 bool g_isDefault[kVkCount];  // a feature's default key (BindDefault)
 char g_default[kVkCount][160];  // ... and its line: FDNYCore.cfg only records changes from it
 const char* g_defaultKey[kVkCount];  // ... and the name it was given, in BindDefault order
@@ -176,7 +178,7 @@ void Poll() {
     for (int vk = 1; vk < kVkCount; ++vk) {
         if (!g_binds[vk][0]) continue;
         bool down = (GetAsyncKeyState(vk) & 0x8000) != 0;
-        if (down && !g_prevDown[vk] && live) {
+        if (down && !g_prevDown[vk] && live && !KeyCaptured(vk)) {
             char name[16];
             VkName(vk, name);
             log::Info("bind: %s -> %s", name, g_binds[vk]);
@@ -189,6 +191,10 @@ void Poll() {
 } // namespace
 
 bool KeysLive() { return KeysLive_(); }
+void SetPointerCapture(bool (*filter)()) { g_pointerCapture = filter; }
+bool PointerCaptured() { return g_pointerCapture && g_pointerCapture(); }
+void SetKeyCapture(KeyCapture filter) { g_capture = filter; }
+bool KeyCaptured(int vk) { return g_capture && g_capture(vk); }
 
 bool BindDefault(const char* key, const char* line) {
     const int vk = ParseKey(key);

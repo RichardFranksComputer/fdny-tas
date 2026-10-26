@@ -14,4 +14,11 @@ bool ObserveVictims(EntityFn spawned, EntityFn updated, EntityFn destroying);
 // once, so call this from a module's early step (DllMain, before any level). False if
 // the site doesn't match (another mod patched it) or a filter is already set.
 bool FilterVictimSpot(EntityFn filter);
+
+// Runtime RCS_BoundsTrigger support. The world owns the native roots; this
+// service owns their backing definitions/scripts until the next level entry.
+void ResetNativeTriggers(); // only after level entry, once old world teardown finished
+using NativeContactFn = void (*)(int index, bool entering);
+bool ObserveNativeContacts(NativeContactFn callback); // one owner of the runtime trigger pool
+bool AddNativeTrigger(const char* name, const float* min, const float* max);
 } // namespace fdcore::entities

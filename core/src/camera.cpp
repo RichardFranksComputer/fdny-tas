@@ -117,6 +117,11 @@ bool LastWorldXForm(XForm* out) {
     return true;
 }
 
+bool ViewXForm(XForm* out) {
+    if (g_overrideOn) { *out = g_override; return true; }
+    return LastWorldXForm(out);
+}
+
 void BeforeWorldRender(void* camera) {
     if (!camera || !g_getXf) return;
 #ifdef FDCORE_DEBUG

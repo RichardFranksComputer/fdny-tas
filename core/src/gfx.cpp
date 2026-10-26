@@ -861,6 +861,27 @@ void DrawLinesTimed(const WorldLine* list, int n, bool xray) {
 
 } // namespace
 
+bool ProjectWorld(const float* point, float* x, float* y) {
+    if (!g_camera || !g_camXform || !g_camProject) return false;
+    const Vec3 world = {point[0],point[1],point[2]}; Vec3 view, screen;
+    g_camXform(g_camera, &world, &view);
+    if (view.z > -1) return false;
+    g_camProject(g_camera, &view, &screen); *x = screen.x; *y = screen.y; return true;
+}
+bool ScreenRay(float x, float y, float* origin, float* direction) {
+    camera::XForm view;
+    if (!g_camera || !g_camProject || !camera::ViewXForm(&view)) return false;
+    const Vec3 zero = {0,0,-1}, unit = {1,1,-1}; Vec3 center, scale;
+    g_camProject(g_camera, &zero, &center); g_camProject(g_camera, &unit, &scale);
+    if (scale.x == center.x || scale.y == center.y) return false;
+    const float right = (x-center.x)/(scale.x-center.x), up = (y-center.y)/(scale.y-center.y);
+    for (int a = 0; a < 3; ++a) {
+        origin[a] = view.t[a];
+        direction[a] = view.m[a*3]*right + view.m[a*3+1]*up - view.m[a*3+2];
+    }
+    return true;
+}
+
 void SubmitWorldLines(const WorldLine* lines, int n, Layer layer) {
     if (!lines || n <= 0 || layer == LAYER_HUD) return;
     if (g_nLineSubs[layer] < kMaxLayerSubs) g_lineSubs[layer][g_nLineSubs[layer]++] = {lines, n};
