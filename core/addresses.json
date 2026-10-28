@@ -1532,7 +1532,7 @@
             "ref": "first 16 bytes of the function at 0x004295f0"
           },
           "ghidra": "GameSession::OnKey 0x004295F0: thiscall (key, down), RET 8; reached from MainWindow::WndProc WM_KEYDOWN/KEYUP -> 0x00498FC0 (after Console::OnKeyDown; skipped while the console is open) -> thunks 0x0042BC70 (down=1) / 0x0042BC90 (down=0). Esc down with the latch 0x00502AB0 clear opens the in-game menu (MenuManager at session+0x3C8). Live: Esc while paused opened the menu (freecam run fc5)",
-          "note": "pause service: key-downs dropped while paused (the input-block byte only gates DirectInput actions)"
+          "note": "pause service: key-downs dropped while paused (the input-block byte only gates DirectInput actions); the replay viewer calls it (Esc down/up) to leave the level"
         },
         "clock.pause": {
           "module": "exe",
@@ -1654,7 +1654,7 @@
             "ref": "first 16 bytes of Genesis.dll export @geCamera_SetWorldSpaceXForm@8"
           },
           "ghidra": "fastcall ECX=camera, EDX=const geXForm3d* (9 floats AX..CZ + translation); copies it to camera+0xD0 and derives the camera-space transform. Exe: called once per frame from 0x0049217E (sim side; none while paused). Live: set at RenderFrame entry it is overwritten before the world render; set inside geEngine_RenderWorld on the passed camera it shows (docs/evidence/freecam p2-p5)",
-          "note": "camera service: free-camera override, applied from gfx's RenderWorld detour"
+          "note": "camera service: hooked (group camera_pose) -- the world-transform override applies to every native camera set, not only from gfx's RenderWorld detour"
         },
         "genesis.camera_get_world_xform": {
           "module": "genesis",
@@ -2031,8 +2031,8 @@
             "bytes": "56 8B 74 24 08 EB 10 56 E8 E1 56 01 00 85 C0 59",
             "ref": "first 16 bytes of the native menu function"
           },
-          "ghidra": "Native menu/widget call traced at 0x4a5a84; see docs/evidence/recordings/README.md",
-          "note": "menu service: allocate"
+          "ghidra": "operator_new 0x004A5A84: cdecl(size), plain RET (malloc loop + new_handler); callers PUSH 0x378/0x2c then ADD ESP,4 (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: operator new for a page (0x2c) and rows (0x378)"
         },
         "menu.array_resize": {
           "module": "exe",
@@ -2045,8 +2045,8 @@
             "bytes": "56 8B F1 8B 46 04 57 8B 7C 24 0C 3B F8 0F 84 7E",
             "ref": "first 16 bytes of the native menu function"
           },
-          "ghidra": "Native menu/widget call traced at 0x43b6e0; see docs/evidence/recordings/README.md",
-          "note": "menu service: array resize"
+          "ghidra": "SArrayPtr::SetCount 0x0043B6E0: thiscall(n), RET 4; data +0, count +4; grows zero-filled. The Title ctor 0x0042F670 calls it then writes data[i] (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: append a screen or widget pointer (SetCount(n+1), data[n] = p)"
         },
         "menu.text_set": {
           "module": "exe",
@@ -2059,8 +2059,8 @@
             "bytes": "6A FF 68 9A 3D 4D 00 64 A1 00 00 00 00 50 64 89",
             "ref": "first 16 bytes of the native menu function"
           },
-          "ghidra": "Native menu/widget call traced at 0x48c780; see docs/evidence/recordings/README.md",
-          "note": "menu service: text set"
+          "ghidra": "RichTextLabel::SetText 0x0048C780: thiscall(String text by value -- consumed, released on exit; const RECT* -> +0xD0..+0xDC; int hAlign +0xE0 (1 centre, 2 right); int vAlign +0xE4), RET 0x10, returns void. Caller 0x0042F3F1 (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: set a row label's text (a fresh String from str.from_cstr, consumed); also hooked by textdraw (hint.text_widget, the same function)"
         },
         "menu.row_construct": {
           "module": "exe",
@@ -2073,8 +2073,8 @@
             "bytes": "6A FF 68 0D E5 4C 00 64 A1 00 00 00 00 50 64 89",
             "ref": "first 16 bytes of the native menu function"
           },
-          "ghidra": "Native menu/widget call traced at 0x4368f0; see docs/evidence/recordings/README.md",
-          "note": "menu service: row construct"
+          "ghidra": "MenuWidget_ListRow::Construct 0x004368F0 (vtbl 0x004E0868): thiscall(owner, cmdId, const RECT*), RET 0xC; its only caller 0x004301B9 after PUSH 0x378; operator_new (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: construct a list row (labels +0x4C/+0x150, sprite +0x254)"
         },
         "menu.font_frame": {
           "module": "exe",
@@ -2087,8 +2087,8 @@
             "bytes": "8B 44 24 04 56 8D 71 04 56 89 06 E8 A0 FF FF FF",
             "ref": "first 16 bytes of the native menu function"
           },
-          "ghidra": "Native menu/widget call traced at 0x47d300; see docs/evidence/recordings/README.md",
-          "note": "menu service: font frame"
+          "ghidra": "HudAnimQuad::PlayFrom 0x0047D300: thiscall(frame), RET 4; LEA ESI,[ECX+4]; MOV [ESI],EAX (frame +4, next +8, start time +0x14). ListRow OnFocus/OnBlur 0x004367F3 call it with 1/0 on the label's +0xEC anim (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: hover-highlight frame for the selected tab"
         },
         "menu.go": {
           "module": "exe",
@@ -2101,8 +2101,8 @@
             "bytes": "53 8B 5C 24 08 85 DB 56 8B F1 7C 64 3B 9E 5C 01",
             "ref": "first 16 bytes of the native menu function"
           },
-          "ghidra": "Native menu/widget call traced at 0x42d3e0; see docs/evidence/recordings/README.md",
-          "note": "menu service: go"
+          "ghidra": "MenuManager::GotoScreen 0x0042D3E0: thiscall(index), RET 4; old->vtbl[0](0), current +0x10 = pages[index], new->vtbl[0](1), PushNavStack; bounds-checked against pages count +0x15C (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: show the Recordings page / the title screen"
         },
         "menu.back": {
           "module": "exe",
@@ -2115,8 +2115,8 @@
             "bytes": "83 41 3C FE 79 07 C7 41 3C 00 00 00 00 8B 41 3C",
             "ref": "first 16 bytes of the native menu function"
           },
-          "ghidra": "Native menu/widget call traced at 0x42d460; see docs/evidence/recordings/README.md",
-          "note": "menu service: back"
+          "ghidra": "MenuManager::GoBack 0x0042D460: ECX only, plain RET; depth +0x3C -= 2 (clamped at 0), then GotoScreen(navStack[+0x14 + depth*4]) (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: leave the Recordings page"
         },
         "menu.page_draw": {
           "module": "exe",
@@ -2129,8 +2129,8 @@
             "bytes": "56 8B F1 8B 56 04 85 D2 57 8B 3D 38 C0 4D 00 74",
             "ref": "first 16 bytes of the native menu function"
           },
-          "ghidra": "Native menu/widget call traced at 0x435d80; see docs/evidence/recordings/README.md",
-          "note": "menu service: page draw"
+          "ghidra": "MenuScreen::Draw 0x00435D80, base vtbl[3] (0x004E084C): thiscall, plain RET; background bitmaps +4 / +8 (at x+0xDC), then DrawWidgets 0x00435CB0 (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: the Recordings page's base draw"
         },
         "menu.text_draw": {
           "module": "exe",
@@ -2143,8 +2143,8 @@
             "bytes": "55 8B EC 83 E4 F8 83 EC 48 A1 78 3A 50 00 53 55",
             "ref": "first 16 bytes of the native menu function"
           },
-          "ghidra": "Native menu/widget call traced at 0x48b7c0; see docs/evidence/recordings/README.md",
-          "note": "menu service: text draw"
+          "ghidra": "RichTextLabel::Render 0x0048B7C0: ECX only; returns at once if label+0x10 == 0; MenuScreen_Title::Draw calls it with ECX = this+0x50 (0x0042F120) (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: draw a detached label"
         },
         "menu.page_construct": {
           "module": "exe",
@@ -2157,8 +2157,8 @@
             "bytes": "6A FF 68 9B E4 4C 00 64 A1 00 00 00 00 50 64 89",
             "ref": "first 16 bytes of the native menu function"
           },
-          "ghidra": "Native menu/widget call traced at 0x436630; see docs/evidence/recordings/README.md",
-          "note": "menu service: page construct"
+          "ghidra": "MenuScreen::Construct 0x00436630 (vtbl 0x004E0840): thiscall(manager, bgA, bgB), RET 0xC; +0x28 = manager, +4/+8 = background bitmaps bgA/bgB. (0xB, 0x11) are MenuScreen_List's (0x00432BB0, screen 4) (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: construct the Recordings page with MenuScreen_List's backgrounds (11, 17)"
         },
         "menu.page_setup": {
           "module": "exe",
@@ -2171,8 +2171,8 @@
             "bytes": "6A FF 68 B8 E4 4C 00 64 A1 00 00 00 00 50 64 89",
             "ref": "first 16 bytes of the native menu function"
           },
-          "ghidra": "Native menu/widget call traced at 0x4366d0; see docs/evidence/recordings/README.md",
-          "note": "menu service: page setup"
+          "ghidra": "MenuScreen::AddStandardButton 0x004366D0: thiscall(cmdId), RET 4; one glow button {cmdId, bitmap 0x65}; MenuScreen_List calls it with 0 right after Construct(0xB, 0x11) (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: the page's standard Back button (command 0, handled by the page's button callback)"
         },
         "menu.select_stage": {
           "module": "exe",
@@ -2185,8 +2185,8 @@
             "bytes": "6A FF 64 A1 00 00 00 00 68 10 DE 4C 00 50 8B 44",
             "ref": "first 16 bytes of the native menu function"
           },
-          "ghidra": "Native menu/widget call traced at 0x42f280; see docs/evidence/recordings/README.md",
-          "note": "menu service: select stage"
+          "ghidra": "MenuScreen_Title::SelectLevel 0x0042F280 (Ghidra label still FindFirstPlayableLevel): bool thiscall(levelId), RET 4; LevelManager::FindByIndex(GameSession+0x6AC) matches TLevelInfo+0x18; false = unchanged; else this+0x2C = id, briefing bitmap, labels +0x50/+0x154 (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: restore the briefing's level (the id read from menu.f_stage)"
         },
         "menu.title_draw": {
           "module": "exe",
@@ -2199,169 +2199,169 @@
             "bytes": "83 EC 28 53 56 8B F1 8B 46 2C 8B 0D AC 2A 50 00",
             "ref": "first 16 bytes of the native menu function"
           },
-          "ghidra": "Native menu/widget call traced at 0x42eea0; see docs/evidence/recordings/README.md",
-          "note": "menu service: title draw"
+          "ghidra": "MenuScreen_Title::Draw 0x0042EEA0, vtbl[3] of MenuScreen_Title (vtbl 0x004DFD14; DATA ref 0x004DFD20): thiscall, plain RET; recomputes the buttons' enabled bytes, base Draw 0x00435D80, labels +0x50/+0x154 (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: hooked (group menu) to add the Recordings button and swap the title screen's button handler; always calls the original"
         },
         "menu.f_vtable": {
           "module": "field",
           "rva": "0x0",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: vtable"
+          "ghidra": "MenuScreen +0: vtable; Construct 0x00436649 MOV [ESI],0x4E0840; GotoScreen 0x0042D442 CALL [EDX] (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: a screen's vtable pointer"
         },
         "menu.f_id": {
           "module": "field",
           "rva": "0x4",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: id"
+          "ghidra": "MenuWidget +4 commandId: Construct 0x004357E7 MOV [EAX+0x4],EDX; click 0x00435799 passes it to owner->vtbl[1] (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: a row's command id"
         },
         "menu.f_rect": {
           "module": "field",
           "rva": "0x8",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: rect"
+          "ghidra": "MenuWidget +8..+0x14 rect L,T,R,B: Construct 0x004357EA..0x004357FE (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: a row's rectangle"
         },
         "menu.f_visible": {
           "module": "field",
           "rva": "0x1c",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: visible"
+          "ghidra": "MenuWidget +0x1C draw-gate byte: Construct 0x00435801 MOV byte [EAX+0x1C],1; DrawWidgets 0x00435D15 skips the widget when 0 (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: show/hide a row"
         },
         "menu.f_children": {
           "module": "field",
           "rva": "0x10",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: children"
+          "ghidra": "MenuScreen +0x10/+0x14 widget SArrayPtr data/count: Construct 0x00436664; DrawWidgets 0x00435D0F MOV ECX,[EBX+0x10] (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: a screen's widget array"
         },
         "menu.f_title_manager": {
           "module": "field",
           "rva": "0x28",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: title manager"
+          "ghidra": "MenuScreen +0x28 MenuManager back-pointer: Construct 0x00436678 MOV [ESI+0x28],EAX; click 0x00435786 (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: the MenuManager, from the title screen"
         },
         "menu.f_stage": {
           "module": "field",
           "rva": "0x2c",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: stage"
+          "ghidra": "MenuScreen_Title +0x2C selected level id: SelectLevel 0x0042F2D4 MOV [EBP+0x2C],ECX (= TLevelInfo+0x18) (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: the briefing's level id"
         },
         "menu.f_active": {
           "module": "field",
           "rva": "0x10",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: active"
+          "ghidra": "MenuManager +0x10 active MenuScreen*: GotoScreen 0x0042D408 / 0x0042D43D MOV [ESI+0x10],ECX; Init 0x0042E7FE (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: is the Recordings page shown"
         },
         "menu.f_previous": {
           "module": "field",
           "rva": "0x14",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: previous"
+          "ghidra": "MenuManager +0x14 nav stack slot 0 (screen indices): PushNavStack 0x0042CF1C MOV [ECX+EAX*4+0x14],EDX; GoBack 0x0042D470 (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: Back from the page goes to screen 2 (title)"
         },
         "menu.f_history": {
           "module": "field",
           "rva": "0x3c",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: history"
+          "ghidra": "MenuManager +0x3C nav stack depth (max 10; boot {9}, depth 1): PushNavStack 0x0042CF10/0x0042CF20; GoBack 0x0042D460 ADD [ECX+0x3C],-2 (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: nav depth 1 under the page"
         },
         "menu.f_pages": {
           "module": "field",
           "rva": "0x158",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: pages"
+          "ghidra": "MenuManager +0x158 SArrayPtr of 10 screens (count +0x15C): Init 0x0042E094 LEA ESI,[EBP+0x158] + SetCount up to 10; GotoScreen 0x0042D3EC bounds check (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: the screen list the page is appended to (as index 10)"
         },
         "menu.f_count": {
           "module": "field",
           "rva": "0x4",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: count"
+          "ghidra": "SArrayPtr +4 count (data +0, capacity +8): SetCount 0x0043B6E0 (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: an SArrayPtr's count"
         },
         "menu.f_page_size": {
           "module": "field",
           "rva": "0x2c",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: page size"
+          "ghidra": "sizeof(MenuScreen) base = 0x2C: Init PUSH 0x2C; CALL operator_new at 0x0042E29D / 0x0042E66D / 0x0042E72D (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: allocation size of the Recordings page"
         },
         "menu.f_row_size": {
           "module": "field",
           "rva": "0x378",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: row size"
+          "ghidra": "sizeof(MenuWidget_ListRow) = 0x378: 0x00430175 PUSH 0x378; CALL operator_new, then the ctor at 0x004301B9 (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: allocation size of a row"
         },
         "menu.f_row_flag": {
           "module": "field",
           "rva": "0x355",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: row flag"
+          "ghidra": "ListRow +0x355 = row Sprite (+0x254) +0x101, the sprite's visible byte: Sprite::Render 0x0047DF16 TEST [ESI+0x101]; rewritten from anim+0x30 when the sprite is animated (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: hide the row's background sprite (cleared)"
         },
         "menu.f_row_style": {
           "module": "field",
           "rva": "0x160",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: row style"
+          "ghidra": "ListRow +0x160 = second RichTextLabel (+0x150) +0x10, the label's visible byte: Render 0x0048B7C0 returns when it is 0 (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: hide the row's second text column (cleared)"
         },
         "menu.f_text": {
           "module": "field",
           "rva": "0x4c",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: text"
+          "ghidra": "ListRow +0x4C first RichTextLabel: ctor 0x0043699C LEA EBP,[ESI+0x4C]; Draw 0x00436783 renders it (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: a row's label"
         },
         "menu.f_text_scale_x": {
           "module": "field",
           "rva": "0x144",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: text scale x"
+          "ghidra": "ListRow +0x144 = label (+0x4C) +0xF8 float glyph scale x: DrawGlyphQuad 0x0048AF10 FMUL [ESI+0xF8] (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: text scale (keeps the row's font atlas)"
         },
         "menu.f_text_scale_y": {
           "module": "field",
           "rva": "0x148",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: text scale y"
+          "ghidra": "ListRow +0x148 = label (+0x4C) +0xFC float glyph scale y: DrawGlyphQuad 0x0048AF32 FMUL [ESI+0xFC] (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: text scale (keeps the row's font atlas)"
         },
         "menu.f_font": {
           "module": "field",
           "rva": "0x138",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: font"
+          "ghidra": "ListRow +0x138 = label (+0x4C) +0xEC highlight animation: ctor 0x004369F3; OnFocus 0x004367F3 PlayFrom(1), OnBlur PlayFrom(0) (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: the tab's highlight animation"
         },
         "menu.f_font_frame": {
           "module": "field",
           "rva": "0x4",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: font frame"
+          "ghidra": "HudAnimQuad +4 current frame: PlayFrom 0x0047D305 LEA ESI,[ECX+4]; MOV [ESI],EAX (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: is the highlight frame (1) shown"
         },
         "menu.f_vtable_button": {
           "module": "field",
           "rva": "0x4",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: vtable button"
+          "ghidra": "MenuScreen vtbl +4 = OnButtonActivate(cmdId): click 0x004357A3 JMP [EDX+0x4] with the widget's commandId (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: the page's and title screen's button handler slot"
         },
         "menu.f_vtable_draw": {
           "module": "field",
           "rva": "0xc",
           "type": "u32",
-          "ghidra": "Native menu/widget layout; see docs/evidence/recordings/README.md",
-          "note": "menu service: vtable draw"
+          "ghidra": "MenuScreen vtbl +0xC = Draw: base 0x004E084C -> 0x00435D80; Title 0x004DFD20 -> 0x0042EEA0 (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "note": "menu service: the page's draw slot"
         }
       },
       "classify": {
