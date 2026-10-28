@@ -418,7 +418,7 @@ void Button(int id) {
         Return();
         return;
     }
-    if (id == 999)
+    if (id == menu::kInertRow)
         return;
     g_notice[0] = 0;
     if ((id == 19 || id == 21) && g_view == LIST) {
@@ -558,6 +558,6 @@ void Restore() {
     g_page = g_savedPage;
     g_notice[0] = 0;
     Order();
-    menu::Restore();
+    menu::ReturnFromLevel();
 }
 } // namespace fdcore::replay::browser

@@ -434,17 +434,7 @@ void CompleteViewerExit() {
     gfx::ClearWorldSubmissions();
     ClearAll();
     textdraw::Show(g_viewPanel, false);
-    if (openMenu) {
-        uintptr_t sessionSlot = 0, session = 0;
-        if (state::Current().gameState == 1 && addr::Resolve(addr::Id::game_session, &sessionSlot) &&
-            addr::SafeRead(sessionSlot, &session, sizeof(session)) && session && addr::Usable(addr::Id::session_on_key)) {
-            using Key = void(__thiscall*)(void*, int, int);
-            const auto key = reinterpret_cast<Key>(addr::ExportAddress(addr::Id::session_on_key));
-            key(reinterpret_cast<void*>(session), VK_ESCAPE, 1);
-            key(reinterpret_cast<void*>(session), VK_ESCAPE, 0);
-        }
-        browser::Restore();
-    }
+    if (openMenu) browser::Restore();  // leaves the level and shows the Recordings list (menu service)
     log::Info("viewer: ended; menu=%d", openMenu);
 }
 

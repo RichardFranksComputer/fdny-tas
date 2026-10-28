@@ -5,10 +5,18 @@
 #include "console.h"
 #include "hooks.h"
 #include "log.h"
+#include "state.h"
 namespace fdcore::menu {
 namespace {
 using Byte = unsigned char;
 using addr::Id;
+// The game's menu, verified in Ghidra (docs/evidence/recordings/README.md, "The native menu").
+constexpr int kTitleScreen = 2;        // MenuManager screen index of the title/briefing screen
+constexpr int kNativeScreens = 10;     // screens MenuManager::Init builds; the page is appended as the 11th
+constexpr int kListBackgroundA = 0xB;  // MenuScreen_List's background bitmaps (MenuScreen::Construct)
+constexpr int kListBackgroundB = 0x11;
+constexpr int kBackCommand = 0;        // AddStandardButton's command: the page's Back button
+constexpr int kPageButton = 900;       // the briefing's Recordings button (outside the game's command ids)
 using DrawFn = void(__thiscall*)(void*);
 using ButtonFn = void(__thiscall*)(void*, int);
 DrawFn g_titleDraw;
@@ -127,11 +135,21 @@ void LaunchStage() {
     Close();
     g_titleButton(g_title, 0);
 }
-void Restore() {
+void ReturnFromLevel() {
+    // Leave the level the page launched the game's own way: Escape down/up through
+    // GameSession::OnKey (it opens the game's menu, which the page then replaces).
+    uintptr_t slot = 0, session = 0;
+    if (state::Current().gameState == 1 && addr::Usable(Id::session_on_key) && addr::Resolve(Id::game_session, &slot) &&
+        addr::SafeRead(slot, &session, sizeof(session)) && session) {
+        const auto key = Fn<void(__thiscall*)(void*, int, int)>(addr::ExportAddress(Id::session_on_key));
+        key(reinterpret_cast<void*>(session), VK_ESCAPE, 1);
+        key(reinterpret_cast<void*>(session), VK_ESCAPE, 0);
+    }
     if (!g_title || !g_manager || !g_pageReady)
-        return;
-    Go(2);
-    Field<int>(g_manager, addr::Field(Id::menu_f_previous)) = 2;
+        return;  // not launched from the page (fd_replay_view): the game's own menu stays
+    // The briefing under the page, as if the player had come from it: Back returns there.
+    Go(kTitleScreen);
+    Field<int>(g_manager, addr::Field(Id::menu_f_previous)) = kTitleScreen;
     Field<int>(g_manager, addr::Field(Id::menu_f_history)) = 1;
     Fn<void(__thiscall*)(void*, int)>(addr::ExportAddress(Id::menu_select_stage))(g_title, g_selectedStage);
     Go(g_listIndex);
@@ -156,25 +174,25 @@ bool CreateList() {
     if (g_list)
         return g_pageReady;
     const unsigned pages = addr::Field(Id::menu_f_pages);
-    if (Field<int>(g_manager, pages + addr::Field(Id::menu_f_count)) != 10) {
+    if (Field<int>(g_manager, pages + addr::Field(Id::menu_f_count)) != kNativeScreens) {
         log::Warn("menu: unexpected native page count");
         return false;
     }
     g_list = Allocate(addr::Field(Id::menu_f_page_size));
     if (!g_list)
         return false;
-    Fn<void*(__thiscall*)(void*, void*, int, int)>(addr::ExportAddress(Id::menu_page_construct))(g_list, g_manager, 11,
-                                                                                                 17);
+    Fn<void*(__thiscall*)(void*, void*, int, int)>(addr::ExportAddress(Id::menu_page_construct))(g_list, g_manager, kListBackgroundA,
+                                                                                                 kListBackgroundB);
     auto* v = Field<uintptr_t*>(g_list, addr::Field(Id::menu_f_vtable));
     for (int i = 0; i < 8; ++i)
         g_listVtable[i] = v[i];
     g_listVtable[addr::Field(Id::menu_f_vtable_button) / sizeof(uintptr_t)] = reinterpret_cast<uintptr_t>(&ListButton);
     g_listVtable[addr::Field(Id::menu_f_vtable_draw) / sizeof(uintptr_t)] = reinterpret_cast<uintptr_t>(&ListDraw);
     Field<uintptr_t*>(g_list, addr::Field(Id::menu_f_vtable)) = g_listVtable;
-    Fn<void(__thiscall*)(void*, int)>(addr::ExportAddress(Id::menu_page_setup))(g_list, 0);
+    Fn<void(__thiscall*)(void*, int)>(addr::ExportAddress(Id::menu_page_setup))(g_list, kBackCommand);
     for (int i = 0; i < kRows; ++i) {
-        g_rows[i] = Row(g_list, 999, {230, 620, 60, 90}, "");
-        g_labels[i] = Row(g_list, 999, {230, 620, 60, 90}, "", false);
+        g_rows[i] = Row(g_list, kInertRow, {230, 620, 60, 90}, "");
+        g_labels[i] = Row(g_list, kInertRow, {230, 620, 60, 90}, "", false);
         if (!g_rows[i] || !g_labels[i])
             return false;
     }
@@ -184,7 +202,7 @@ bool CreateList() {
     return true;
 }
 void __fastcall TitleButton(void* screen, void*, int id) {
-    if (id == 900) {
+    if (id == kPageButton) {
         if (CreateList()) {
             g_selectedStage = SelectedStage();
             g_callbacks.open();
@@ -206,7 +224,7 @@ void __fastcall TitleDraw(void* screen, void*) {
         g_titleButton = Fn<ButtonFn>(v[button]);
         g_titleVtable[button] = reinterpret_cast<uintptr_t>(&TitleButton);
         Field<uintptr_t*>(screen, addr::Field(Id::menu_f_vtable)) = g_titleVtable;
-        g_button = Row(screen, 900, g_buttonRect, g_buttonTitle);
+        g_button = Row(screen, kPageButton, g_buttonRect, g_buttonTitle);
     }
     if (g_button)
         Field<Byte>(g_button, addr::Field(Id::menu_f_visible)) = SelectedStage() >= 0;
