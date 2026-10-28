@@ -21,8 +21,7 @@ input::Key g_keys[256];
 bool g_suppressUntilRelease[256];
 ActionHandler g_actions;
 LARGE_INTEGER g_frequency, g_last;
-HWND g_window;
-WNDPROC g_previousProc;
+bool g_messages;  // the window-message filter is registered (wheel and key messages)
 volatile LONG g_wheel;
 bool Down(int key) {
     return (GetAsyncKeyState(key) & 0x8000) != 0;
@@ -59,7 +58,8 @@ void Pose() {
     math::Build(g_pos, g_yaw, g_pitch, &x);
     camera::SetWorldOverride(&x);
 }
-LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM w, LPARAM l) {
+// The viewer's keys and wheel, from the window messages binds owns; true consumes it.
+bool Message(unsigned message, uintptr_t w, intptr_t l) {
     const bool keyDown = message == WM_KEYDOWN || message == WM_SYSKEYDOWN;
     const bool keyUp = message == WM_KEYUP || message == WM_SYSKEYUP;
     const bool altTab = w == VK_TAB && Down(VK_MENU);
@@ -68,16 +68,16 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM w, LPARAM l) {
             g_suppressUntilRelease[w] = false;
             g_keys[w].Release();
         }
-        return 0;
+        return true;
     }
     if (message == WM_CHAR) {
-        const WPARAM upper = w >= 'a' && w <= 'z' ? w - 'a' + 'A' : w;
+        const uintptr_t upper = w >= 'a' && w <= 'z' ? w - 'a' + 'A' : w;
         if (upper < 256 && g_suppressUntilRelease[upper])
-            return 0;
+            return true;
     }
     if (message == WM_MOUSEWHEEL && g_active && binds::KeysLive()) {
         InterlockedExchangeAdd(&g_wheel, static_cast<short>(HIWORD(w)));
-        return 0;
+        return true;
     }
     if (g_active && binds::KeysLive()) {
         // Keep Alt+Tab and the console key available to Windows/the native console.
@@ -88,57 +88,15 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM w, LPARAM l) {
                 g_keys[w].Release();
             if (w < 256)
                 g_suppressUntilRelease[w] = keyDown;
-            return 0;
+            return true;
         }
         if (message == WM_CHAR) {
-            const WPARAM upper = w >= 'a' && w <= 'z' ? w - 'a' + 'A' : w;
+            const uintptr_t upper = w >= 'a' && w <= 'z' ? w - 'a' + 'A' : w;
             if (ReservedKey(upper))
-                return 0;
+                return true;
         }
     }
-    return g_previousProc ? CallWindowProcA(g_previousProc, window, message, w, l)
-                          : DefWindowProcA(window, message, w, l);
-}
-struct WindowSearch {
-    HWND window;
-    LONG area;
-};
-BOOL CALLBACK FindOwnedWindow(HWND window, LPARAM parameter) {
-    DWORD pid = 0;
-    GetWindowThreadProcessId(window, &pid);
-    if (pid != GetCurrentProcessId() || !IsWindowVisible(window) || GetWindow(window, GW_OWNER))
-        return TRUE;
-    RECT rect;
-    if (!GetClientRect(window, &rect))
-        return TRUE;
-    const LONG width = rect.right - rect.left, height = rect.bottom - rect.top;
-    if (width <= 0 || height <= 0 || width > 32768 || height > 32768)
-        return TRUE;
-    auto* found = reinterpret_cast<WindowSearch*>(parameter);
-    const LONG area = width * height;
-    if (area > found->area) {
-        found->window = window;
-        found->area = area;
-    }
-    return TRUE;
-}
-void HookWheel() {
-    if (g_previousProc && IsWindow(g_window))
-        return;
-    g_previousProc = nullptr;
-    g_window = nullptr;
-    WindowSearch search = {};
-    EnumWindows(FindOwnedWindow, reinterpret_cast<LPARAM>(&search));
-    if (!search.window)
-        return;
-    SetLastError(0);
-    auto previous = reinterpret_cast<WNDPROC>(
-        SetWindowLongPtrA(search.window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&WindowProc)));
-    if (previous) {
-        g_window = search.window;
-        g_previousProc = previous;
-    } else
-        log::Warn("spectator: wheel capture unavailable (%lu); PageUp/PageDown still zoom", GetLastError());
+    return false;
 }
 void Frame() {
     if (!g_active)
@@ -242,6 +200,9 @@ bool Init() {
         log::Warn("spectator: modal input capture unavailable");
         return false;
     }
+    g_messages = binds::OnWindowMessage(Message);
+    if (!g_messages)
+        log::Warn("spectator: no window-message slot; wheel zoom unavailable (PageUp/PageDown still zoom)");
     hooks::OnFrameBegin(Frame);
     hooks::OnLevelLoad(Level);
     g_ready = true;
@@ -252,7 +213,7 @@ bool Init() {
                   "owns_pause=%d",
                   g_active, g_free, g_followed, g_count, static_cast<long>(g_distance), static_cast<long>(g_yaw),
                   static_cast<long>(g_pitch), static_cast<long>(g_pos[0]), static_cast<long>(g_pos[1]),
-                  static_cast<long>(g_pos[2]), g_previousProc != nullptr, g_ownsPause);
+                  static_cast<long>(g_pos[2]), g_messages, g_ownsPause);
     });
 #endif
     log::Info("spectator: ready (modal follow/free camera)");
@@ -270,7 +231,6 @@ bool Prepare() {
     const Target& target = g_targets[g_followed];
     g_yaw = math::Yaw(target.forward[0], target.forward[2]);
     math::Orbit(target.pos, g_yaw, g_pitch, g_distance, g_pos);
-    HookWheel();
     return pause::Prepare();
 }
 void PrimeCamera() {
@@ -314,7 +274,6 @@ bool Start() {
         g_keys[key].Reset(Down(key));
     InterlockedExchange(&g_wheel, 0);
     QueryPerformanceCounter(&g_last);
-    HookWheel();
     Pose();
     log::Info("spectator: following target %d (%d loaded)", g_followed, g_count);
     return true;

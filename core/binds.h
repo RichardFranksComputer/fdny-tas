@@ -1,6 +1,8 @@
 // Key binds: `bind <key> <command>` runs a console line when a key is pressed
-// in-game (console closed, game window focused). Game keys aren't swallowed.
+// in a level (console closed, game window focused; D58). Game keys aren't swallowed.
+// Also the one owner of the game window's messages (OnWindowMessage).
 #pragma once
+#include <stdint.h>
 
 namespace fdcore::binds {
 
@@ -26,9 +28,16 @@ bool DefaultAt(int i, const char** key, const char** line);
 int DescribedCount();
 bool DescribedAt(int i, const char** key, const char** action, const char** when);
 
-// True when in-game keys should act: the game window has focus and the console
-// is closed (the rule binds use; also used by the warp HUD's B/Z/X keys).
+// True when in-game keys should act: a level is loaded, the game window has focus and
+// the console is closed (the rule binds use; also used by the warp HUD's B/Z/X keys).
 bool KeysLive();
+
+// The game window's messages before the game sees them: binds subclasses the window once
+// (on the next frame after the first filter) and offers each message to the filters in
+// registration order; a filter returns true to consume it. Menus and modal tools read
+// keys, typing and the wheel here (D58). Up to 4 filters; false when full.
+using MessageFilter = bool (*)(unsigned message, uintptr_t wparam, intptr_t lparam);
+bool OnWindowMessage(MessageFilter filter);
 
 // A modal tool may reserve keys from ordinary binds and free-camera movement.
 // The filter must include its own active-state check. Null releases the capture.

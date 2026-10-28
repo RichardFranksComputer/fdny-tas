@@ -174,10 +174,55 @@ bool ConsoleOpen() {
 
 bool KeysLive_() { return state::Current().gameState == 1 && OurWindowFocused() && !ConsoleOpen(); }
 
+// The game window's messages (OnWindowMessage): one subclass, installed from Poll.
+MessageFilter g_msgFilters[4];
+int g_nMsgFilters = 0;
+HWND g_window = nullptr;
+WNDPROC g_gameProc = nullptr;
+
+LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM w, LPARAM l) {
+    for (int i = 0; i < g_nMsgFilters; ++i)
+        if (g_msgFilters[i](message, w, l)) return 0;
+    return CallWindowProcA(g_gameProc, window, message, w, l);
+}
+
+// The game's main window: our process's largest visible top-level window without an owner
+// (the console and message boxes are smaller or owned).
+BOOL CALLBACK FindGameWindow(HWND window, LPARAM found) {
+    DWORD pid = 0;
+    GetWindowThreadProcessId(window, &pid);
+    RECT r;
+    if (pid != GetCurrentProcessId() || !IsWindowVisible(window) || GetWindow(window, GW_OWNER) ||
+        !GetClientRect(window, &r))
+        return TRUE;
+    auto* best = reinterpret_cast<HWND*>(found);
+    RECT b = {};
+    if (!*best || (GetClientRect(*best, &b) && r.right * r.bottom > b.right * b.bottom)) *best = window;
+    return TRUE;
+}
+
+void InstallWindowProc() {
+    if (!g_nMsgFilters || (g_window && IsWindow(g_window))) return;
+    g_window = nullptr;
+    HWND found = nullptr;
+    EnumWindows(FindGameWindow, reinterpret_cast<LPARAM>(&found));
+    if (!found) return;
+    auto previous = reinterpret_cast<WNDPROC>(
+        SetWindowLongPtrA(found, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&WindowProc)));
+    if (!previous) {
+        static bool warned = false;
+        if (!warned) log::Warn("binds: window messages unavailable (%lu)", GetLastError()), warned = true;
+        return;
+    }
+    g_window = found, g_gameProc = previous;
+    log::Info("binds: window messages from %p (%d filter(s))", found, g_nMsgFilters);
+}
+
 // Edge-triggered on key press. Ignored while the console is open (keys are
 // typing there) or another window has focus; key state is still tracked so
 // closing the console doesn't fire keys that were held.
 void Poll() {
+    InstallWindowProc();
     const bool live = KeysLive_();
     for (int vk = 1; vk < kVkCount; ++vk) {
         if (!g_binds[vk][0]) continue;
@@ -195,6 +240,12 @@ void Poll() {
 } // namespace
 
 bool KeysLive() { return KeysLive_(); }
+bool OnWindowMessage(MessageFilter filter) {
+    if (!filter) return false;
+    for (int i = 0; i < g_nMsgFilters; ++i) if (g_msgFilters[i] == filter) return true;
+    if (g_nMsgFilters >= 4) return false;
+    g_msgFilters[g_nMsgFilters++] = filter; return true;
+}
 void SetPointerCapture(bool (*filter)()) { g_pointerCapture = filter; }
 bool PointerCaptured() {
     if (g_pointerCapture && g_pointerCapture()) return true;

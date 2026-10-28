@@ -1,6 +1,7 @@
 #include "menu.h"
 #include <windows.h>
 #include "addr.h"
+#include "binds.h"
 #include "console.h"
 #include "hooks.h"
 #include "log.h"
@@ -33,8 +34,6 @@ struct RowCache {
 };
 RowCache g_cache[kRows], g_labelCache[kRows];
 bool g_tabSelected[kRows];
-HWND g_window;
-WNDPROC g_wndproc;
 template <class T> T& Field(void* p, unsigned o) { return *reinterpret_cast<T*>(static_cast<Byte*>(p) + o); }
 template <class T> T Fn(uintptr_t a) { return reinterpret_cast<T>(a); }
 void* Allocate(unsigned n) {
@@ -138,34 +137,9 @@ void Restore() {
     Go(g_listIndex);
 }
 namespace {
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l) {
-    if (Active() && g_callbacks.input && g_callbacks.input(msg, w, l))
-        return 0;
-    return CallWindowProcA(g_wndproc, hwnd, msg, w, l);
-}
-BOOL CALLBACK FindWindow(HWND hwnd, LPARAM) {
-    DWORD pid = 0;
-    GetWindowThreadProcessId(hwnd, &pid);
-    RECT r;
-    if (pid == GetCurrentProcessId() && IsWindowVisible(hwnd) && GetClientRect(hwnd, &r) && r.right > 300 &&
-        r.bottom > 200) {
-        g_window = hwnd;
-        return FALSE;
-    }
-    return TRUE;
-}
-void CaptureWindow() {
-    if (g_window && g_wndproc)
-        return;
-    EnumWindows(FindWindow, 0);
-    if (g_window) {
-        auto p = reinterpret_cast<WNDPROC>(
-            SetWindowLongPtrA(g_window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&WindowProc)));
-        if (p)
-            g_wndproc = p;
-        else
-            g_window = nullptr;
-    }
+// The page's keys and typing, from the window messages binds owns (D58).
+bool Input(unsigned msg, uintptr_t w, intptr_t l) {
+    return Active() && g_callbacks.input && g_callbacks.input(msg, w, l);
 }
 void __fastcall ListButton(void*, void*, int id) { g_callbacks.button(id); }
 void __fastcall ListDraw(void* screen, void*) {
@@ -234,7 +208,6 @@ void __fastcall TitleDraw(void* screen, void*) {
         Field<uintptr_t*>(screen, addr::Field(Id::menu_f_vtable)) = g_titleVtable;
         g_button = Row(screen, 900, g_buttonRect, g_buttonTitle);
     }
-    CaptureWindow();
     if (g_button)
         Field<Byte>(g_button, addr::Field(Id::menu_f_visible)) = SelectedStage() >= 0;
     g_titleDraw(screen);
@@ -264,6 +237,8 @@ bool RegisterPage(const char* title, const Rect& button, const Callbacks& callba
         log::Warn("menu: native briefing hook unavailable");
         return false;
     }
+    if (callbacks.input && !binds::OnWindowMessage(Input))
+        log::Warn("menu: no window-message slot; the page's keys and typing are unavailable");
     g_registered = true;
     log::Info("menu: native page ready");
     return true;
