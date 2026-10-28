@@ -8,7 +8,7 @@
 
 **Fix:** clip on 1/z, both for strips (`EmitQuad`) and for box faces (`DrawBoxes`).
 
-**Repro:** probe `tests/game/probes/replay_straight.yaml` with `mbase_straight.jsonl`. It is a straight, 700-unit recording that starts 40 units behind the mbase spawn and runs along the view.
+**Repro:** probe `tests/game/probes/replay_straight.yaml` (deleted, D22; `git show cc1f700:tests/game/probes/replay_straight.yaml`) with `mbase_straight.jsonl`. It is a straight, 700-unit recording that starts 40 units behind the mbase spawn and runs along the view.
 
 `before_after.png`, left to right:
 1. Before: only the last stretch shows; the tick has no line under it.
