@@ -5,19 +5,16 @@
 // paused) and gives a free-flying camera until it is turned off; then the view snaps
 // back to the player. Nothing in the game moves while paused, so nothing is restored.
 //
-// The camera is FDNYCore's own position + yaw/pitch, handed to the `camera` service as a
-// world-transform override (applied at geEngine_RenderWorld, D34). Start pose: the game's
-// last camera transform. Genesis camera transforms: columns right / up / back, so the
-// view direction is -column 2 (geCamera_Project: forward depth = -z); yaw follows the
-// measured player convention (forward = (sin yaw, cos yaw) in world x, z; up = +y). The
-// rebuild error of the start pose against the game's own matrix is in the pipe.
-//
-// Each paused frame (frame begin, real time from QueryPerformanceCounter, not the paused
-// game clock): W/S along the view (pitch included), A/D strafe, E/Q straight up/down;
-// keys add, no acceleration; speed fd_freecam_speed (400 u/s, the run speed), Shift x4,
-// Ctrl x0.25. Mouse: the game's own per-frame sums (controls.mouse_x/y; DirectInput,
-// still polled while paused) x fd_freecam_sens degrees (0.075; owner: 0.15 was too fast); pitch kept within +-89. Keys only
-// act while binds::KeysLive (game focused, console closed). No collision.
+// The camera is the core `spectator` service's free mode (spectator::StartFree; one camera
+// implementation with the recordings viewer): it starts at the game's last view and flies
+// with W/S along the view (pitch included), A/D strafe, E/Q straight up/down at
+// fd_freecam_speed (400 u/s, the run speed; one speed in every direction), Shift x4, Ctrl
+// x0.25; the mouse looks at fd_freecam_sens degrees per count (0.075; owner: 0.15 was too
+// fast), pitch within +-89. It is not modal: binds stay live (P resumes) and keys or the
+// pointer another tool captures (the checkpoint editor) are left to it. Keys act only
+// while binds::KeysLive (game focused, console closed). No collision. This module owns the
+// pause, the fd_pause variable and the test measurements (the pipe), taken from the
+// service's pose each frame. Refused in a watched level (state::WatchOnly: the viewer).
 #include <windows.h>
 
 #include "addr.h"
@@ -29,95 +26,30 @@
 #include "log.h"
 #include "modules.h"
 #include "pause.h"
-#include "state.h"
 #include "spectator.h"
+#include "spectator_math.h"
+#include "state.h"
 #include "testpipe.h"
 
 namespace fdcore::freecam {
 namespace {
 
 using addr::Id;
+namespace math = spectator::math;
 
-constexpr float kDeg = 0.017453292f;
-constexpr float kPitchMax = 89.0f;
-constexpr float kMaxStep = 0.1f;  // s; a hitch never throws the camera far
-
-struct Cam {
-    float pos[3];
-    float yaw, pitch;  // degrees; yaw like player.f_yaw, pitch > 0 = up
-};
-Cam g_cam = {};
 bool g_flying = false;
-bool g_suspended = false;
 float g_rebuildErr = -1.0f;  // max |game - rebuilt| over the 9 rotation cells at the start
 float g_moved = 0.0f;        // camera distance flown this pause
-uint32_t g_keyMask = 0;      // keys seen last frame (pipe)
+spectator::State g_pose = {};  // the camera last frame
 // Test measurements since the last `freecam reset` (Debug pipe): time with a move key held,
 // distance flown then, the displacement, mouse turn; the first frame delta after a resume.
 float g_keyTime = 0.0f, g_segDist = 0.0f, g_segDisp[3] = {}, g_segFwd[3] = {}, g_turn = 0.0f;
 float g_start[3] = {};
 float g_resumeDt = -1.0f;
 bool g_wantResumeDt = false;
-LARGE_INTEGER g_freq, g_last;
 bool g_syncing = false;      // fd_pause set by the module itself
 
-float Sqrt(float x) {
-    float r;
-    __asm__("fsqrt" : "=t"(r) : "0"(x));
-    return r;
-}
-void SinCos(float deg, float* s, float* c) {
-    const float rad = deg * kDeg;
-    __asm__("fsincos" : "=t"(*c), "=u"(*s) : "0"(rad));
-}
-float Atan2Deg(float y, float x) {  // x87 fpatan: atan(y / x) with the quadrant
-    float r;
-    __asm__("fpatan" : "=t"(r) : "0"(x), "u"(y) : "st(1)");
-    return r / kDeg;
-}
 float Abs(float v) { return v < 0 ? -v : v; }
-
-// Rotation + translation of a camera at `c` (see the header for the axes).
-void Build(const Cam& c, camera::XForm* x) {
-    float sy, cy, sp, cp;
-    SinCos(c.yaw, &sy, &cy);
-    SinCos(c.pitch, &sp, &cp);
-    const float f[3] = {sy * cp, sp, cy * cp};  // forward
-    const float r[3] = {-cy, 0.0f, sy};         // strafe right (measured, yaw_probe.log)
-    const float u[3] = {r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]};  // r x f
-    for (int i = 0; i < 3; ++i) x->m[i * 3 + 0] = r[i], x->m[i * 3 + 1] = u[i], x->m[i * 3 + 2] = -f[i];
-    for (int i = 0; i < 3; ++i) x->t[i] = c.pos[i];
-}
-
-bool StartFlying() {
-    camera::XForm game;
-    if (!camera::LastWorldXForm(&game)) return false;
-    const float f[3] = {-game.m[2], -game.m[5], -game.m[8]};  // -column 2
-    g_cam.yaw = Atan2Deg(f[0], f[2]);
-    g_cam.pitch = Atan2Deg(f[1], Sqrt(f[0] * f[0] + f[2] * f[2]));
-    for (int i = 0; i < 3; ++i) g_cam.pos[i] = game.t[i], g_start[i] = game.t[i];
-    camera::XForm rebuilt;
-    Build(g_cam, &rebuilt);
-    g_rebuildErr = 0.0f;
-    for (int i = 0; i < 9; ++i)
-        if (const float d = Abs(rebuilt.m[i] - game.m[i]); d > g_rebuildErr) g_rebuildErr = d;
-    g_moved = 0.0f;
-    QueryPerformanceCounter(&g_last);
-    camera::SetWorldOverride(&rebuilt);
-    g_flying = true;
-    log::Info("freecam: flying from %ld %ld %ld, yaw %ld pitch %ld (rebuild error %ld/1000)",
-              static_cast<long>(g_cam.pos[0]), static_cast<long>(g_cam.pos[1]), static_cast<long>(g_cam.pos[2]),
-              static_cast<long>(g_cam.yaw), static_cast<long>(g_cam.pitch), static_cast<long>(g_rebuildErr * 1000));
-    return true;
-}
-
-void StopFlying() {
-    if (!g_flying) return;
-    g_wantResumeDt = true, g_resumeDt = -1.0f;
-    camera::SetWorldOverride(nullptr);
-    g_flying = false;
-    log::Info("freecam: camera back to the player (flew %ld u)", static_cast<long>(g_moved));
-}
 
 float CvarF(const cmd::Cvar& v, float def) {
     float sign = 1.0f, r = 0.0f, scale = 0.1f;
@@ -131,12 +63,44 @@ float CvarF(const cmd::Cvar& v, float def) {
 }
 
 void OnPause(cmd::Cvar& v);
+void OnFlight(cmd::Cvar&);
 cmd::Cvar g_fdPause = {"fd_pause", "0", "1 = freeze the game and fly a free camera (0 = resume, view back to the player)",
                        false, false, OnPause, {0}};
 cmd::Cvar g_fdSpeed = {"fd_freecam_speed", "400", "free camera speed in units/s (400 = the run speed); Shift x4, Ctrl x0.25", false, true,
-                       nullptr, {0}};
+                       OnFlight, {0}};
 cmd::Cvar g_fdSens = {"fd_freecam_sens", "0.075", "free camera mouse look in degrees per mouse count; higher = faster", false, true,
-                      nullptr, {0}};
+                      OnFlight, {0}};
+
+spectator::Flight Flight() { return {CvarF(g_fdSpeed, 400.0f), CvarF(g_fdSens, 0.075f), true}; }
+void OnFlight(cmd::Cvar&) {
+    if (g_flying) spectator::SetFlight(Flight());
+}
+
+bool StartFlying() {
+    camera::XForm game;
+    if (!camera::LastWorldXForm(&game) || !spectator::StartFree(Flight())) return false;
+    spectator::ReadState(&g_pose);
+    camera::XForm rebuilt;
+    math::Build(g_pose.pos, g_pose.yaw, g_pose.pitch, &rebuilt);
+    g_rebuildErr = 0.0f;
+    for (int i = 0; i < 9; ++i)
+        if (const float d = Abs(rebuilt.m[i] - game.m[i]); d > g_rebuildErr) g_rebuildErr = d;
+    for (int i = 0; i < 3; ++i) g_start[i] = g_pose.pos[i];
+    g_moved = 0.0f;
+    g_flying = true;
+    log::Info("freecam: flying from %ld %ld %ld, yaw %ld pitch %ld (rebuild error %ld/1000)",
+              static_cast<long>(g_pose.pos[0]), static_cast<long>(g_pose.pos[1]), static_cast<long>(g_pose.pos[2]),
+              static_cast<long>(g_pose.yaw), static_cast<long>(g_pose.pitch), static_cast<long>(g_rebuildErr * 1000));
+    return true;
+}
+
+void StopFlying() {
+    if (!g_flying) return;
+    g_wantResumeDt = true, g_resumeDt = -1.0f;
+    if (spectator::Active() && !spectator::Modal()) spectator::Stop();
+    g_flying = false;
+    log::Info("freecam: camera back to the player (flew %ld u)", static_cast<long>(g_moved));
+}
 
 void SetPauseVar(const char* v) {
     g_syncing = true;
@@ -146,8 +110,12 @@ void SetPauseVar(const char* v) {
 
 void OnPause(cmd::Cvar& v) {
     if (g_syncing) return;
-    if (spectator::Active()) { SetPauseVar("0"); return; }
     const bool on = v.value[0] != '0';
+    if (on && state::WatchOnly()) {
+        console::Print("fd_pause: not while watching a recording");
+        SetPauseVar("0");
+        return;
+    }
     if (on) {
         if (!pause::Set(true, "fd_pause")) {
             console::Print("fd_pause: only inside a level");
@@ -163,23 +131,15 @@ void OnPause(cmd::Cvar& v) {
 
 void CmdToggle(int, const char* const*) { cmd::SetCvar(&g_fdPause, g_fdPause.value[0] == '0' ? "1" : "0"); }
 
-bool Down(int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; }
-
+// After the spectator's own frame step (it subscribed first, from Init): follow the pause
+// and the camera, and measure the frame's flight for the pipe.
 void FrameBegin() {
-    // The modal viewer has taken the camera and pause. Do not clear its override
-    // through StopFlying; abandon only this feature's previous ownership.
-    if (spectator::Active()) {
-        if (g_flying) g_suspended = true;
-        g_flying = false; g_wantResumeDt = false;
+    // A watched level: the viewer has the camera (and keeps the pause); let both go.
+    if (state::WatchOnly()) {
+        if (g_flying) g_flying = false, log::Info("freecam: the recordings viewer took the camera");
+        if (g_fdPause.value[0] != '0') SetPauseVar("0");
+        g_wantResumeDt = false;
         return;
-    }
-    if (g_suspended) {
-        g_suspended = false;
-        if (pause::Active() && g_fdPause.value[0] != '0') {
-            camera::XForm saved;
-            Build(g_cam, &saved); camera::SetWorldOverride(&saved);
-            QueryPerformanceCounter(&g_last); g_flying = true;
-        }
     }
     // The service ends a pause on its own (level change, menu): follow it.
     if (!pause::Active()) {
@@ -192,65 +152,30 @@ void FrameBegin() {
         return;
     }
     if (!g_flying) return;
-    LARGE_INTEGER now;
-    QueryPerformanceCounter(&now);
-    float dt = static_cast<float>(static_cast<double>(now.QuadPart - g_last.QuadPart) / static_cast<double>(g_freq.QuadPart));
-    g_last = now;
-    if (dt > kMaxStep) dt = kMaxStep;
-    if (dt < 0) dt = 0;
-
-    // Mouse: this frame's sums from the game's own DirectInput poll.
-    int32_t mx = 0, my = 0;
-    addr::ReadI32(Id::controls_mouse_x, &mx);
-    addr::ReadI32(Id::controls_mouse_y, &my);
-    const float sens = CvarF(g_fdSens, 0.075f);
-    if (binds::KeysLive() && !binds::PointerCaptured()) {
-        // Yaw grows to the left (forward (sin, cos), right (-cos, sin)): mouse right = yaw down
-        // (owner 2026-10-22: left and right were swapped). g_turn counts degrees to the right.
-        g_turn += static_cast<float>(mx) * sens;
-        g_cam.yaw -= static_cast<float>(mx) * sens;
-        g_cam.pitch -= static_cast<float>(my) * sens;
+    spectator::State now;
+    spectator::ReadState(&now);
+    if (!now.active || now.modal) {  // ended by the service
+        g_flying = false;
+        return;
     }
-    if (g_cam.pitch > kPitchMax) g_cam.pitch = kPitchMax;
-    if (g_cam.pitch < -kPitchMax) g_cam.pitch = -kPitchMax;
-    while (g_cam.yaw >= 360.0f) g_cam.yaw -= 360.0f;
-    while (g_cam.yaw < 0.0f) g_cam.yaw += 360.0f;
-
-    // Keys: W/S along the view, A/D strafe, E/Q world up/down; added, then scaled.
-    float d[3] = {0, 0, 0};
-    uint32_t mask = 0;
-    if (binds::KeysLive()) {
+    float d[3];
+    for (int i = 0; i < 3; ++i) d[i] = now.pos[i] - g_pose.pos[i];
+    const float step = math::Sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+    float turn = g_pose.yaw - now.yaw;  // yaw grows to the left: a right turn lowers it
+    if (turn > 180.0f) turn -= 360.0f;
+    if (turn < -180.0f) turn += 360.0f;
+    g_turn += turn;
+    if (now.keys & 63) {
         float sy, cy, sp, cp;
-        SinCos(g_cam.yaw, &sy, &cy);
-        SinCos(g_cam.pitch, &sp, &cp);
-        const float f[3] = {sy * cp, sp, cy * cp}, r[3] = {-cy, 0.0f, sy};
-        const struct {
-            int vk;
-            const float* dir;
-            float sign;
-            uint32_t bit;
-        } keys[] = {{'W', f, 1, 1}, {'S', f, -1, 2}, {'D', r, 1, 4}, {'A', r, -1, 8}};
-        for (const auto& k : keys)
-            if (Down(k.vk) && !binds::KeyCaptured(k.vk))
-                for (int i = 0; i < 3; ++i) d[i] += k.dir[i] * k.sign, mask |= k.bit;
-        if (Down('E') && !binds::KeyCaptured('E')) d[1] += 1.0f, mask |= 16;
-        if (Down('Q') && !binds::KeyCaptured('Q')) d[1] -= 1.0f, mask |= 32;
-        float speed = CvarF(g_fdSpeed, 400.0f);
-        if (Down(VK_SHIFT)) speed *= 4.0f, mask |= 64;
-        if (Down(VK_CONTROL)) speed *= 0.25f, mask |= 128;
-        for (int i = 0; i < 3; ++i) d[i] *= speed * dt;
-        if (mask & 63) {
-            g_keyTime += dt;
-            for (int i = 0; i < 3; ++i) g_segDisp[i] += d[i], g_segFwd[i] = f[i];
-            g_segDist += Sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
-        }
+        math::SinCos(now.yaw, &sy, &cy);
+        math::SinCos(now.pitch, &sp, &cp);
+        const float f[3] = {sy * cp, sp, cy * cp};
+        g_keyTime += now.dt;
+        for (int i = 0; i < 3; ++i) g_segDisp[i] += d[i], g_segFwd[i] = f[i];
+        g_segDist += step;
     }
-    g_keyMask = mask;
-    g_moved += Sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
-    for (int i = 0; i < 3; ++i) g_cam.pos[i] += d[i];
-    camera::XForm x;
-    Build(g_cam, &x);
-    camera::SetWorldOverride(&x);
+    g_moved += step;
+    g_pose = now;
 }
 
 #ifdef FDCORE_DEBUG
@@ -297,7 +222,11 @@ bool Init() {
                   camera::WorldOverrideAvailable() ? "ok" : "unavailable");
         return false;
     }
-    QueryPerformanceFrequency(&g_freq);
+    // The camera service first: its frame step runs before this module's measurement.
+    if (!spectator::Init()) {
+        log::Warn("freecam: disabled (spectator camera unavailable)");
+        return false;
+    }
     cmd::RegisterCvar(&g_fdPause);
     cmd::RegisterCvar(&g_fdSpeed);
     cmd::RegisterCvar(&g_fdSens);
@@ -323,13 +252,13 @@ bool Init() {
         }
         // rate = distance / key time (u/s); along = displacement . last forward / |displacement|
         const float rate = g_keyTime > 0 ? g_segDist / g_keyTime : 0.0f;
-        const float dl = Sqrt(g_segDisp[0] * g_segDisp[0] + g_segDisp[1] * g_segDisp[1] + g_segDisp[2] * g_segDisp[2]);
+        const float dl = math::Sqrt(g_segDisp[0] * g_segDisp[0] + g_segDisp[1] * g_segDisp[1] + g_segDisp[2] * g_segDisp[2]);
         const float along = dl > 0 ? (g_segDisp[0] * g_segFwd[0] + g_segDisp[1] * g_segFwd[1] + g_segDisp[2] * g_segFwd[2]) / dl : 0.0f;
         camera::XForm gx;
         float gcd = -1.0f;
         if (camera::LastWorldXForm(&gx)) {
             const float e[3] = {gx.t[0] - g_start[0], gx.t[1] - g_start[1], gx.t[2] - g_start[2]};
-            gcd = Sqrt(e[0] * e[0] + e[1] * e[1] + e[2] * e[2]);
+            gcd = math::Sqrt(e[0] * e[0] + e[1] * e[1] + e[2] * e[2]);
         }
         const state::State& s = state::Current();
         uintptr_t pl = 0, slot = 0;
@@ -349,9 +278,9 @@ bool Init() {
                   "rebuild=%ld keytime=%ld rate=%ld along=%ld turn=%ld gamecam_dist=%ld resume_dt=%ld "
                   "px=%ld py=%ld pz=%ld vx=%ld vy=%ld vz=%ld burn=%ld o2=%ld time=%ld clock=%ld fires=%d "
                   "fire_c=%ld fire_i=%ld fire_m=%ld victims=%ld",
-                  pause::Active(), g_flying, static_cast<unsigned long>(pause::PausedFrames()), Tenths(g_cam.pos[0]),
-                  Tenths(g_cam.pos[1]), Tenths(g_cam.pos[2]), Tenths(g_cam.yaw), Tenths(g_cam.pitch), Tenths(g_moved),
-                  static_cast<unsigned long>(g_keyMask), static_cast<long>(g_rebuildErr * 1000),
+                  pause::Active(), g_flying, static_cast<unsigned long>(pause::PausedFrames()), Tenths(g_pose.pos[0]),
+                  Tenths(g_pose.pos[1]), Tenths(g_pose.pos[2]), Tenths(g_pose.yaw), Tenths(g_pose.pitch), Tenths(g_moved),
+                  static_cast<unsigned long>(g_flying ? g_pose.keys : 0), static_cast<long>(g_rebuildErr * 1000),
                   static_cast<long>(g_keyTime * 1000), Tenths(rate), static_cast<long>(along * 1000), Tenths(g_turn),
                   Tenths(gcd), static_cast<long>(g_resumeDt * 1000), Tenths(s.pos[0]), Tenths(s.pos[1]),
                   Tenths(s.pos[2]), Tenths(s.vel[0]), Tenths(s.vel[1]), Tenths(s.vel[2]), static_cast<long>(burn * 1000),

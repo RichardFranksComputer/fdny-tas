@@ -12,6 +12,12 @@ namespace fdcore::spectator {
 namespace {
 bool g_ready, g_active, g_free, g_pending, g_ownsPause;
 bool g_primed;
+bool g_modal;  // the viewer (Start); the free camera (StartFree) is not modal
+constexpr Flight kViewerFlight = {400, 0.15f, false};
+constexpr float kPitchMax = 89;
+Flight g_flight = kViewerFlight;
+float g_dt;
+unsigned g_keysHeld;
 Target g_targets[kMaxTargets];
 int g_count, g_followed;
 float g_pos[3], g_yaw, g_pitch = -15, g_distance = 240;
@@ -26,11 +32,12 @@ volatile LONG g_wheel;
 bool Down(int key) {
     return (GetAsyncKeyState(key) & 0x8000) != 0;
 }
+// Only the viewer takes the keys and the mouse from binds and other tools.
 bool CaptureKey(int) {
-    return g_active;
+    return g_active && g_modal;
 }
 bool CapturePointer() {
-    return g_active;
+    return g_active && g_modal;
 }
 void Emit(Action action) {
     if (g_actions)
@@ -59,6 +66,7 @@ void Pose() {
     camera::SetWorldOverride(&x);
 }
 // The viewer's keys and wheel, from the window messages binds owns; true consumes it.
+// The free camera reads key state only: its messages pass to binds and the game.
 bool Message(unsigned message, uintptr_t w, intptr_t l) {
     const bool keyDown = message == WM_KEYDOWN || message == WM_SYSKEYDOWN;
     const bool keyUp = message == WM_KEYUP || message == WM_SYSKEYUP;
@@ -75,11 +83,11 @@ bool Message(unsigned message, uintptr_t w, intptr_t l) {
         if (upper < 256 && g_suppressUntilRelease[upper])
             return true;
     }
-    if (message == WM_MOUSEWHEEL && g_active && binds::KeysLive()) {
+    if (message == WM_MOUSEWHEEL && g_active && g_modal && binds::KeysLive()) {
         InterlockedExchangeAdd(&g_wheel, static_cast<short>(HIWORD(w)));
         return true;
     }
-    if (g_active && binds::KeysLive()) {
+    if (g_active && g_modal && binds::KeysLive()) {
         // Keep Alt+Tab and the console key available to Windows/the native console.
         if ((keyDown || keyUp) && ReservedKey(w) && !altTab) {
             if (keyDown)
@@ -112,73 +120,87 @@ void Frame() {
                                   static_cast<double>(g_frequency.QuadPart));
     g_last = now;
     dt = math::Clamp(dt, 0, 0.1f);
+    g_dt = dt;
     const bool live = binds::KeysLive();
-    bool pressed[256] = {};
-    for (int key = 1; key < 256; ++key)
-        pressed[key] = g_keys[key].Poll(Down(key), live);
-    if (pressed['X'])
-        Emit(Action::ToggleXray);
-    if (pressed['F'])
-        SetFree(!g_free);
-    if (pressed[VK_TAB] && g_count > 1) {
-        for (int n = 1; n <= g_count; ++n) {
-            int i = (g_followed + n) % g_count;
-            if (g_targets[i].valid) {
-                Follow(i);
-                break;
+    if (g_modal) {
+        bool pressed[256] = {};
+        for (int key = 1; key < 256; ++key)
+            pressed[key] = g_keys[key].Poll(Down(key), live);
+        if (pressed['X'])
+            Emit(Action::ToggleXray);
+        if (pressed['F'])
+            SetFree(!g_free);
+        if (pressed[VK_TAB] && g_count > 1) {
+            for (int n = 1; n <= g_count; ++n) {
+                int i = (g_followed + n) % g_count;
+                if (g_targets[i].valid) {
+                    Follow(i);
+                    break;
+                }
             }
         }
-    }
-    if (pressed[VK_SPACE])
-        Emit(Action::TogglePlay);
-    if (pressed[VK_LEFT])
-        Emit(Action::SeekBack);
-    if (pressed[VK_RIGHT])
-        Emit(Action::SeekForward);
-    if (pressed[VK_HOME])
-        Emit(Action::Restart);
-    if (pressed[VK_ESCAPE]) {
-        Emit(Action::Exit);
-        if (!g_actions && g_active)
-            Stop();
-        return;
-    }
-    if (!g_active)
-        return;
-    const LONG wheel = InterlockedExchange(&g_wheel, 0);
-    if (live && wheel)
-        Zoom(static_cast<float>(wheel) / WHEEL_DELTA);
-    if (live) {
-        if (Down(VK_PRIOR))
+        if (pressed[VK_SPACE])
+            Emit(Action::TogglePlay);
+        if (pressed[VK_LEFT])
+            Emit(Action::SeekBack);
+        if (pressed[VK_RIGHT])
+            Emit(Action::SeekForward);
+        if (pressed[VK_HOME])
+            Emit(Action::Restart);
+        if (pressed[VK_ESCAPE]) {
+            Emit(Action::Exit);
+            if (!g_actions && g_active)
+                Stop();
+            return;
+        }
+        if (!g_active)
+            return;
+        const LONG wheel = InterlockedExchange(&g_wheel, 0);
+        if (live && wheel)
+            Zoom(static_cast<float>(wheel) / WHEEL_DELTA);
+        if (live && Down(VK_PRIOR))
             Zoom(dt * 5);
-        if (Down(VK_NEXT))
+        if (live && Down(VK_NEXT))
             Zoom(-dt * 5);
-        if (Down(VK_RBUTTON)) {
-            int32_t mx = 0, my = 0;
-            addr::ReadI32(addr::Id::controls_mouse_x, &mx);
-            addr::ReadI32(addr::Id::controls_mouse_y, &my);
-            g_yaw = math::Wrap(g_yaw - mx * 0.15f);
-            g_pitch = math::Clamp(g_pitch - my * 0.15f, -85, 85);
-        }
-        if (g_free) {
-            float sy, cy, sp, cp;
-            math::SinCos(g_yaw, &sy, &cy);
-            math::SinCos(g_pitch, &sp, &cp);
-            const float f[3] = {sy * cp, sp, cy * cp}, r[3] = {-cy, 0, sy};
-            float move[3] = {};
+    }
+    // Look: the viewer while right-dragging; the free camera always, unless another tool
+    // holds the pointer (the checkpoint editor).
+    if (live && (g_flight.lookAlways || Down(VK_RBUTTON)) && (g_modal || !binds::PointerCaptured())) {
+        int32_t mx = 0, my = 0;
+        addr::ReadI32(addr::Id::controls_mouse_x, &mx);
+        addr::ReadI32(addr::Id::controls_mouse_y, &my);
+        // Yaw grows to the left (forward (sin, cos)): mouse right turns right.
+        g_yaw = math::Wrap(g_yaw - mx * g_flight.sens);
+        g_pitch = math::Clamp(g_pitch - my * g_flight.sens, -kPitchMax, kPitchMax);
+    }
+    g_keysHeld = 0;
+    if (live && g_free) {
+        // Held keys (not presses); the free camera leaves keys another tool captured.
+        static const struct {
+            int vk;
+            unsigned bit;
+        } kFlightKeys[] = {{'W', 1}, {'S', 2}, {'D', 4}, {'A', 8}, {'E', 16}, {'Q', 32}, {VK_SHIFT, 64}, {VK_CONTROL, 128}};
+        for (const auto& k : kFlightKeys)
+            if (Down(k.vk) && (g_modal || !binds::KeyCaptured(k.vk)))
+                g_keysHeld |= k.bit;
+        auto held = [](unsigned bit) { return (g_keysHeld & bit) ? 1.0f : 0.0f; };
+        float sy, cy, sp, cp;
+        math::SinCos(g_yaw, &sy, &cy);
+        math::SinCos(g_pitch, &sp, &cp);
+        const float f[3] = {sy * cp, sp, cy * cp}, r[3] = {-cy, 0, sy};
+        float move[3] = {};
+        for (int i = 0; i < 3; ++i)
+            move[i] = (held(1) - held(2)) * f[i] + (held(4) - held(8)) * r[i];
+        move[1] += held(16) - held(32);
+        const float norm = math::Sqrt(move[0] * move[0] + move[1] * move[1] + move[2] * move[2]);
+        float speed = g_flight.speed;
+        if (g_keysHeld & 64)
+            speed *= 4;
+        if (g_keysHeld & 128)
+            speed *= 0.25f;
+        if (norm > 0)
             for (int i = 0; i < 3; ++i)
-                move[i] = (Down('W') - Down('S')) * f[i] + (Down('D') - Down('A')) * r[i];
-            move[1] += Down('E') - Down('Q');
-            const float norm = math::Sqrt(move[0] * move[0] + move[1] * move[1] + move[2] * move[2]);
-            float speed = 400;
-            if (Down(VK_SHIFT))
-                speed *= 4;
-            if (Down(VK_CONTROL))
-                speed *= 0.25f;
-            if (norm > 0)
-                for (int i = 0; i < 3; ++i)
-                    g_pos[i] += move[i] / norm * speed * dt;
-        }
+                g_pos[i] += move[i] / norm * speed * dt;
     }
     Pose();
 }
@@ -209,14 +231,14 @@ bool Init() {
 #ifdef FDCORE_DEBUG
     testpipe::Register("spectator", [](const char*, char* out, int) {
         wsprintfA(out,
-                  "active=%d free=%d followed=%d targets=%d distance=%ld yaw=%ld pitch=%ld x=%ld y=%ld z=%ld wheel=%d "
+                  "active=%d modal=%d free=%d followed=%d targets=%d distance=%ld yaw=%ld pitch=%ld x=%ld y=%ld z=%ld wheel=%d "
                   "owns_pause=%d",
-                  g_active, g_free, g_followed, g_count, static_cast<long>(g_distance), static_cast<long>(g_yaw),
+                  g_active, g_active && g_modal, g_free, g_followed, g_count, static_cast<long>(g_distance), static_cast<long>(g_yaw),
                   static_cast<long>(g_pitch), static_cast<long>(g_pos[0]), static_cast<long>(g_pos[1]),
                   static_cast<long>(g_pos[2]), g_messages, g_ownsPause);
     });
 #endif
-    log::Info("spectator: ready (modal follow/free camera)");
+    log::Info("spectator: ready (viewer and free camera)");
     return true;
 }
 bool Prepare() {
@@ -254,6 +276,8 @@ bool Start() {
         return false;
     }
     g_active = true;
+    g_modal = true;
+    g_flight = kViewerFlight;
     g_primed = false;
     g_free = false;
     g_followed = FirstValid();
@@ -278,16 +302,45 @@ bool Start() {
     log::Info("spectator: following target %d (%d loaded)", g_followed, g_count);
     return true;
 }
+bool StartFree(const Flight& flight) {
+    if (!g_ready && !Init())
+        return false;
+    camera::XForm game;
+    if (g_active || !pause::Active() || !camera::LastWorldXForm(&game))
+        return false;
+    // The game's own last view: Genesis camera columns are right / up / back.
+    const float forward[3] = {-game.m[2], -game.m[5], -game.m[8]};
+    math::Angles(forward, &g_yaw, &g_pitch);
+    for (int i = 0; i < 3; ++i)
+        g_pos[i] = game.t[i];
+    g_active = true;
+    g_modal = false;
+    g_free = true;
+    g_ownsPause = false;  // the client paused, and resumes
+    g_flight = flight;
+    g_dt = 0;
+    g_keysHeld = 0;
+    QueryPerformanceCounter(&g_last);
+    Pose();
+    log::Info("spectator: free camera");
+    return true;
+}
+void SetFlight(const Flight& flight) {
+    if (!g_modal)
+        g_flight = flight;
+}
 void Stop() {
     if (!g_active)
         return;
     // Frame polling can observe Escape before its queued WM_KEYDOWN is
     // dispatched. Retain every held viewer key until the native key-up, even
     // when no corresponding key-down has reached our window procedure yet.
-    for (int key = 0; key < 256; ++key)
-        if (ReservedKey(static_cast<WPARAM>(key)) && Down(key))
-            g_suppressUntilRelease[key] = true;
+    if (g_modal)
+        for (int key = 0; key < 256; ++key)
+            if (ReservedKey(static_cast<WPARAM>(key)) && Down(key))
+                g_suppressUntilRelease[key] = true;
     g_active = false;
+    g_modal = false;
     g_free = false;
     camera::SetWorldOverride(nullptr);
     if (g_ownsPause)
@@ -297,6 +350,9 @@ void Stop() {
 }
 bool Active() {
     return g_active;
+}
+bool Modal() {
+    return g_active && g_modal;
 }
 void SetPending(bool pending) {
     if (g_pending && !pending && !g_active) {
@@ -353,6 +409,9 @@ void Zoom(float notches) {
 void ReadState(State* out) {
     out->active = g_active;
     out->free = g_free;
+    out->modal = g_active && g_modal;
+    out->dt = g_dt;
+    out->keys = g_keysHeld;
     out->followed = g_followed;
     out->targets = g_count;
     out->distance = g_distance;

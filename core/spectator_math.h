@@ -22,10 +22,18 @@ inline float Sqrt(float v) {
     __asm__("fsqrt" : "=t"(r) : "0"(v));
     return r;
 }
-inline float Yaw(float x, float z) {
+inline float Atan2(float y, float x) {  // degrees, with the quadrant (x87 fpatan)
     float r;
-    __asm__("fpatan" : "=t"(r) : "0"(z), "u"(x) : "st(1)");
-    return Wrap(r / kDegrees);
+    __asm__("fpatan" : "=t"(r) : "0"(x), "u"(y) : "st(1)");
+    return r / kDegrees;
+}
+inline float Yaw(float x, float z) {
+    return Wrap(Atan2(x, z));
+}
+// Yaw and pitch of a view direction (forward = (sin yaw cos pitch, sin pitch, cos yaw cos pitch)).
+inline void Angles(const float* forward, float* yaw, float* pitch) {
+    *yaw = Yaw(forward[0], forward[2]);
+    *pitch = Atan2(forward[1], Sqrt(forward[0] * forward[0] + forward[2] * forward[2]));
 }
 inline void Build(const float* pos, float yaw, float pitch, camera::XForm* out) {
     float sy, cy, sp, cp;

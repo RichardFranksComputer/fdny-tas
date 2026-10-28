@@ -71,6 +71,21 @@ void TestSpectatorCamera() {
                 dot += x.m[row * 3 + a] * x.m[row * 3 + b];
             CHECK(Near(dot, a == b ? 1.0f : 0.0f));
         }
+    // The free camera's start pose: yaw/pitch recovered from a view matrix's -column 2.
+    {
+        const float p0[3] = {1, 2, 3};
+        const float yaws[] = {0, 45, 135, 200, 315}, pitches[] = {-60, -10, 0, 30, 80};
+        for (float yaw : yaws)
+            for (float pitch : pitches) {
+                fdcore::camera::XForm v;
+                m::Build(p0, yaw, pitch, &v);
+                const float fwd[3] = {-v.m[2], -v.m[5], -v.m[8]};
+                float y2 = -1, p2 = -1;
+                m::Angles(fwd, &y2, &p2);
+                CHECK(Near(y2, yaw) || Near(y2 - 360, yaw));
+                CHECK(Near(p2, pitch));
+            }
+    }
     // The camera looks directly at the lifted torso, including nonzero yaw/pitch.
     m::Orbit(target, 135, -22, 360, pos);
     m::Build(pos, 135, -22, &x);
