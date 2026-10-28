@@ -21,6 +21,10 @@ steps:
   # off by default: nothing submitted
   - assert_pipe_stat: {cmd: triggers, key: boxes, equals: 0}
   - console: "fd_watermark 0"
+  # The spawn view reaches a rescue zone (hinttrigger23, ~32 deg off centre) only with a
+  # wide view: this test was written against the old FOV fix's 106 deg (its ini's 1920x1080
+  # Hor+), gone from the game folder since D55. The core's own FOV sets it now.
+  - console: "fd_fov 106"
   - screenshot: training_off
   - key: {key: t, hold: 0.1}
   - wait_s: 1
