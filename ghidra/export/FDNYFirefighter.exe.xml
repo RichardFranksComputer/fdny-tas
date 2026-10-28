@@ -322,7 +322,7 @@
 
 ]>
 <PROGRAM NAME="FDNYFirefighter.exe" EXE_PATH="/C:/fdny-decomp/FDNY SP 1.1/FDNYFirefighter.exe" EXE_FORMAT="Portable Executable (PE)" IMAGE_BASE="00400000">
-    <INFO_SOURCE USER="Administrator" TOOL="Ghidra 12.1" TIMESTAMP="Thu Oct 22 16:37:24 UTC 2026" />
+    <INFO_SOURCE USER="Administrator" TOOL="Ghidra 12.1" TIMESTAMP="Wed Oct 28 18:54:05 UTC 2026" />
     <PROCESSOR NAME="x86" LANGUAGE_PROVIDER="x86:LE:32:default:windows" ENDIAN="little" />
     <DATATYPES>
         <TYPE_DEF NAME="__ehstate_t" NAMESPACE="/ehdata.h" DATATYPE="int" DATATYPE_NAMESPACE="/" />
@@ -3359,7 +3359,7 @@
         <CODE_BLOCK START="00430df0" END="00430e5e" />
         <CODE_BLOCK START="00430e60" END="00430e75" />
         <CODE_BLOCK START="00430e80" END="00430eb2" />
-        <CODE_BLOCK START="00430ec0" END="00430edc" />
+        <CODE_BLOCK START="00430ebd" END="00430edc" />
         <CODE_BLOCK START="00430ee0" END="00430efc" />
         <CODE_BLOCK START="00430f00" END="0043115d" />
         <CODE_BLOCK START="00431160" END="004311eb" />
@@ -16257,6 +16257,8 @@ Operates on the MenuManager embedded at GameSession+0x3c8: reset viewport to 640
 set +0x284=1 (active), GameSession::SetAudioState(session, 0) = menu music, and if the current screen isn&apos;t
 screen[9] (Splash) switch to it.</COMMENT>
         <COMMENT ADDRESS="0042de14" TYPE="plate">GameSession::ReturnToFrontend. Reads g_cfg_skipMenus (0x00502a7a, cvar &quot;SkipMenus&quot;): if set, for the first 3 frontend screen ticks (counter g_skipMenus_frameCounter 0x00502b1c) auto-fire frontendScreen-&gt;vtbl[+0x4](arg) with arg from the unpopulated table DAT_00502b20 (always 0) -- three &quot;accept default&quot; actions that skip the attract/title screens on the way to the main menu.</COMMENT>
+        <COMMENT ADDRESS="0042eea0" TYPE="plate">MenuScreen_Title::Draw -- vtbl[3] of MenuScreen_Title (vtbl 0x004dfd14). void __thiscall(this), plain RET, SUB ESP,0x28. Each frame: recompute the buttons&apos; enabled bytes (widget+0x1c) from +0x2c (selected level id) and GameSession state; base MenuScreen::Draw 0x00435d80; bitmaps +0x258/+0x25c; sprite +0x260; labels +0x50/+0x154 via RichTextLabel::Render 0x0048b7c0. Hooked by FDNYCore&apos;s menu service (address table menu.title_draw). Confidence high; menu-address spike 2026-10-28.</COMMENT>
+        <COMMENT ADDRESS="0042f280" TYPE="plate">CORRECTION 2026-10-28 (menu-address spike): this is MenuScreen_Title::SelectLevel(int levelId) -&gt; bool, thiscall RET 4. Looks the id up with LevelManager::FindByIndex(GameSession+0x6ac) (matches TLevelInfo+0x18); if none returns false and changes nothing; else sets this+0x2c = id, reloads the briefing bitmap +0x258, sets labels +0x50 (name) and +0x154 (description), places sprite +0x260, returns true. FindFirstPlayableLevel is OnActivate&apos;s loop (0x0042f650) over this function. Rename pending (GUI; research_task).</COMMENT>
         <COMMENT ADDRESS="004326f0" TYPE="plate">PtrArrayTree::Find [BluelAPI, confidence high] AVL find by string key with case-sensitivity flag at this+0x18. Node layout: +0 height, +4 left, +8 right, +0xc value (SArrayPtr header), +0x24 key string. Evidence: Same code as NameTree::Find 0x46e210 with key at +0x24; called from MenuScreen_LevelInfo::BuildInfoText 0x433790 and 0x433afc</COMMENT>
         <COMMENT ADDRESS="00432790" TYPE="plate">NameTree::RotateLeft [BluelAPI, confidence high] AVL single rotation lifting the right child; mirror of NameTree::RotateSingle. Evidence: 11 callers across tree instantiations incl RotateDouble_L/R and InsertRecursive</COMMENT>
         <COMMENT ADDRESS="00432960" TYPE="plate">COMMENT ONLY / proposed name, not applied: FUN_00432960 [BluelAPI, confidence low] COMMENT ONLY. Possibly SArrayPtr::SetAtDisplace: set arr[i] growing if needed and re-append the displaced element. Evidence: Matches inline code in BuildInfoText near 0x433760; no callers; callee is mislabeled RescueHud::DrawList_Add (suspect)</COMMENT>
@@ -17074,6 +17076,7 @@ Cue trigger sites: RC_ResLvlStart &lt;- PlayerRescueEnt::Init; RC_PassOut &lt;- 
         <COMMENT ADDRESS="0048b2c0" TYPE="plate">[medium] Returns the longest prefix that fits a pixel width breaking at newline or last space. | Evidence: Shrinks string while MeasureLineWidth exceeds limit then String::Left; caller 0x48c560 from SetText</COMMENT>
         <COMMENT ADDRESS="0048b590" TYPE="plate">[high] Repeatedly removes ^( ... ) spans from a String in place. | Evidence: String::Find for ^( and ); callers BuildInfoText 0x4332e0 and Rescue_PickRandomRosterName</COMMENT>
         <COMMENT ADDRESS="0048b7c0" TYPE="plate">[high] Per-frame draw - acquires bitmap or ParticleNode evaluates colour/alpha ramps and draws each line&apos;s characters via DrawGlyphQuad applying colour records at 0xff markers. | Evidence: Lines at +0x100 colour records at +0xc8 as written by SetTextLayout 0x48c2a0</COMMENT>
+        <COMMENT ADDRESS="0048c780" TYPE="plate">Verified 2026-10-28: void __thiscall(String text by value -- consumed/released on exit, so pass a reference the callee may drop; const RECT* rect -&gt; +0xd0..+0xdc; int hAlign -&gt; +0xe0 (1 centre, 2 right); int vAlign -&gt; +0xe4), RET 0x10.</COMMENT>
         <COMMENT ADDRESS="0048e660" TYPE="plate">VictimTypeRecord::Destruct [rescue, confidence high] Frees the name String, the shared buffer at +0x10 and the two SArrayPtr of String at +0x14 and +0x2c. Evidence: Mirrors VictimTypeRecord::Construct 0x48e520 offset for offset in reverse order</COMMENT>
         <COMMENT ADDRESS="0048e700" TYPE="plate">VictimTypeRecord::ScalarDeletingDtor [rescue, confidence high] Calls Destruct then free when bit0 set. Evidence: Standard deleting-dtor thunk; no callers (probably dead)</COMMENT>
         <COMMENT ADDRESS="0048e720" TYPE="plate">VictimTypeRecord::DeleteCallback [rescue, confidence high] SArrayPtr element deleter - null check Destruct free. Evidence: Address stored at +0x10 of the types array in VictimRegistry::Load (0x48e772)</COMMENT>
@@ -20198,7 +20201,7 @@ Confidence: high</COMMENT>
     &amp;lt;STATE NAME=&amp;quot;Create Address Tables - One Time&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;317&amp;quot; /&amp;gt;
     &amp;lt;STATE NAME=&amp;quot;Create Function&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;1051&amp;quot; /&amp;gt;
     &amp;lt;STATE NAME=&amp;quot;Data Reference&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;560&amp;quot; /&amp;gt;
-    &amp;lt;STATE NAME=&amp;quot;Decompiler Parameter ID&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;45789&amp;quot; /&amp;gt;
+    &amp;lt;STATE NAME=&amp;quot;Decompiler Parameter ID&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;46239&amp;quot; /&amp;gt;
     &amp;lt;STATE NAME=&amp;quot;Decompiler Switch Analysis&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;11293&amp;quot; /&amp;gt;
     &amp;lt;STATE NAME=&amp;quot;Demangler Microsoft&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;226&amp;quot; /&amp;gt;
     &amp;lt;STATE NAME=&amp;quot;Disassemble&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;3031&amp;quot; /&amp;gt;
@@ -20207,8 +20210,8 @@ Confidence: high</COMMENT>
     &amp;lt;STATE NAME=&amp;quot;External Entry References&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;0&amp;quot; /&amp;gt;
     &amp;lt;STATE NAME=&amp;quot;Function ID&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;2300&amp;quot; /&amp;gt;
     &amp;lt;STATE NAME=&amp;quot;Function Start Pre Search&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;33&amp;quot; /&amp;gt;
-    &amp;lt;STATE NAME=&amp;quot;Function Start Search&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;310&amp;quot; /&amp;gt;
-    &amp;lt;STATE NAME=&amp;quot;Function Start Search After Code&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;208&amp;quot; /&amp;gt;
+    &amp;lt;STATE NAME=&amp;quot;Function Start Search&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;320&amp;quot; /&amp;gt;
+    &amp;lt;STATE NAME=&amp;quot;Function Start Search After Code&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;224&amp;quot; /&amp;gt;
     &amp;lt;STATE NAME=&amp;quot;Function Start Search After Data&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;148&amp;quot; /&amp;gt;
     &amp;lt;STATE NAME=&amp;quot;Function Start Search delayed - One Time&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;8&amp;quot; /&amp;gt;
     &amp;lt;STATE NAME=&amp;quot;Non-Returning Functions - Discovered&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;628&amp;quot; /&amp;gt;
@@ -20216,16 +20219,16 @@ Confidence: high</COMMENT>
     &amp;lt;STATE NAME=&amp;quot;PDB Universal&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;19&amp;quot; /&amp;gt;
     &amp;lt;STATE NAME=&amp;quot;Reference&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;783&amp;quot; /&amp;gt;
     &amp;lt;STATE NAME=&amp;quot;Scalar Operand References&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;1433&amp;quot; /&amp;gt;
-    &amp;lt;STATE NAME=&amp;quot;Shared Return Calls&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;827&amp;quot; /&amp;gt;
-    &amp;lt;STATE NAME=&amp;quot;Stack&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;12365&amp;quot; /&amp;gt;
-    &amp;lt;STATE NAME=&amp;quot;Subroutine References&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;994&amp;quot; /&amp;gt;
+    &amp;lt;STATE NAME=&amp;quot;Shared Return Calls&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;856&amp;quot; /&amp;gt;
+    &amp;lt;STATE NAME=&amp;quot;Stack&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;12403&amp;quot; /&amp;gt;
+    &amp;lt;STATE NAME=&amp;quot;Subroutine References&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;996&amp;quot; /&amp;gt;
     &amp;lt;STATE NAME=&amp;quot;Subroutine References - One Time&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;5&amp;quot; /&amp;gt;
     &amp;lt;STATE NAME=&amp;quot;Windows x86 PE Exception Handling&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;4039&amp;quot; /&amp;gt;
     &amp;lt;STATE NAME=&amp;quot;Windows x86 PE RTTI Analyzer&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;614&amp;quot; /&amp;gt;
     &amp;lt;STATE NAME=&amp;quot;Windows x86 Thread Environment Block (TEB) Analyzer&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;12&amp;quot; /&amp;gt;
-    &amp;lt;STATE NAME=&amp;quot;WindowsResourceReference&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;43683&amp;quot; /&amp;gt;
-    &amp;lt;STATE NAME=&amp;quot;X86 Function Callee Purge&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;1507&amp;quot; /&amp;gt;
-    &amp;lt;STATE NAME=&amp;quot;x86 Constant Reference Analyzer&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;12826&amp;quot; /&amp;gt;
+    &amp;lt;STATE NAME=&amp;quot;WindowsResourceReference&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;45159&amp;quot; /&amp;gt;
+    &amp;lt;STATE NAME=&amp;quot;X86 Function Callee Purge&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;1513&amp;quot; /&amp;gt;
+    &amp;lt;STATE NAME=&amp;quot;x86 Constant Reference Analyzer&amp;quot; TYPE=&amp;quot;long&amp;quot; VALUE=&amp;quot;12964&amp;quot; /&amp;gt;
 &amp;lt;/SAVE_STATE&amp;gt;" />
         <PROPERTY NAME="Program Information.Analyzed" TYPE="bool" VALUE="y" />
         <PROPERTY NAME="Program Information.Compiler" TYPE="string" VALUE="visualstudio:unknown" />
@@ -20251,6 +20254,7 @@ Confidence: high</COMMENT>
         <PROPERTY NAME="Program Information.PE Property[ProductVersion]" TYPE="string" VALUE="2, 0, 0, 1" />
         <PROPERTY NAME="Program Information.PE Property[Translation]" TYPE="string" VALUE="4b00409" />
         <PROPERTY NAME="Program Information.RTTI Found" TYPE="bool" VALUE="y" />
+        <PROPERTY NAME="Program Information.Relocatable" TYPE="bool" VALUE="n" />
         <PROPERTY NAME="Program Information.SectionAlignment" TYPE="int" VALUE="0x1000" />
         <PROPERTY NAME="Program Information.Should Ask To Analyze" TYPE="bool" VALUE="n" />
     </PROPERTIES>
@@ -23511,6 +23515,7 @@ Confidence: high</COMMENT>
         <SYMBOL ADDRESS="0042d8c0" NAME="ReturnToFrontend" NAMESPACE="GameSession::" TYPE="global" SOURCE_TYPE="USER_DEFINED" PRIMARY="y" />
         <SYMBOL ADDRESS="0042dea0" NAME="ScalarDeletingDtor" NAMESPACE="MenuManager::" TYPE="global" SOURCE_TYPE="USER_DEFINED" PRIMARY="y" />
         <SYMBOL ADDRESS="0042dec0" NAME="Init" NAMESPACE="MenuManager::" TYPE="global" SOURCE_TYPE="USER_DEFINED" PRIMARY="y" />
+        <SYMBOL ADDRESS="0042eea0" NAME="MenuScreen_Title::Draw" NAMESPACE="" TYPE="global" SOURCE_TYPE="USER_DEFINED" PRIMARY="y" />
         <SYMBOL ADDRESS="0042f140" NAME="Resize" NAMESPACE="SArrayRB::" TYPE="global" SOURCE_TYPE="USER_DEFINED" PRIMARY="y" />
         <SYMBOL ADDRESS="0042f280" NAME="FindFirstPlayableLevel" NAMESPACE="MenuScreen_Title::" TYPE="global" SOURCE_TYPE="USER_DEFINED" PRIMARY="y" />
         <SYMBOL ADDRESS="0042f500" NAME="OnButtonActivate" NAMESPACE="MenuScreen_Title::" TYPE="global" SOURCE_TYPE="USER_DEFINED" PRIMARY="y" />
@@ -35592,6 +35597,22 @@ screen[9] (Splash) switch to it.</REGULAR_CMT>
             </STACK_FRAME>
             <REGISTER_VAR NAME="param_1" REGISTER="ECX" DATATYPE="undefined4 *" DATATYPE_NAMESPACE="/" />
         </FUNCTION>
+        <FUNCTION ENTRY_POINT="0042eea0" NAME="MenuScreen_Title::Draw" LIBRARY_FUNCTION="n">
+            <ADDRESS_RANGE START="0042eea0" END="0042f136" />
+            <REGULAR_CMT>MenuScreen_Title::Draw -- vtbl[3] of MenuScreen_Title (vtbl 0x004dfd14). void __thiscall(this), plain RET, SUB ESP,0x28. Each frame: recompute the buttons&apos; enabled bytes (widget+0x1c) from +0x2c (selected level id) and GameSession state; base MenuScreen::Draw 0x00435d80; bitmaps +0x258/+0x25c; sprite +0x260; labels +0x50/+0x154 via RichTextLabel::Render 0x0048b7c0. Hooked by FDNYCore&apos;s menu service (address table menu.title_draw). Confidence high; menu-address spike 2026-10-28.</REGULAR_CMT>
+            <TYPEINFO_CMT>undefined __fastcall MenuScreen_Title::Draw(int param_1)</TYPEINFO_CMT>
+            <STACK_FRAME LOCAL_VAR_SIZE="0x2c" PARAM_OFFSET="0x4" RETURN_ADDR_SIZE="0x0" BYTES_PURGED="0">
+                <STACK_VAR STACK_PTR_OFFSET="-0x28" NAME="local_28" DATATYPE="undefined4" DATATYPE_NAMESPACE="/" SIZE="0x4" />
+                <STACK_VAR STACK_PTR_OFFSET="-0x24" NAME="local_24" DATATYPE="undefined4" DATATYPE_NAMESPACE="/" SIZE="0x4" />
+                <STACK_VAR STACK_PTR_OFFSET="-0x20" NAME="local_20" DATATYPE="undefined4" DATATYPE_NAMESPACE="/" SIZE="0x4" />
+                <STACK_VAR STACK_PTR_OFFSET="-0x1c" NAME="local_1c" DATATYPE="undefined4" DATATYPE_NAMESPACE="/" SIZE="0x4" />
+                <STACK_VAR STACK_PTR_OFFSET="-0x18" NAME="local_18" DATATYPE="undefined4" DATATYPE_NAMESPACE="/" SIZE="0x4" />
+                <STACK_VAR STACK_PTR_OFFSET="-0x14" NAME="local_14" DATATYPE="undefined4" DATATYPE_NAMESPACE="/" SIZE="0x4" />
+                <STACK_VAR STACK_PTR_OFFSET="-0x10" NAME="local_10" DATATYPE="undefined4" DATATYPE_NAMESPACE="/" SIZE="0x4" />
+                <STACK_VAR STACK_PTR_OFFSET="-0xc" NAME="local_c" DATATYPE="undefined4" DATATYPE_NAMESPACE="/" SIZE="0x4" />
+            </STACK_FRAME>
+            <REGISTER_VAR NAME="param_1" REGISTER="ECX" DATATYPE="int" DATATYPE_NAMESPACE="/" />
+        </FUNCTION>
         <FUNCTION ENTRY_POINT="0042f140" NAME="SArrayRB::Resize" LIBRARY_FUNCTION="n">
             <ADDRESS_RANGE START="0042f140" END="0042f1e4" />
             <TYPEINFO_CMT>undefined __thiscall Resize(int param_1)</TYPEINFO_CMT>
@@ -35604,6 +35625,7 @@ screen[9] (Splash) switch to it.</REGULAR_CMT>
         <FUNCTION ENTRY_POINT="0042f280" NAME="MenuScreen_Title::FindFirstPlayableLevel" LIBRARY_FUNCTION="n">
             <RETURN_TYPE DATATYPE="undefined4" DATATYPE_NAMESPACE="/" SIZE="0x4" />
             <ADDRESS_RANGE START="0042f280" END="0042f4fa" />
+            <REGULAR_CMT>CORRECTION 2026-10-28 (menu-address spike): this is MenuScreen_Title::SelectLevel(int levelId) -&gt; bool, thiscall RET 4. Looks the id up with LevelManager::FindByIndex(GameSession+0x6ac) (matches TLevelInfo+0x18); if none returns false and changes nothing; else sets this+0x2c = id, reloads the briefing bitmap +0x258, sets labels +0x50 (name) and +0x154 (description), places sprite +0x260, returns true. FindFirstPlayableLevel is OnActivate&apos;s loop (0x0042f650) over this function. Rename pending (GUI; research_task).</REGULAR_CMT>
             <TYPEINFO_CMT>undefined4 __thiscall FindFirstPlayableLevel(int * param_1, int * param_2)</TYPEINFO_CMT>
             <STACK_FRAME LOCAL_VAR_SIZE="0x2c" PARAM_OFFSET="0x4" RETURN_ADDR_SIZE="0x0" BYTES_PURGED="4">
                 <STACK_VAR STACK_PTR_OFFSET="-0x28" NAME="local_28" DATATYPE="undefined4" DATATYPE_NAMESPACE="/" SIZE="0x4" />
@@ -49676,6 +49698,7 @@ Cue trigger sites: RC_ResLvlStart &lt;- PlayerRescueEnt::Init; RC_PassOut &lt;- 
         </FUNCTION>
         <FUNCTION ENTRY_POINT="0048c780" NAME="RichTextLabel::SetText" LIBRARY_FUNCTION="n">
             <ADDRESS_RANGE START="0048c780" END="0048d179" />
+            <REGULAR_CMT>Verified 2026-10-28: void __thiscall(String text by value -- consumed/released on exit, so pass a reference the callee may drop; const RECT* rect -&gt; +0xd0..+0xdc; int hAlign -&gt; +0xe0 (1 centre, 2 right); int vAlign -&gt; +0xe4), RET 0x10.</REGULAR_CMT>
             <TYPEINFO_CMT>undefined __thiscall SetText(int * param_1, undefined4 * param_2, undefined4 param_3, undefined4 param_4)</TYPEINFO_CMT>
             <STACK_FRAME LOCAL_VAR_SIZE="0x104" PARAM_OFFSET="0x4" RETURN_ADDR_SIZE="0x0" BYTES_PURGED="16">
                 <STACK_VAR STACK_PTR_OFFSET="-0x100" NAME="local_100" DATATYPE="undefined4" DATATYPE_NAMESPACE="/" SIZE="0x4" />
