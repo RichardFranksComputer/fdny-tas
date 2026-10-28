@@ -31,7 +31,8 @@ struct State {
     float dt;       // the last frame's real-time step, s
     unsigned keys;  // flight keys held that frame: W 1, S 2, D 4, A 8, E 16, Q 32, Shift 64, Ctrl 128
 };
-bool Init();
+bool Init();       // core startup (after pause, camera, binds)
+bool Available();  // ready: pause, camera override and mouse input all verified
 bool Prepare();     // preconfigure follow pose, input and hooks without affecting menu camera
 void PrimeCamera(); // apply the prepared pose before the selected stage first renders
 bool Start();       // the viewer: a loaded level only; preserves a pause that was already active

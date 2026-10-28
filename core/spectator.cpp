@@ -242,7 +242,7 @@ bool Init() {
     return true;
 }
 bool Prepare() {
-    if (!g_ready && !Init())
+    if (!g_ready)
         return false;
     if (!g_pending || FirstValid() < 0)
         return false;
@@ -266,7 +266,7 @@ void PrimeCamera() {
     g_primed = true;
 }
 bool Start() {
-    if (!g_ready && !Init())
+    if (!g_ready)
         return false;
     if (state::Current().gameState != 1)
         return false;
@@ -303,7 +303,7 @@ bool Start() {
     return true;
 }
 bool StartFree(const Flight& flight) {
-    if (!g_ready && !Init())
+    if (!g_ready)
         return false;
     camera::XForm game;
     if (g_active || !pause::Active() || !camera::LastWorldXForm(&game))
@@ -347,6 +347,9 @@ void Stop() {
         pause::Set(false, "spectator ended");
     g_ownsPause = false;
     log::Info("spectator: stopped");
+}
+bool Available() {
+    return g_ready;
 }
 bool Active() {
     return g_active;

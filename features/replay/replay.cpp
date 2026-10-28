@@ -784,7 +784,7 @@ bool Init() {
     spectator::SetActionHandler(ViewerAction);
     camera::OnBeforeWorldRender(PrimeViewerCamera);
     hooks::OnFrameComplete(CompleteViewerExit);
-    g_viewReady = spectator::Init();
+    g_viewReady = spectator::Available();
     if (!browser::Init()) log::Warn("replay: Recordings menu disabled; console playback remains available");
     binds::DescribeKey("esc pgup pgdn", "back / previous page / next page", "in the Recordings menu");
     binds::DescribeKey("x", "toggle replay traces and ghost boxes through walls (shown in viewer controls)", "in the recordings viewer");

@@ -222,8 +222,8 @@ bool Init() {
                   camera::WorldOverrideAvailable() ? "ok" : "unavailable");
         return false;
     }
-    // The camera service first: its frame step runs before this module's measurement.
-    if (!spectator::Init()) {
+    // The camera service (started by the core, so its frame step runs before this module's).
+    if (!spectator::Available()) {
         log::Warn("freecam: disabled (spectator camera unavailable)");
         return false;
     }
