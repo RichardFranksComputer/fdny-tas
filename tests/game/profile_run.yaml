@@ -9,13 +9,16 @@ pre_files:
   - {src: tests/game/data/fdcore_profile.cfg, dst: FDNYCore.cfg}
   - {src: null, dst: profile_run.cfg}
   - {src: null, dst: profile_practice.cfg}
+  # The "other .asi" the watermark lists: an inert second core (core_single_instance), since
+  # the game folder holds FDNYCore alone (D55).
+  - {src: build/Debug/FDNYCore.asi, dst: FDNYCoreZ.asi}
 setup: load_training
 record: true
 steps:
   # practice (default): the practice setting is on and listed
   - assert_pipe_contains: {cmd: watermark, contains: "practice"}
   - assert_pipe_contains: {cmd: watermark, contains: "hud_player 1"}
-  - assert_pipe_contains: {cmd: watermark, contains: "asi: "}
+  - assert_pipe_contains: {cmd: watermark, contains: "asi: FDNYCoreZ"}
   - screenshot: watermark_practice
   # switch to run: practice-only settings go back to default
   - console: "fd_profile run"
