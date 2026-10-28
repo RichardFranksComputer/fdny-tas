@@ -19,6 +19,9 @@ bool Available();   // every entry it needs verified
 // Starts / ends a pause; `why` goes to the log. False if unavailable or not in a level.
 bool Set(bool on, const char* why);
 bool Active();
+// Install the pause hooks during loading, without pausing the game yet.
+bool Prepare();
+void CancelPrepare();
 uint32_t PausedFrames();  // frames rendered during the current (or last) pause
 
 } // namespace fdcore::pause

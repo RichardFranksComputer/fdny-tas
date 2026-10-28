@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "../../features/replay/replay_data.h"
+#include "../../features/replay/replay_browser.h"
 #include "unit.h"
 
 namespace d = fdcore::replay::data;
@@ -65,12 +66,16 @@ void TestReplayRejectsBadFiles() {
                       "{\"type\":\"sample\",\"n\":0,\"t_ms\":1,\"position\":[0,0,0]}\n"
                       "{\"type\":\"sample\",\"n\":2,\"t_ms\":2,\"position\":[0,0,0]}\n";
     CHECK(!Parse(gap, &r, err) && strstr(err, "sequence"));
+    // No end record: keep complete samples and ignore the unfinished final line.
     const char* ok = "{\"type\":\"start\",\"schema\":\"fdny-trajectory-v1\",\"stage\":\"Levels\\\\Bank.BSP\"}\n"
                      "{\"type\":\"sample\",\"n\":0,\"t_ms\":1,\"position\":[1,2,3],\"player_state_raw\":4}\n"
-                     "{\"type\":\"sample\",\"n\":1,\"t_ms\":2,\"position\":[1,2,3]}";  // unfinished last line: dropped
+                     "{\"type\":\"sample\",\"n\":1,\"t_ms\":2,\"position\":[3,2,3]}\n"
+                     "{\"type\":\"sample\",\"n\":2,\"t_ms\":3,\"position\":[";
     CHECK(Parse(ok, &r, err));
-    CHECK(strcmp(r.stage, "bank") == 0 && r.n == 1);
+    CHECK(strcmp(r.stage, "bank") == 0 && r.n == 2);
     CHECK(Near(r.s[0].maxs[1], 25) && Near(r.s[0].fwd[2], 1));  // crouched default box, default facing
+    CHECK(Near(r.duration, 2) && Near(d::FrameAt(r, 1.5f).pos[0], 2));
+    CHECK(Near(d::FrameAt(r, 200).pos[0], 3));
     d::Free(&r);
 }
 
@@ -175,4 +180,25 @@ void TestReplayIndex() {
     CHECK(d::Latest(set, 5, "mbase") == 3);  // newest complete
     CHECK(d::Latest(set, 5, "bank") == -1);  // still being written
     CHECK(d::Match(set, 5, "MBASE") == 0 && d::Match(set, 5, "pid8") == 3 && d::Match(set, 5, "te") == 4 && d::Match(set, 5, "zz") == -1);
+}
+
+// Display metadata must reject damaged sidecars instead of overwriting them.
+void TestReplayBrowser() {
+    namespace b = fdcore::replay::browser;
+    b::Metadata meta = {"My = fastest run", true, true}, parsed = {};
+    char text[160];
+    int n = b::SerializeMetadata(meta, text, sizeof(text));
+    CHECK(n > 0 && b::ParseMetadata(text, n, &parsed));
+    CHECK(parsed.favorite && strcmp(meta.name, parsed.name) == 0);
+    CHECK(!b::ParseMetadata(text, n - 1, &parsed));
+    const char duplicate[] = "FDNY_RECORDING_META_V1\nfavorite=0\nname=one\nname=two\n";
+    CHECK(!b::ParseMetadata(duplicate, sizeof(duplicate) - 1, &parsed));
+    CHECK(!b::DisplayName("bad\nname"));
+    CHECK(!b::DisplayName("12345678901234567890123456789012345678901"));
+    meta.favorite = false; meta.name[0] = 0;
+    n = b::SerializeMetadata(meta, text, sizeof(text));
+    CHECK(b::ParseMetadata(text, n, &parsed) && !parsed.favorite && !parsed.name[0]);
+    CHECK(!b::SerializeMetadata(meta, text, 10));
+    CHECK(b::PageCount(0) == 1 && b::PageCount(6) == 1 && b::PageCount(7) == 2);
+    CHECK(b::ClampPage(9, 7) == 1 && b::ClampPage(-1, 7) == 0 && b::ClampPage(2, 0) == 0);
 }

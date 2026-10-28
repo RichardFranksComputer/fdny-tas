@@ -21,6 +21,8 @@ FovFilter g_filter = nullptr;
 constexpr int kMaxSubs = 4;
 SetFn g_subs[kMaxSubs];
 int g_nSubs = 0;
+BeforeWorldFn g_beforeWorld[kMaxSubs];
+int g_nBeforeWorld;
 
 // World transform override (Genesis exports; fastcall ECX = camera).
 using SetXFormFn = int(__fastcall*)(void* camera, const XForm* x);
@@ -29,6 +31,21 @@ SetXFormFn g_setXf = nullptr;
 GetXFormFn g_getXf = nullptr;
 XForm g_override = {}, g_lastXf = {};
 bool g_overrideOn = false, g_haveLastXf = false;
+#ifdef FDCORE_DEBUG
+unsigned long g_nativeSets, g_overriddenSets;
+#endif
+
+// Native scene setup consumes the camera before RenderWorld (visibility,
+// attached objects and loading renders). Override the producer too, rather
+// than briefly publishing the player's first-person transform to that setup.
+int __fastcall SetWorldDetour(void* camera, const XForm* x) {
+    for (int i = 0; i < g_nBeforeWorld; ++i) g_beforeWorld[i]();
+#ifdef FDCORE_DEBUG
+    ++g_nativeSets;
+    if (g_overrideOn) ++g_overriddenSets;
+#endif
+    return g_setXf(camera, g_overrideOn ? &g_override : x);
+}
 #ifdef FDCORE_DEBUG
 volatile long g_testLift = 0x7fffffff;  // Debug pipe `camera_override <dy>|off` (none pending)
 #endif
@@ -55,8 +72,13 @@ bool Init() {
         !hooks::SetEnabled("camera", true))
         return false;
     if (addr::Usable(Id::genesis_camera_set_world_xform) && addr::Usable(Id::genesis_camera_get_world_xform)) {
-        g_setXf = reinterpret_cast<SetXFormFn>(addr::ExportAddress(Id::genesis_camera_set_world_xform));
         g_getXf = reinterpret_cast<GetXFormFn>(addr::ExportAddress(Id::genesis_camera_get_world_xform));
+        if (!hooks::Create("camera_pose", Id::genesis_camera_set_world_xform,
+                           reinterpret_cast<void*>(&SetWorldDetour), reinterpret_cast<void**>(&g_setXf)) ||
+            !hooks::SetEnabled("camera_pose", true)) {
+            g_setXf = nullptr;
+            g_getXf = nullptr;
+        }
     }
 #ifdef FDCORE_DEBUG
     testpipe::Register("camera_override", [](const char* args, char* resp, int cap) {
@@ -69,8 +91,8 @@ bool Init() {
             while (*args >= '0' && *args <= '9') v = v * 10 + (*args++ - '0');
             InterlockedExchange(&g_testLift, sign * v);
         }
-        wsprintfA(resp, "available=%d active=%d have_last=%d last=%ld,%ld,%ld", WorldOverrideAvailable(),
-                  g_overrideOn, g_haveLastXf, static_cast<long>(g_lastXf.t[0]), static_cast<long>(g_lastXf.t[1]),
+        wsprintfA(resp, "available=%d active=%d have_last=%d native_sets=%lu overridden_sets=%lu last=%ld,%ld,%ld", WorldOverrideAvailable(),
+                  g_overrideOn, g_haveLastXf, g_nativeSets, g_overriddenSets, static_cast<long>(g_lastXf.t[0]), static_cast<long>(g_lastXf.t[1]),
                   static_cast<long>(g_lastXf.t[2]));
     });
 #endif
@@ -122,8 +144,13 @@ bool ViewXForm(XForm* out) {
     return LastWorldXForm(out);
 }
 
+void OnBeforeWorldRender(BeforeWorldFn fn) {
+    if (g_nBeforeWorld < kMaxSubs) g_beforeWorld[g_nBeforeWorld++] = fn;
+}
+
 void BeforeWorldRender(void* camera) {
     if (!camera || !g_getXf) return;
+    for (int i = 0; i < g_nBeforeWorld; ++i) g_beforeWorld[i]();
 #ifdef FDCORE_DEBUG
     // Test hook: the game's last transform lifted by dy, or off (the free camera's path).
     if (const long dy = InterlockedExchange(&g_testLift, 0x7fffffff); dy != 0x7fffffff) {

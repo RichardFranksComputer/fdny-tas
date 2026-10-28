@@ -36,9 +36,10 @@ steps:
   # restart: settings come back from FDNYCore.cfg
   - restart: {wait_s: 6}
   - assert_log: {contains: "config: startup (FDNYCore.cfg: loaded, autoexec.cfg: none)"}
+  # binds act only inside a level (D58): F5 does nothing at the menu
   - key: f5
   - wait_s: 0.5
-  - assert_log_count: {contains: "console> bound-f5-ok", equals: 1}
+  - assert_log_count: {contains: "console> bound-f5-ok", equals: 0}
   - assert_log_count: {contains: "cmd: echo bound-f5-ok", equals: 0}
   # console at the splash/menu is refused (game font not loaded yet); check values in a level
   - type: "`"
@@ -47,6 +48,11 @@ steps:
   - click: [320, 240]
   - wait_s: 3
   - run_setup: load_training_from_menu
+  # the restored bind fires once in the level
+  - key: f5
+  - wait_s: 0.5
+  - assert_log_count: {contains: "console> bound-f5-ok", equals: 1}
+  - assert_log_count: {contains: "cmd: echo bound-f5-ok", equals: 0}
   - type: "`"
   - wait_s: 0.3
   - type: "fd_log_commands"

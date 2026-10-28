@@ -40,6 +40,8 @@ FrameFn g_frameSubs[kMaxSubs];
 int g_nFrameSubs = 0;
 FrameFn g_lateSubs[kMaxSubs];
 int g_nLateSubs = 0;
+FrameFn g_completeSubs[kMaxSubs];
+int g_nCompleteSubs = 0;
 FrameFn g_beginSubs[kMaxSubs];
 int g_nBeginSubs = 0;
 LevelFn g_levelSubs[kMaxSubs];
@@ -60,7 +62,9 @@ int __cdecl EndFrameDetour(void* engine) {
     for (int i = 0; i < g_nFrameSubs; ++i) g_frameSubs[i]();
     for (int i = 0; i < g_nLateSubs; ++i) g_lateSubs[i]();
     InterlockedIncrement(&g_stats.frameEndEvents);
-    return g_origEnd(engine);
+    const int result = g_origEnd(engine);
+    for (int i = 0; i < g_nCompleteSubs; ++i) g_completeSubs[i]();
+    return result;
 }
 
 bool StrEq(const char* a, const char* b) {
@@ -153,6 +157,10 @@ void OnFrameBegin(FrameFn fn) {
 
 void OnFrameEnd(FrameFn fn) {
     if (g_nFrameSubs < kMaxSubs) g_frameSubs[g_nFrameSubs++] = fn;
+}
+
+void OnFrameComplete(FrameFn fn) {
+    if (g_nCompleteSubs < kMaxSubs) g_completeSubs[g_nCompleteSubs++] = fn;
 }
 
 void OnFrameEndLate(FrameFn fn) {

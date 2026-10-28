@@ -1,6 +1,7 @@
 name: autoexec
 # Item 5: autoexec.cfg in the game folder runs at startup (before any input),
-# including binds it defines.
+# including binds it defines. Binds act only inside a level (D58): the bound key
+# does nothing at the menu and fires once in Training.
 pre_files:
   - {src: tests/game/data/game_cfg_player.cfg, dst: FDNYFireFighter.cfg}
   - {src: null, dst: FDNYCore.cfg}
@@ -12,8 +13,14 @@ steps:
   - assert_log: {contains: "console> autoexec-ran-777"}
   - key: f6
   - wait_s: 0.5
-  - assert_log_count: {contains: "console> autoexec-bind-ok", equals: 1}
+  - assert_log_count: {contains: "console> autoexec-bind-ok", equals: 0}
   - assert_screen_nonblack: menu
+  - click: [320, 240]
+  - wait_s: 3
+  - run_setup: load_training_from_menu
+  - key: f6
+  - wait_s: 0.5
+  - assert_log_count: {contains: "console> autoexec-bind-ok", equals: 1}
 expect:
   no_crash: true
   log_errors: 0

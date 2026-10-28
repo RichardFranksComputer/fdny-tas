@@ -25,6 +25,9 @@ bool IsEnabled(const char* group);
 
 void OnFrameBegin(FrameFn fn); // before geEngine_BeginFrame runs (outside the engine's frame)
 void OnFrameEnd(FrameFn fn);   // after the world is drawn, before the flip
+// After geEngine_EndFrame has closed/flipped the frame. Scene/menu transitions
+// belong here; callbacks must not draw.
+void OnFrameComplete(FrameFn fn);
 void OnFrameEndLate(FrameFn fn);  // after every OnFrameEnd subscriber: gfx's layers only (R8); draw via gfx::OnLayer
 void OnLevelLoad(LevelFn fn);  // map entered (game state reaches 1 with a map name)
 

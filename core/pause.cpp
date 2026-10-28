@@ -145,6 +145,8 @@ bool Init() {
 }
 
 bool Available() { return g_ok; }
+bool Prepare() { return g_ok && (g_active || hooks::SetEnabled("pause", true)); }
+void CancelPrepare() { if (g_ok && !g_active) hooks::SetEnabled("pause", false); }
 
 bool Set(bool on, const char* why) { return SetImpl(on, why); }
 

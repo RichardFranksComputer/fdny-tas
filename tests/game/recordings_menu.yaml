@@ -1,0 +1,83 @@
+name: recordings_menu
+# The briefing's Recordings page with real clicks and keys: list, favorite, rename (typed
+# into the page, saved to the .fdny-meta sidecar), the Favorites tab, then Compare launches
+# the stage in the viewer and Escape returns to the list. Two copies of one Training run
+# (the newer name sorts first), in a folder of their own (fdcore_recordings_menu.cfg), so
+# the game's own Recordings are never listed or given sidecars. The viewer's controls are
+# spectator_camera's.
+own_session: true
+pre_files:
+  - {src: tests/game/data/game_cfg_player.cfg, dst: FDNYFireFighter.cfg}
+  - {src: tests/game/data/fdcore_recordings_menu.cfg, dst: FDNYCore.cfg}
+  - {src: null, dst: autoexec.cfg}
+  - {src: tests/game/data/training_2026-10-27T00-51-13.060Z_pid6092_run0004.jsonl, dst: RecordingsMenuTest/training_2026-10-27T00-51-13.060Z_pid6092_run0004.jsonl}
+  - {src: tests/game/data/training_2026-10-27T00-51-13.060Z_pid6092_run0004.jsonl, dst: RecordingsMenuTest/training_2026-10-27T00-55-00.000Z_pid6092_run0005.jsonl}
+  - {src: null, dst: RecordingsMenuTest/training_2026-10-27T00-51-13.060Z_pid6092_run0004.jsonl.fdny-meta}
+  - {src: null, dst: RecordingsMenuTest/training_2026-10-27T00-55-00.000Z_pid6092_run0005.jsonl.fdny-meta}
+steps:
+  - assert_log: {contains: "menu: native page ready"}
+  - assert_log: {contains: "replay browser: ready"}
+  - wait_s: 4
+  - click: [320, 240]       # splash: any LMB
+  - wait_s: 3
+  - gclick: [97, 457]       # main: "game"
+  - wait_s: 3
+  - gclick: [195, 165]      # career: Hotrod Stein (Training) -> its briefing
+  - wait_s: 3
+  - gclick: [515, 393]      # briefing: Recordings
+  - wait_pipe: {cmd: recordings, key: open, equals: 1, timeout: 5}
+  - assert_pipe_stat: {cmd: recordings, key: view, equals: 0}
+  - assert_pipe_stat: {cmd: recordings, key: filtered, equals: 2}
+  - assert_pipe_contains: {cmd: recordings, contains: "stage=training"}
+  - screenshot: list
+  # Details of the first (newest) run, then Favorite: saved to its sidecar.
+  - gclick: [405, 178]
+  - wait_pipe: {cmd: recordings, key: view, equals: 1, timeout: 3}
+  - gclick: [405, 360]
+  - wait_pipe: {cmd: recordings, key: favorite, equals: 1, timeout: 3}
+  - assert_file: {path: RecordingsMenuTest/training_2026-10-27T00-55-00.000Z_pid6092_run0005.jsonl.fdny-meta, contains: "favorite=1"}
+  # Rename: the typed name goes to the page, not to binds or the game.
+  - gclick: [405, 306]
+  - wait_pipe: {cmd: recordings, key: view, equals: 3, timeout: 3}
+  - type: "Fixture7"
+  - key: enter
+  - wait_pipe: {cmd: recordings, key: view, equals: 1, timeout: 3}
+  - assert_pipe_contains: {cmd: recordings, contains: "name=Fixture7"}
+  - assert_file: {path: RecordingsMenuTest/training_2026-10-27T00-55-00.000Z_pid6092_run0005.jsonl.fdny-meta, contains: "name=Fixture7"}
+  - screenshot: details
+  # Escape: details -> list; the Favorites tab shows only the favorite.
+  - key: esc
+  - wait_pipe: {cmd: recordings, key: view, equals: 0, timeout: 3}
+  - gclick: [517, 133]
+  - wait_pipe: {cmd: recordings, key: group, equals: 3, timeout: 3}
+  - assert_pipe_stat: {cmd: recordings, key: filtered, equals: 1}
+  - gclick: [290, 133]
+  - wait_pipe: {cmd: recordings, key: group, equals: 1, timeout: 3}
+  - assert_pipe_stat: {cmd: recordings, key: filtered, equals: 2}
+  # Compare: the list offers the other run; picking it loads Training in the viewer.
+  - gclick: [405, 178]
+  - wait_pipe: {cmd: recordings, key: view, equals: 1, timeout: 3}
+  - gclick: [405, 252]
+  - wait_pipe: {cmd: recordings, key: view, equals: 2, timeout: 3}
+  - assert_pipe_stat: {cmd: recordings, key: filtered, equals: 1}
+  - gclick: [405, 178]
+  - wait_pipe: {cmd: viewer, key: active, equals: 1, timeout: 60}
+  - assert_pipe_stat: {cmd: viewer, key: loaded, equals: 2}
+  - assert_pipe_stat: {cmd: spectator, key: targets, equals: 2}
+  - assert_pipe_stat: {cmd: pause, key: active, equals: 1}
+  - assert_pipe_stat: {cmd: recorder, key: active, equals: 0}
+  - focus: {}
+  - screenshot: viewer
+  # Escape leaves the stage and returns to the Recordings list.
+  - key: {key: esc, hold: 0.1}
+  - wait_pipe: {cmd: viewer, key: active, equals: 0, timeout: 10}
+  - wait_pipe: {cmd: recordings, key: open, equals: 1, timeout: 20}
+  - assert_pipe_stat: {cmd: recordings, key: view, equals: 0}
+  - assert_pipe_stat: {cmd: pause, key: active, equals: 0}
+  - screenshot: back_to_list
+  # Escape from the list closes the page.
+  - key: esc
+  - wait_pipe: {cmd: recordings, key: open, equals: 0, timeout: 3}
+expect:
+  no_crash: true
+  log_errors: 0

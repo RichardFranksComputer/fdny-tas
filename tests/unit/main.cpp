@@ -10,6 +10,7 @@ const char* g_test = "";
 } // namespace unit
 
 void TestCheckpoints();
+void TestSpectatorCamera();
 void TestAddrAllVerify();
 void TestAddrGenesisAtPreferredBase();
 void TestAddrUnknownVersion();
@@ -24,6 +25,7 @@ void TestReplayColors();
 void TestReplaySimplify();
 void TestReplayAirFlags();
 void TestReplayIndex();
+void TestReplayBrowser();
 
 namespace {
 
@@ -33,6 +35,7 @@ struct Test {
 };
 const Test kTests[] = {
     {"checkpoints", TestCheckpoints},
+    {"spectator_camera", TestSpectatorCamera},
     {"addr_all_verify", TestAddrAllVerify},
     {"addr_genesis_at_preferred_base", TestAddrGenesisAtPreferredBase},
     {"addr_unknown_version", TestAddrUnknownVersion},
@@ -46,6 +49,7 @@ const Test kTests[] = {
     {"replay_simplify", TestReplaySimplify},
     {"replay_air_flags", TestReplayAirFlags},
     {"replay_index", TestReplayIndex},
+    {"replay_browser", TestReplayBrowser},
     {"crashlog_reports_fault", TestCrashlogReportsFault},  // last: it leaves the handler installed
 };
 

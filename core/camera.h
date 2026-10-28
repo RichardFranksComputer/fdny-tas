@@ -41,6 +41,11 @@ bool WorldOverrideActive();
 bool LastWorldXForm(XForm* out);
 // Current view, including the free camera override; false before the first render.
 bool ViewXForm(XForm* out);
+// Prepare an override before native camera setters and world rendering. Runs
+// more than once per frame; observers must be idempotent and never call a
+// native camera setter (SetWorldOverride only updates the stored pose).
+using BeforeWorldFn = void (*)();
+void OnBeforeWorldRender(BeforeWorldFn fn);
 void BeforeWorldRender(void* camera);  // gfx only
 
 } // namespace fdcore::camera

@@ -190,6 +190,9 @@ void FrameEnd() {
         g_nBoxes = 0;
         return;
     }
+    // A watched level (state::WatchOnly, the recordings viewer) shows no trigger volumes;
+    // nor is the newly loaded entity list walked during its first camera handoff.
+    if (state::WatchOnly()) { g_nBoxes = 0; return; }
     if (lstrcmpA(g_map, s.map) != 0 || s.frame - g_lastScan >= kRescanFrames) {
         g_lastScan = s.frame;
         Scan(s);

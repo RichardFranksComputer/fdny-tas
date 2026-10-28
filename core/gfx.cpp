@@ -881,6 +881,12 @@ bool ScreenRay(float x, float y, float* origin, float* direction) {
     return true;
 }
 
+void ClearWorldSubmissions() {
+    g_nWorldPrev = g_nLinePrev = 0;
+    g_nBoxSubs[0] = g_nBoxSubs[1] = 0;
+    g_nLineSubs[0] = g_nLineSubs[1] = 0;
+}
+
 void SubmitWorldLines(const WorldLine* lines, int n, Layer layer) {
     if (!lines || n <= 0 || layer == LAYER_HUD) return;
     if (g_nLineSubs[layer] < kMaxLayerSubs) g_lineSubs[layer][g_nLineSubs[layer]++] = {lines, n};

@@ -1,0 +1,113 @@
+name: spectator_camera
+# Modal recording viewer: playback uses real time while simulation is paused;
+# independent camera controls never resume gameplay or start a spectator recording.
+# Two separately named copies of the reference run make target switching deterministic.
+# Pure orbit geometry, axes and zoom limits are unit-tested in test_spectator.cpp.
+own_session: true
+pre_files:
+  - {src: tests/game/data/game_cfg_player.cfg, dst: FDNYFireFighter.cfg}
+  - {src: null, dst: FDNYCore.cfg}
+  - {src: null, dst: autoexec.cfg}
+  - {src: tests/game/data/mbase_2026-10-23T21-11-10.274Z_pid204_run0001.jsonl, dst: Recordings/viewer_compare_fixture.jsonl}
+setup: load_training
+record: false
+steps:
+  - assert_log: {contains: "spectator: ready"}
+  - console: "fd_profile practice"
+  - console: "fd_record_directory Recordings"
+  - console: "fd_record 1"
+  - loadmap: mbase
+  - focus: {}
+  - wait_pipe: {cmd: recorder, key: active, equals: 1, timeout: 5}
+  - console: "fd_replay_speed 1"
+  - console: "fd_replay_view mbase {repo}/tests/game/data/mbase_2026-10-23T21-11-10.274Z_pid204_run0001.jsonl"
+  - wait_pipe: {cmd: viewer, key: active, equals: 1, timeout: 5}
+  - assert_pipe_stat: {cmd: viewer, key: pending, equals: 0}
+  - assert_pipe_stat: {cmd: viewer, key: loaded, equals: 1}
+  - assert_pipe_stat: {cmd: viewer, key: playing, equals: 1}
+  - assert_pipe_stat: {cmd: pause, key: active, equals: 1}
+  - assert_pipe_stat: {cmd: pause, key: clockpaused, equals: 1}
+  - assert_pipe_stat: {cmd: spectator, key: active, equals: 1}
+  - assert_pipe_stat: {cmd: spectator, key: free, equals: 0}
+  - assert_pipe_stat: {cmd: spectator, key: followed, equals: 0}
+  - assert_pipe_stat: {cmd: spectator, key: targets, equals: 1}
+  - assert_pipe_stat: {cmd: camera_override, key: active, equals: 1}
+  - assert_log: {contains: "hooks: created genesis.camera_set_world_xform"}
+  - assert_pipe_stat: {cmd: camera_override, key: native_sets, min: 1}
+  - assert_pipe_stat: {cmd: recorder, key: active, equals: 0}
+  - focus: {}
+  - key: {key: x, hold: 0.1}
+  - wait_log: {contains: "viewer: through walls on", since_console: true, timeout: 3}
+  - key: {key: x, hold: 0.1}
+  - wait_log: {contains: "viewer: through walls off", since_console: true, timeout: 3}
+  - screenshot: following
+  - sample_pipe: {cmd: recorder, as: recorder_before}
+  - sample_pipe: {cmd: viewer, as: playing_before}
+  - wait_s: 1
+  - assert_pipe_stat: {cmd: viewer, key: time_ms, min: 1, since: playing_before}
+  - assert_pipe_stat: {cmd: recorder, key: runs, equals: 0, since: recorder_before}
+  - assert_pipe_stat: {cmd: recorder, key: samples, equals: 0, since: recorder_before}
+  # Pause only the replay timeline; the world's own pause remains active.
+  - key: {key: space, hold: 0.1}
+  - wait_pipe: {cmd: viewer, key: playing, equals: 0, timeout: 3}
+  - sample_pipe: {cmd: viewer, as: paused_before}
+  - wait_s: 0.5
+  - assert_pipe_stat: {cmd: viewer, key: time_ms, equals: 0, since: paused_before}
+  - assert_pipe_stat: {cmd: pause, key: active, equals: 1}
+  # Zoom, release the camera, then hook it back to the run without unpausing.
+  - key: {key: pgup, hold: 0.1}
+  - assert_pipe_stat: {cmd: spectator, key: distance, min: 60, max: 239}
+  - sample_pipe: {cmd: spectator, as: zoomed_in}
+  - key: {key: pgdn, hold: 0.1}
+  - assert_pipe_stat: {cmd: spectator, key: distance, min: 1, since: zoomed_in}
+  - key: {key: f, hold: 0.1}
+  - wait_pipe: {cmd: spectator, key: free, equals: 1, timeout: 3}
+  - assert_pipe_stat: {cmd: camera_override, key: active, equals: 1}
+  - key: {key: f, hold: 0.1}
+  - wait_pipe: {cmd: spectator, key: free, equals: 0, timeout: 3}
+  - assert_pipe_stat: {cmd: pause, key: active, equals: 1}
+  # A new view in the same stage replaces the previous one with two targets.
+  - console: "fd_replay_view mbase {repo}/tests/game/data/mbase_2026-10-23T21-11-10.274Z_pid204_run0001.jsonl viewer_compare_fixture.jsonl"
+  - wait_pipe: {cmd: viewer, key: loaded, equals: 2, timeout: 5}
+  - wait_pipe: {cmd: viewer, key: active, equals: 1, timeout: 5}
+  - assert_pipe_stat: {cmd: spectator, key: targets, equals: 2}
+  - focus: {}
+  - screenshot: comparison
+  - key: {key: tab, hold: 0.1}
+  - wait_pipe: {cmd: spectator, key: followed, equals: 1, timeout: 3}
+  - assert_pipe_stat: {cmd: spectator, key: free, equals: 0}
+  - key: {key: f, hold: 0.1}
+  - wait_pipe: {cmd: spectator, key: free, equals: 1, timeout: 3}
+  - key: {key: tab, hold: 0.1}
+  - wait_pipe: {cmd: spectator, key: followed, equals: 0, timeout: 3}
+  - assert_pipe_stat: {cmd: spectator, key: free, equals: 0}
+  - key: {key: space, hold: 0.1}
+  - wait_pipe: {cmd: viewer, key: playing, equals: 0, timeout: 3}
+  - key: {key: home, hold: 0.1}
+  - wait_pipe: {cmd: viewer, key: time_ms, equals: 0, timeout: 3}
+  - key: {key: left, hold: 0.1}
+  - wait_s: 0.1
+  - assert_pipe_stat: {cmd: viewer, key: time_ms, equals: 0}
+  - key: {key: right, hold: 0.1}
+  - wait_pipe: {cmd: viewer, key: time_ms, equals: 5000, timeout: 3}
+  # At the end playback stops, but the viewer camera and frozen world stay active.
+  - console: "fd_replay_speed 64"
+  - key: {key: space, hold: 0.1}
+  - wait_pipe: {cmd: viewer, key: playing, equals: 1, timeout: 3}
+  - wait_pipe: {cmd: viewer, key: playing, equals: 0, timeout: 5}
+  - assert_pipe_stat: {cmd: viewer, key: time_ms, equals: 33847}
+  - assert_pipe_stat: {cmd: viewer, key: active, equals: 1}
+  - assert_pipe_stat: {cmd: pause, key: active, equals: 1}
+  - assert_pipe_stat: {cmd: recorder, key: active, equals: 0}
+  # Exit goes through the viewer's explicit native-menu return, releasing its pause.
+  - key: {key: esc, hold: 0.1}
+  - wait_pipe: {cmd: viewer, key: active, equals: 0, timeout: 5}
+  - wait_pipe: {cmd: snapshot, key: game_state, equals: 0, timeout: 5}
+  - assert_pipe_stat: {cmd: spectator, key: active, equals: 0}
+  - assert_pipe_stat: {cmd: pause, key: active, equals: 0}
+  - assert_pipe_stat: {cmd: camera_override, key: active, equals: 0}
+  - assert_pipe_stat: {cmd: recorder, key: active, equals: 0}
+  - assert_pipe_stat: {cmd: recorder, key: runs, equals: 0, since: recorder_before}
+expect:
+  no_crash: true
+  log_errors: 0

@@ -21,6 +21,9 @@ namespace fdcore::gfx {
 
 bool Init();   // resolves the Genesis API, hooks geEngine_RenderWorld; false = no in-frame drawing
 bool Ready();
+// Drop queued world/overlay submissions after a completed frame, before a
+// scene/menu transition. The next world must never inherit the old scene's lists.
+void ClearWorldSubmissions();
 
 void* Engine();  // geEngine* of the frame in progress
 void* World();   // geWorld* rendered this frame (null when none was)

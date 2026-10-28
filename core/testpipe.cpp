@@ -25,7 +25,7 @@ struct Reg {
     const char* name;
     Handler fn;
 };
-constexpr int kMaxReg = 16;
+constexpr int kMaxReg = 32;
 Reg g_regs[kMaxReg];
 int g_nRegs = 0;
 
@@ -95,8 +95,10 @@ DWORD WINAPI Server(LPVOID) {
 
 } // namespace
 
+// A full table is an error, not a silent drop: every test fails its log_errors check.
 void Register(const char* name, Handler fn) {
     if (g_nRegs < kMaxReg) g_regs[g_nRegs++] = {name, fn};
+    else log::Error("testpipe: no room for channel '%s' (%d max)", name, kMaxReg);
 }
 
 void Start() {

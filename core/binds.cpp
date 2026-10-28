@@ -1,4 +1,4 @@
-// User: Keys -- bind any key to a console line (bind / unbind / bindlist); keys act only while the game has focus and the console is closed.
+// User: Keys -- bind any key to a console line (bind / unbind / bindlist); keys act only inside a level while the game has focus and the console is closed; menu typing never toggles gameplay bindings.
 #include "binds.h"
 
 #include <windows.h>
@@ -8,6 +8,7 @@
 #include "console.h"
 #include "hooks.h"
 #include "log.h"
+#include "state.h"
 
 namespace fdcore::binds {
 namespace {
@@ -45,6 +46,9 @@ char g_binds[kVkCount][160];
 bool g_prevDown[kVkCount];
 KeyCapture g_capture = nullptr;
 bool (*g_pointerCapture)() = nullptr;
+KeyCapture g_extraCapture[4];
+bool (*g_extraPointer[4])();
+int g_nExtraCapture, g_nExtraPointer;
 bool g_isDefault[kVkCount];  // a feature's default key (BindDefault)
 char g_default[kVkCount][160];  // ... and its line: FDNYCore.cfg only records changes from it
 const char* g_defaultKey[kVkCount];  // ... and the name it was given, in BindDefault order
@@ -168,12 +172,57 @@ bool ConsoleOpen() {
     return addr::ReadI32(addr::Id::console_state, &state) && state != 0;
 }
 
-bool KeysLive_() { return OurWindowFocused() && !ConsoleOpen(); }
+bool KeysLive_() { return state::Current().gameState == 1 && OurWindowFocused() && !ConsoleOpen(); }
+
+// The game window's messages (OnWindowMessage): one subclass, installed from Poll.
+MessageFilter g_msgFilters[4];
+int g_nMsgFilters = 0;
+HWND g_window = nullptr;
+WNDPROC g_gameProc = nullptr;
+
+LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM w, LPARAM l) {
+    for (int i = 0; i < g_nMsgFilters; ++i)
+        if (g_msgFilters[i](message, w, l)) return 0;
+    return CallWindowProcA(g_gameProc, window, message, w, l);
+}
+
+// The game's main window: our process's largest visible top-level window without an owner
+// (the console and message boxes are smaller or owned).
+BOOL CALLBACK FindGameWindow(HWND window, LPARAM found) {
+    DWORD pid = 0;
+    GetWindowThreadProcessId(window, &pid);
+    RECT r;
+    if (pid != GetCurrentProcessId() || !IsWindowVisible(window) || GetWindow(window, GW_OWNER) ||
+        !GetClientRect(window, &r))
+        return TRUE;
+    auto* best = reinterpret_cast<HWND*>(found);
+    RECT b = {};
+    if (!*best || (GetClientRect(*best, &b) && r.right * r.bottom > b.right * b.bottom)) *best = window;
+    return TRUE;
+}
+
+void InstallWindowProc() {
+    if (!g_nMsgFilters || (g_window && IsWindow(g_window))) return;
+    g_window = nullptr;
+    HWND found = nullptr;
+    EnumWindows(FindGameWindow, reinterpret_cast<LPARAM>(&found));
+    if (!found) return;
+    auto previous = reinterpret_cast<WNDPROC>(
+        SetWindowLongPtrA(found, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&WindowProc)));
+    if (!previous) {
+        static bool warned = false;
+        if (!warned) log::Warn("binds: window messages unavailable (%lu)", GetLastError()), warned = true;
+        return;
+    }
+    g_window = found, g_gameProc = previous;
+    log::Info("binds: window messages from %p (%d filter(s))", found, g_nMsgFilters);
+}
 
 // Edge-triggered on key press. Ignored while the console is open (keys are
 // typing there) or another window has focus; key state is still tracked so
 // closing the console doesn't fire keys that were held.
 void Poll() {
+    InstallWindowProc();
     const bool live = KeysLive_();
     for (int vk = 1; vk < kVkCount; ++vk) {
         if (!g_binds[vk][0]) continue;
@@ -191,10 +240,36 @@ void Poll() {
 } // namespace
 
 bool KeysLive() { return KeysLive_(); }
+bool OnWindowMessage(MessageFilter filter) {
+    if (!filter) return false;
+    for (int i = 0; i < g_nMsgFilters; ++i) if (g_msgFilters[i] == filter) return true;
+    if (g_nMsgFilters >= 4) return false;
+    g_msgFilters[g_nMsgFilters++] = filter; return true;
+}
 void SetPointerCapture(bool (*filter)()) { g_pointerCapture = filter; }
-bool PointerCaptured() { return g_pointerCapture && g_pointerCapture(); }
+bool PointerCaptured() {
+    if (g_pointerCapture && g_pointerCapture()) return true;
+    for (int i = 0; i < g_nExtraPointer; ++i) if (g_extraPointer[i]()) return true;
+    return false;
+}
+bool AddPointerCapture(bool (*filter)()) {
+    if (!filter) return false;
+    for (int i = 0; i < g_nExtraPointer; ++i) if (g_extraPointer[i] == filter) return true;
+    if (g_nExtraPointer >= 4) return false;
+    g_extraPointer[g_nExtraPointer++] = filter; return true;
+}
 void SetKeyCapture(KeyCapture filter) { g_capture = filter; }
-bool KeyCaptured(int vk) { return g_capture && g_capture(vk); }
+bool KeyCaptured(int vk) {
+    if (g_capture && g_capture(vk)) return true;
+    for (int i = 0; i < g_nExtraCapture; ++i) if (g_extraCapture[i](vk)) return true;
+    return false;
+}
+bool AddKeyCapture(KeyCapture filter) {
+    if (!filter) return false;
+    for (int i = 0; i < g_nExtraCapture; ++i) if (g_extraCapture[i] == filter) return true;
+    if (g_nExtraCapture >= 4) return false;
+    g_extraCapture[g_nExtraCapture++] = filter; return true;
+}
 
 bool BindDefault(const char* key, const char* line) {
     const int vk = ParseKey(key);

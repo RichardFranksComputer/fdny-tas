@@ -1,5 +1,5 @@
-// Tests: tests/game/replay.yaml tests/unit/test_replay.cpp
-// User: Replay -- plays your recorded runs back in the level (trace, box, facing arrow): V plays this map's best and latest run, fd_replay picks from a list, fd_replay_ghost races one each spawn.
+// Tests: tests/game/replay.yaml tests/game/spectator_camera.yaml tests/game/recordings_menu.yaml tests/unit/test_replay.cpp tests/unit/test_spectator.cpp
+// User: Replay -- Recordings on the briefing browses, favorites, renames and compares runs with a follow/free camera; V plays this map's best and latest, fd_replay picks runs, fd_replay_ghost races each spawn.
 // replay feature (owner request 2026-10-25): the fdny-maps website's recording playback
 // (map_explorer/recording.js), in the game. The data is read the site's way (replay_data.h),
 // so both draw the same trace. Colours (owner spec, not the site's): one recording fades red ->
@@ -15,6 +15,7 @@
 #include <xmmintrin.h>
 
 #include "binds.h"
+#include "camera.h"
 #include "cmd.h"
 #include "console.h"
 #include "entities.h"
@@ -24,7 +25,9 @@
 #include "modules.h"
 #include "pause.h"
 #include "replay_data.h"
+#include "replay_browser.h"
 #include "state.h"
+#include "spectator.h"
 #include "testpipe.h"
 #include "textdraw.h"
 
@@ -68,6 +71,9 @@ struct Rec {
 };
 Rec g_rec[kMaxRec];
 int g_nRec = 0;
+bool ViewerRunning();
+void EndViewer(bool openMenu);
+void ViewerAction(spectator::Action action);
 
 float g_time = 0;          // playback time, ms
 bool g_playing = false;
@@ -141,9 +147,8 @@ void Path(const char* name, char* out) {
         lstrcpynA(out, name, MAX_PATH);
         return;
     }
-    const cmd::Cvar* dir = cmd::FindCvar("fd_record_directory");
     char folder[MAX_PATH];
-    if (!console::GamePath(dir && dir->value[0] ? dir->value : "Recordings", folder, sizeof(folder))) return;
+    if (!RecordingDirectory(folder, sizeof(folder))) return;
     if (lstrlenA(folder) + 1 + lstrlenA(name) >= MAX_PATH) return;
     wsprintfA(out, "%s\\%s", folder, name);
 }
@@ -160,9 +165,9 @@ bool Load(const char* name) {
     HANDLE f = OpenRead(path);
     if (f == INVALID_HANDLE_VALUE) return console::Print("replay: cannot open %s", path), false;
     const DWORD size = GetFileSize(f, nullptr);
-    char* text = static_cast<char*>(Alloc(static_cast<int>(size) + 1));
+    char* text = size < 128u * 1024 * 1024 ? static_cast<char*>(Alloc(static_cast<int>(size) + 1)) : nullptr;
     DWORD got = 0;
-    const bool read = text && size < 128u * 1024 * 1024 && ReadFile(f, text, size, &got, nullptr);
+    const bool read = text && size < 128u * 1024 * 1024 && ReadFile(f, text, size, &got, nullptr) && got == size;
     CloseHandle(f);
     Rec& x = g_rec[g_nRec];
     char err[128];
@@ -228,6 +233,7 @@ bool Load(const char* name) {
 }
 
 void CmdLoad(int argc, const char* const* argv) {
+    if (ViewerRunning()) return console::Print("Exit the recordings viewer before changing loaded runs.");
     if (argc < 2) return console::Print("usage: fd_replay_load <file.jsonl> (in the recordings folder, or a full path)");
     Load(argv[1]);
 }
@@ -250,6 +256,7 @@ void ClearAll() {
 }
 
 void CmdClear(int, const char* const*) {
+    if (ViewerRunning()) return EndViewer(true);
     ClearAll();
     console::Print("fd_replay_clear: no recordings loaded");
 }
@@ -311,6 +318,183 @@ float VisibleDuration() {
     for (int i = 0; i < g_nRec; ++i)
         if (SameMap(g_rec[i].r.stage, g_map) && g_rec[i].r.duration > dur) dur = g_rec[i].r.duration;
     return dur;
+}
+
+// --- Menu-launched replay viewer -------------------------------------------------------
+// The browser validates recordings on the game thread before native Go loads
+// the selected stage.
+bool g_viewPending, g_viewActive, g_viewReady;
+bool g_viewExitRequested, g_viewExitToMenu, g_viewXray;
+void ViewerTargets();
+void PrimeViewerCamera();
+DWORD g_viewRequested;
+char g_viewStage[32], g_viewError[192];
+int g_viewPanel = -1;
+bool ViewerRunning() { return g_viewPending || g_viewActive; }
+
+bool ViewError(const char* text) {
+    lstrcpynA(g_viewError, text, sizeof(g_viewError));
+    log::Warn("viewer: %s", text);
+    console::Print("Recordings: %s", text);
+    return false;
+}
+
+bool PrepareViewImpl(const char* stage, const char* first, const char* second) {
+    g_viewError[0] = 0;
+    g_viewXray = false;
+    g_viewExitRequested = g_viewExitToMenu = false;
+    if (!g_viewReady) return ViewError("Replay viewer is not available in this build.");
+    const cmd::Cvar* profile = cmd::FindCvar("fd_profile");
+    if (profile && lstrcmpiA(profile->value, "run") == 0)
+        return ViewError("Switch fd_profile to practice before viewing recordings.");
+    if (!stage || !stage[0] || lstrlenA(stage) >= static_cast<int>(sizeof(g_viewStage)))
+        return ViewError("Invalid recording stage.");
+    for (const char* p = stage; *p; ++p)
+        if (!((*p >= 'a' && *p <= 'z') || (*p >= '0' && *p <= '9') || *p == '_' || *p == '-'))
+            return ViewError("Invalid recording stage.");
+    if (!first || !first[0] || lstrlenA(first) >= MAX_PATH ||
+        (second && lstrlenA(second) >= MAX_PATH)) return ViewError("Recording path is too long or empty.");
+    if (second && second[0] && lstrcmpiA(first, second) == 0)
+        return ViewError("Choose two different recordings to compare.");
+    if (spectator::Active()) spectator::Stop();
+    g_viewPending = g_viewActive = false;
+    textdraw::Show(g_viewPanel, false);
+    spectator::SetPending(false);
+    state::SetWatchOnly(false, "viewer replaced");
+    ClearAll();
+    // Load validates a snapshot of complete sample lines; an end record is optional.
+    if (!Load(first) || !SameMap(g_rec[0].r.stage, stage)) {
+        ClearAll(); return ViewError("Cannot load the recording, or its stage does not match this menu.");
+    }
+    if (second && second[0] && (!Load(second) || g_nRec != 2 || !SameMap(g_rec[1].r.stage, stage))) {
+        ClearAll(); return ViewError("Cannot load the comparison recording, or its stage differs.");
+    }
+    lstrcpynA(g_viewStage, stage, sizeof(g_viewStage));
+    g_viewPending = true; g_viewRequested = GetTickCount();
+    spectator::SetPending(true);
+    state::SetWatchOnly(true, "recordings viewer");  // before the stage loads: nothing records the watched run
+    ViewerTargets();
+    if (!spectator::Prepare()) {
+        g_viewPending = false; spectator::SetPending(false); state::SetWatchOnly(false, "viewer not prepared");
+        ClearAll(); return ViewError("The replay camera could not be prepared.");
+    }
+    log::Info("viewer: prepared %d recording(s) on %s", g_nRec, stage);
+    return true;
+}
+
+void CmdView(int argc, const char* const* argv) {
+    if (argc < 3) return console::Print("usage: fd_replay_view <stage> <file.jsonl> [second.jsonl]");
+    const auto& state = state::Current();
+    if (state.gameState != 1 || !SameMap(state.map, argv[1]))
+        return console::Print("fd_replay_view: use Recordings on the briefing, or load that stage first");
+    PrepareView(argv[1], argv[2], argc > 3 ? argv[3] : nullptr);
+}
+
+void ViewerTargets() {
+    spectator::Target targets[kMaxRec] = {};
+    for (int i = 0; i < g_nRec; ++i) {
+        if (!SameMap(g_rec[i].r.stage, g_viewStage)) continue;
+        const d::Sample frame = d::FrameAt(g_rec[i].r, g_time);
+        for (int axis = 0; axis < 3; ++axis) {
+            targets[i].pos[axis] = frame.pos[axis];
+            targets[i].forward[axis] = frame.fwd[axis];
+        }
+        targets[i].valid = true;
+    }
+    spectator::SetTargets(targets, g_nRec);
+}
+
+// Native map state can become live before the frame-end state snapshot.
+// Install the prepared follow pose at the actual camera-use boundary, before
+// the selected stage's first world render, including loading states 2 and 3.
+void PrimeViewerCamera() {
+    if (!g_viewPending || g_viewExitRequested) return;
+    int32_t nativeState = -1;
+    char map[32] = {};
+    if (!addr::ReadI32(addr::Id::game_state, &nativeState) || (nativeState < 1 || nativeState > 3) ||
+        !addr::ReadStr(addr::Id::game_map_name, map, sizeof(map)) || !SameMap(map, g_viewStage)) return;
+    spectator::PrimeCamera();
+}
+
+void EndViewer(bool openMenu) {
+    if (!g_viewActive && !g_viewPending) return;
+    g_viewExitRequested = true;
+    g_viewExitToMenu = g_viewExitToMenu || openMenu;
+}
+
+void CompleteViewerExit() {
+    if (!g_viewExitRequested) return;
+    const bool openMenu = g_viewExitToMenu;
+    g_viewExitRequested = g_viewExitToMenu = false;
+    g_viewPending = g_viewActive = false;
+    spectator::SetPending(false);
+    spectator::Stop();
+    state::SetWatchOnly(false, "viewer ended");
+    g_playing = false;
+    gfx::ClearWorldSubmissions();
+    ClearAll();
+    textdraw::Show(g_viewPanel, false);
+    if (openMenu) browser::Restore();  // leaves the level and shows the Recordings list (menu service)
+    log::Info("viewer: ended; menu=%d", openMenu);
+}
+
+void ViewerAction(spectator::Action action) {
+    if (!g_viewActive || g_viewExitRequested) return;
+    switch (action) {
+    case spectator::Action::Exit: EndViewer(true); return;
+    case spectator::Action::TogglePlay:
+        if (!g_playing && g_time >= VisibleDuration()) g_time = 0;
+        g_playing = !g_playing; break;
+    case spectator::Action::SeekBack: g_time -= 5000; break;
+    case spectator::Action::SeekForward: g_time += 5000; break;
+    case spectator::Action::Restart: g_time = 0; break;
+    case spectator::Action::ToggleXray:
+        g_viewXray = !g_viewXray;
+        log::Info("viewer: through walls %s", g_viewXray ? "on" : "off");
+        return;
+    }
+    if (g_time < 0) g_time = 0;
+    if (g_time > VisibleDuration()) g_time = VisibleDuration();
+    g_lastTick = GetTickCount();
+    ViewerTargets();
+}
+
+void ViewerFrame(const state::State& s) {
+    if (g_viewExitRequested) return;
+    if (g_viewPending) {
+        if (s.gameState == 1) {
+            if (!SameMap(s.map, g_viewStage)) {
+                ViewError("The loaded stage differs from the selected recording."); EndViewer(true); return;
+            }
+            if (!s.playerValid || !gfx::World()) return; // wait for the first rendered live world
+            g_time = 0; ViewerTargets();
+            if (!spectator::Start()) { ViewError("The spectator camera could not start."); EndViewer(true); return; }
+            g_viewPending = false; g_viewActive = true; spectator::SetPending(false);
+            g_playing = true; g_lastTick = GetTickCount();
+            log::Info("viewer: started %d recording(s) on %s", g_nRec, g_viewStage);
+        } else if (GetTickCount() - g_viewRequested > 120000) {
+            ViewError("Stage loading did not complete; viewer request cancelled."); EndViewer(false);
+        }
+    }
+    if (!g_viewActive) return;
+    if (s.gameState != 1 || !spectator::Active() || !SameMap(s.map, g_viewStage)) {
+        EndViewer(s.gameState == 0); return;
+    }
+    const cmd::Cvar* profile = cmd::FindCvar("fd_profile");
+    if (profile && lstrcmpiA(profile->value, "run") == 0) { EndViewer(true); return; }
+    ViewerTargets();
+    static char text[6][textdraw::kLineLen];
+    spectator::State camera; spectator::ReadState(&camera);
+    wsprintfA(text[0], "%s  %s  %ld.%01ld / %ld.%01ld s", g_viewStage, g_playing ? "PLAYING" : "PAUSED",
+        static_cast<long>(g_time)/1000, static_cast<long>(g_time)%1000/100,
+        static_cast<long>(VisibleDuration())/1000, static_cast<long>(VisibleDuration())%1000/100);
+    wsprintfA(text[1], "%s  Run %d/%d  | F: release / re-hook camera", camera.free ? "FREE CAMERA" : "FOLLOWING", camera.followed+1, g_nRec);
+    lstrcpyA(text[2], "Right-drag: orbit/look | Wheel: zoom | Tab: switch run");
+    lstrcpyA(text[3], "Space: play/pause | Left/Right: seek 5s | Home: restart");
+    lstrcpyA(text[4], "Free: WASD + E/Q | Shift: fast | Ctrl: slow | Esc: Recordings");
+    wsprintfA(text[5], "X: through walls %s (replay traces and boxes)", g_viewXray ? "ON" : "OFF");
+    const char* lines[] = {text[0], text[1], text[2], text[3], text[4], text[5]};
+    textdraw::SetLines(g_viewPanel, lines, 6); textdraw::Show(g_viewPanel, true);
 }
 
 // --- The picker (fd_replay; D51) --------------------------------------------------------
@@ -398,6 +582,7 @@ void PickerKeys() {
 // Key V: play / pause; from the end it starts again. With nothing loaded for this map, it
 // loads the best finished run and the latest one first; with the picker open, closes it.
 void CmdToggle(int, const char* const*) {
+    if (ViewerRunning()) return ViewerAction(spectator::Action::TogglePlay);
     ClosePicker();
     if (g_map[0] && VisibleDuration() <= 0 && !AutoLoad())
         return console::Print("replay: no recordings of %s in the recordings folder (fd_record 1 records your runs)", g_map);
@@ -423,6 +608,7 @@ void CmdList(int, const char* const*) {
 
 // fd_replay: the picker; fd_replay <text>: load the first recording (by name) containing text.
 void CmdReplay(int argc, const char* const* argv) {
+    if (ViewerRunning()) return console::Print("Exit the recordings viewer before changing loaded runs.");
     if (argc < 2) {
         if (g_pickerOpen) return ClosePicker();
         if (!g_map[0]) return console::Print("fd_replay: load a level first");
@@ -449,7 +635,7 @@ void PlayerInit(void*) { g_spawnTick = GetTickCount(), g_ghostPending = true; }
 void Ghost() {
     g_ghostPending = false;
     const char mode = g_fdReplayGhost.value[0];
-    if (mode != '1' && mode != '2') return;
+    if (g_viewPending || g_viewActive || (mode != '1' && mode != '2')) return;
     ClosePicker();
     ClearAll();
     Scan(g_map);
@@ -535,8 +721,9 @@ void FrameEnd() {
     const state::State& s = state::Current();
     for (; g_nCleared; --g_nCleared) FreeRec(g_cleared[g_nCleared - 1]);
     g_draw[0].nLines = g_draw[0].nBoxes = g_draw[1].nLines = g_draw[1].nBoxes = 0, g_visible = 0, g_ticks = 0;
+    ViewerFrame(s);
     if (s.gameState != 1) return ClosePicker();
-    if (!SameMap(g_map, s.map)) lstrcpynA(g_map, s.map, sizeof(g_map)), g_time = 0, g_playing = false;
+    if (!SameMap(g_map, s.map)) lstrcpynA(g_map, s.map, sizeof(g_map)), g_time = 0, g_playing = g_viewActive;
     if (g_ghostPending) Ghost();
     PickerKeys();
     if (!g_nRec) return;
@@ -549,7 +736,7 @@ void FrameEnd() {
         g_time += static_cast<float>(dt) * Speed();
         if (g_time >= dur) g_time = dur, g_playing = false;
     }
-    const bool xray = On(g_fdReplayXray);
+    const bool xray = g_viewActive ? g_viewXray : On(g_fdReplayXray);
     DrawList& shapes = g_draw[xray ? 1 : 0];  // the box and arrow: full strength over walls with x-ray
     int slot = 0;
     for (int i = 0; i < g_nRec; ++i) {
@@ -584,6 +771,7 @@ void FrameEnd() {
         AddTicks(x, xray);
         AddShape(shapes, slot++, f, x.rgb[last]);
     }
+    if (g_viewActive) ViewerFrame(s);
     for (int l = 0; l < 2; ++l) {
         const gfx::Layer layer = l ? gfx::LAYER_OVERLAY : gfx::LAYER_WORLD;
         gfx::SubmitWorldBoxes(g_draw[l].boxes, g_draw[l].nBoxes, layer);
@@ -592,6 +780,19 @@ void FrameEnd() {
 }
 
 bool Init() {
+    g_viewPanel = textdraw::Create("Replay viewer", textdraw::BOTTOM_LEFT, 8, 24, 3, textdraw::C_TEXT);
+    spectator::SetActionHandler(ViewerAction);
+    camera::OnBeforeWorldRender(PrimeViewerCamera);
+    hooks::OnFrameComplete(CompleteViewerExit);
+    g_viewReady = spectator::Available();
+    if (!browser::Init()) log::Warn("replay: Recordings menu disabled; console playback remains available");
+    binds::DescribeKey("esc pgup pgdn", "back / previous page / next page", "in the Recordings menu");
+    binds::DescribeKey("x", "toggle replay traces and ghost boxes through walls (shown in viewer controls)", "in the recordings viewer");
+    binds::DescribeKey("mouse2", "drag to orbit the followed run or look around with the released camera", "in the recordings viewer");
+    binds::DescribeKey("f tab space leftarrow rightarrow home esc pgup pgdn", "viewer: follow/free, switch run, play/pause, seek, restart, exit, zoom", "in the recordings viewer");
+    binds::DescribeKey("w a s d e q shift ctrl", "move the released viewer camera; Shift fast, Ctrl slow", "in the recordings viewer");
+    cmd::RegisterCommand("fd_replay_view", "fd_replay_view <stage> <file.jsonl> [second.jsonl]: watch one or two runs in the currently loaded stage with a follow/free camera", CmdView);
+    cmd::SetPracticeOnly("fd_replay_view");
     cmd::RegisterCvar(&g_fdReplaySpeed);
     cmd::RegisterCvar(&g_fdReplayXray);
     cmd::RegisterCommand("fd_replay_load", "fd_replay_load <file.jsonl>: load a recording (the recordings folder, or a full path); "
@@ -615,6 +816,11 @@ bool Init() {
     if (!entities::ObservePlayer(PlayerInit, nullptr)) log::Warn("replay: no player observer; fd_replay_ghost off");
     hooks::OnFrameEnd(FrameEnd);
 #ifdef FDCORE_DEBUG
+    testpipe::Register("viewer", [](const char*, char* out, int) {
+        wsprintfA(out, "pending=%d active=%d loaded=%d playing=%d time_ms=%ld duration_ms=%ld stage=%s",
+            g_viewPending, g_viewActive, g_nRec, g_playing, static_cast<long>(g_time),
+            static_cast<long>(VisibleDuration()), g_viewStage);
+    });
     testpipe::Register("replay", [](const char*, char* resp, int) {
         int us, meanUs;
         gfx::WorldLineCost(&us, &meanUs);
@@ -628,6 +834,14 @@ bool Init() {
 }
 
 } // namespace
+bool PrepareView(const char* stage, const char* first, const char* second) {
+    return PrepareViewImpl(stage, first, second);
+}
+const char* ViewError() { return g_viewError; }
+bool RecordingDirectory(char* out, int cap) {
+    const auto* dir = cmd::FindCvar("fd_record_directory");
+    return console::GamePath(dir && dir->value[0] ? dir->value : "Recordings", out, cap);
+}
 } // namespace fdcore::replay
 
 // After the recorder (100): it creates and enables the player hooks; the replay only adds a

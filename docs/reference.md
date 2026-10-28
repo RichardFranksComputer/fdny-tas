@@ -43,6 +43,11 @@ your changes are saved (FDNYCore.cfg). **Practice**: refused while `fd_profile` 
 | **CTRL** | free camera: 0.25x speed (held) | while fd_pause is 1 |
 | **MOUSE** | free camera: look (fd_freecam_sens) | while fd_pause is 1 |
 | **W** **A** **S** **D** **UPARROW** **LEFTARROW** **DOWNARROW** **RIGHTARROW** **C** **CTRL** **SPACE** **SHIFT** **MOUSE1** **MOUSE2** **1** **2** **3** | sample raw virtual keys into JSONL (no input changes) | while fd_record is 1 and the game has focus |
+| **ESC** **PGUP** **PGDN** | back / previous page / next page | in the Recordings menu |
+| **X** | toggle replay traces and ghost boxes through walls (shown in viewer controls) | in the recordings viewer |
+| **MOUSE2** | drag to orbit the followed run or look around with the released camera | in the recordings viewer |
+| **F** **TAB** **SPACE** **LEFTARROW** **RIGHTARROW** **HOME** **ESC** **PGUP** **PGDN** | viewer: follow/free, switch run, play/pause, seek, restart, exit, zoom | in the recordings viewer |
+| **W** **A** **S** **D** **E** **Q** **SHIFT** **CTRL** | move the released viewer camera; Shift fast, Ctrl slow | in the recordings viewer |
 | **1** **2** **3** **4** **5** **6** **7** **8** **9** | replay picker: show / hide that run | while the fd_replay list is open |
 | **SPACE** **INS** **MOUSE1** **TAB** | checkpoint editor: place (Space or Insert) at pointer / select / select next | while fd_checkpoints_edit is 1 |
 | **LEFTARROW** **RIGHTARROW** **UPARROW** **DOWNARROW** **PGUP** **PGDN** | checkpoint editor: move on world X/Z/Y axes; Shift resizes; Ctrl uses 1 unit | while fd_checkpoints_edit is 1 |
@@ -53,7 +58,7 @@ your changes are saved (FDNYCore.cfg). **Practice**: refused while `fd_profile` 
 ## Features
 
 - **Console**: FDNYCore's commands and variables, typed in the game's console (` key); changed settings are saved to FDNYCore.cfg, your own lines go in autoexec.cfg. (variables `fd_version`, `fd_hooks_frame`, `fd_log_commands`; commands `exec`, `echo`, `toggle`, `cvarlist`, `cmdlist`, `fd_writeconfig`)
-- **Keys**: bind any key to a console line (bind / unbind / bindlist); keys act only while the game has focus and the console is closed. (commands `bind`, `unbind`, `unbindall`, `bindlist`)
+- **Keys**: bind any key to a console line (bind / unbind / bindlist); keys act only inside a level while the game has focus and the console is closed; menu typing never toggles gameplay bindings. (commands `bind`, `unbind`, `unbindall`, `bindlist`)
 - **Profiles**: practice (everything allowed) or run (practice-only settings refused, watermark always on). (variables `fd_profile`, `fd_watermark`)
 - **On-screen text**: size and opacity of every FDNYCore text panel. (variables `fd_text_size`, `fd_text_alpha`, `fd_text_fg_alpha`; commands `fd_textdraw`)
 - **Startup**: optional startup changes. (variables `fd_skip_intro`)
@@ -67,7 +72,7 @@ your changes are saved (FDNYCore.cfg). **Practice**: refused while `fd_profile` 
 - **Fire juggling**: an arrow showing where a carried survivor lands if you pass out now. (variables `fd_juggle`; keys J)
 - **Pause and free camera**: freeze the game and fly a camera around; the view returns to the player on resume. (variables `fd_pause`, `fd_freecam_speed`, `fd_freecam_sens`; commands `fd_pause_toggle`; keys P, W S, A D, E Q, SHIFT, CTRL, MOUSE)
 - **Recorder**: automatically save player and victim trajectories as fdny-trajectory-v1 JSONL files in Recordings beside FDNYCore.asi. (variables `fd_record`, `fd_record_victims`, `fd_record_directory`; keys W A S D UPARROW LEFTARROW DOWNARROW RIGHTARROW C CTRL SPACE SHIFT MOUSE1 MOUSE2 1 2 3)
-- **Replay**: plays your recorded runs back in the level (trace, box, facing arrow): V plays this map's best and latest run, fd_replay picks from a list, fd_replay_ghost races one each spawn. (variables `fd_replay_speed`, `fd_replay_xray`, `fd_replay_ghost`; commands `fd_replay_load`, `fd_replay_clear`, `fd_replay_toggle`, `fd_replay_list`, `fd_replay`; keys V, 1 2 3 4 5 6 7 8 9)
+- **Replay**: Recordings on the briefing browses, favorites, renames and compares runs with a follow/free camera; V plays this map's best and latest, fd_replay picks runs, fd_replay_ghost races each spawn. (variables `fd_replay_speed`, `fd_replay_xray`, `fd_replay_ghost`; commands `fd_replay_view`, `fd_replay_load`, `fd_replay_clear`, `fd_replay_toggle`, `fd_replay_list`, `fd_replay`; keys V, ESC PGUP PGDN, X, MOUSE2, F TAB SPACE LEFTARROW RIGHTARROW HOME ESC PGUP PGDN, W A S D E Q SHIFT CTRL, 1 2 3 4 5 6 7 8 9)
 - **Practice checkpoints**: place and edit native checkpoint boxes, save per mission and show elapsed level time on contact. (variables `fd_checkpoints_edit`, `fd_checkpoints_distance`, `fd_checkpoints_step`, `fd_checkpoints`; commands `fd_checkpoints_name`, `fd_checkpoints_save`, `fd_checkpoints_status`; keys N, SPACE INS MOUSE1 TAB, LEFTARROW RIGHTARROW UPARROW DOWNARROW PGUP PGDN, CTRL+C CTRL+V CTRL+D DEL BACKSPACE, HOME END ENTER CTRL+S, MOUSE1)
 
 ## Variables
@@ -136,6 +141,7 @@ when changed. **Practice**: refused while `fd_profile` is `run`.
 | `fd_triggers_toggle` | cycle the trigger boxes: off -> on -> on + x-ray -> off (key T) | yes | Trigger boxes |
 | `fd_triggers_list` | list the loaded map's triggers: class, open/shut, name, box | yes | Trigger boxes |
 | `fd_pause_toggle` | pause / resume with the free camera (fd_pause; default key P) | yes | Pause and free camera |
+| `fd_replay_view` | fd_replay_view <stage> <file.jsonl> [second.jsonl]: watch one or two runs in the currently loaded stage with a follow/free camera | yes | Replay |
 | `fd_replay_load` | fd_replay_load <file.jsonl>: load a recording (the recordings folder, or a full path); several on one map are drawn together | yes | Replay |
 | `fd_replay_clear` | unload every recording |  | Replay |
 | `fd_replay_toggle` | play / pause this map's recordings (with none loaded, loads its best finished and latest run first); from the end, start again (key V) | yes | Replay |
