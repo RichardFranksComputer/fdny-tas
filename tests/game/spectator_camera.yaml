@@ -85,10 +85,10 @@ steps:
   - wait_pipe: {cmd: viewer, key: playing, equals: 0, timeout: 3}
   - key: {key: home, hold: 0.1}
   - wait_pipe: {cmd: viewer, key: time_ms, equals: 0, timeout: 3}
-  - key: {key: leftarrow, hold: 0.1}
+  - key: {key: left, hold: 0.1}
   - wait_s: 0.1
   - assert_pipe_stat: {cmd: viewer, key: time_ms, equals: 0}
-  - key: {key: rightarrow, hold: 0.1}
+  - key: {key: right, hold: 0.1}
   - wait_pipe: {cmd: viewer, key: time_ms, equals: 5000, timeout: 3}
   # At the end playback stops, but the viewer camera and frozen world stay active.
   - console: "fd_replay_speed 64"
