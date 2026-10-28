@@ -23,7 +23,6 @@
 #include "log.h"
 #include "modules.h"
 #include "state.h"
-#include "spectator.h"
 #include "testpipe.h"
 
 namespace fdcore::triggers {
@@ -191,9 +190,9 @@ void FrameEnd() {
         g_nBoxes = 0;
         return;
     }
-    // The viewer never displays these volumes. Avoid walking/classifying the
-    // newly loaded entity list at its first visible camera handoff as well.
-    if (spectator::Pending() || spectator::Active()) { g_nBoxes = 0; return; }
+    // A watched level (state::WatchOnly, the recordings viewer) shows no trigger volumes;
+    // nor is the newly loaded entity list walked during its first camera handoff.
+    if (state::WatchOnly()) { g_nBoxes = 0; return; }
     if (lstrcmpA(g_map, s.map) != 0 || s.frame - g_lastScan >= kRescanFrames) {
         g_lastScan = s.frame;
         Scan(s);

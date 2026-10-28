@@ -16,7 +16,6 @@
 #include "modules.h"
 #include "pause.h"
 #include "state.h"
-#include "spectator.h"
 #include "textdraw.h"
 
 namespace fdcore::checkpoints {
@@ -81,7 +80,7 @@ cmd::Cvar g_step = {"fd_checkpoints_step", "8", "checkpoint move/resize step in 
 
 bool Down(int key) { return (GetAsyncKeyState(key)&0x8000) != 0; }
 bool Active() {
-    return !spectator::Active() && !spectator::Pending() && g_open && g_edit.value[0] == '1' && pause::Active() && state::Current().gameState == 1 && Practice();
+    return !state::WatchOnly() && g_open && g_edit.value[0] == '1' && pause::Active() && state::Current().gameState == 1 && Practice();
 }
 bool Selected() { return g_draft.selected >= 0 && g_draft.selected < g_draft.set.count; }
 float Setting(const cmd::Cvar& var, float fallback, float min, float max) {

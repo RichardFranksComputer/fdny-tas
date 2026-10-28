@@ -360,6 +360,7 @@ bool PrepareViewImpl(const char* stage, const char* first, const char* second) {
     g_viewPending = g_viewActive = false;
     textdraw::Show(g_viewPanel, false);
     spectator::SetPending(false);
+    state::SetWatchOnly(false, "viewer replaced");
     ClearAll();
     // Load validates a snapshot of complete sample lines; an end record is optional.
     if (!Load(first) || !SameMap(g_rec[0].r.stage, stage)) {
@@ -370,10 +371,12 @@ bool PrepareViewImpl(const char* stage, const char* first, const char* second) {
     }
     lstrcpynA(g_viewStage, stage, sizeof(g_viewStage));
     g_viewPending = true; g_viewRequested = GetTickCount();
-    spectator::SetPending(true); // suppress recording before native player initialization
+    spectator::SetPending(true);
+    state::SetWatchOnly(true, "recordings viewer");  // before the stage loads: nothing records the watched run
     ViewerTargets();
     if (!spectator::Prepare()) {
-        g_viewPending = false; spectator::SetPending(false); ClearAll(); return ViewError("The replay camera could not be prepared.");
+        g_viewPending = false; spectator::SetPending(false); state::SetWatchOnly(false, "viewer not prepared");
+        ClearAll(); return ViewError("The replay camera could not be prepared.");
     }
     log::Info("viewer: prepared %d recording(s) on %s", g_nRec, stage);
     return true;
@@ -426,6 +429,7 @@ void CompleteViewerExit() {
     g_viewPending = g_viewActive = false;
     spectator::SetPending(false);
     spectator::Stop();
+    state::SetWatchOnly(false, "viewer ended");
     g_playing = false;
     gfx::ClearWorldSubmissions();
     ClearAll();

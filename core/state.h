@@ -38,6 +38,13 @@ struct State {
 bool Init();  // needs the frame hooks; registers the frame_end refresh
 const State& Current();
 
+// The level is loaded (or loading) to be watched, not played: a recording viewer, or any
+// later playback mode. What acts on play stands down while it is set: the recorder records
+// nothing, editors and practice overlays stay off, fd_pause is refused. Its owner sets it
+// before the stage loads and clears it when it leaves (`why` goes to the log).
+void SetWatchOnly(bool on, const char* why);
+bool WatchOnly();
+
 // Debug pipe / tests: the snapshot as one "key=value ..." line.
 int Format(char* out, int cap);
 

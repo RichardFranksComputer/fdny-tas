@@ -16,7 +16,7 @@
 #include "hooks.h"
 #include "log.h"
 #include "modules.h"
-#include "spectator.h"
+#include "state.h"
 #include "testpipe.h"
 
 namespace fdcore::recorder {
@@ -28,7 +28,7 @@ char g_gameDir[kPathCap], g_path[kPathCap + 180], g_map[80];
 char g_buffer[65536];
 DWORD g_buffered, g_lastFlush, g_runTick, g_sequence, g_samples;
 void* g_player;
-bool g_failed, g_changed, g_victimAvailable, g_trackVictims, g_spectatorPlayer;
+bool g_failed, g_changed, g_victimAvailable, g_trackVictims, g_watchedPlayer;
 struct Victim { void* pointer; unsigned id; DWORD lastTick; int state; bool alive; char name[96]; };
 Victim g_victims[kVictimCap];
 unsigned g_nVictims;
@@ -132,10 +132,10 @@ void Exit() { End("process_exit"); }
 
 void Start(void* player) {
     End("next_player_initialization");
-    g_spectatorPlayer = spectator::Pending() || spectator::Active();
+    g_watchedPlayer = state::WatchOnly();  // a level loaded to be watched: nothing to record
     memset(g_victims, 0, sizeof(g_victims)); g_nVictims = 0;
     g_failed = false; g_changed = false;
-    if (!On(g_enable) || g_spectatorPlayer) return;
+    if (!On(g_enable) || g_watchedPlayer) return;
     if (!addr::ReadStr(Id::game_map_name, g_map, sizeof(g_map)) || !g_map[0]) lstrcpyA(g_map, "unknown_stage");
     // Use the same safe, lower-case map identifiers as the standalone recorder.
     char* name = g_map;
@@ -228,7 +228,7 @@ void ObserveVictim(void* p, bool force) {
 void VictimSpawn(void* p) { ObserveVictim(p, true); }
 void VictimUpdate(void* p) { ObserveVictim(p, false); }
 void Sample(void* player) {
-    if (g_spectatorPlayer || spectator::Pending() || spectator::Active()) return;
+    if (g_watchedPlayer || state::WatchOnly()) return;
     if (g_changed) { End("configuration_changed"); g_failed = false; g_changed = false; }
     if (!On(g_enable) || g_failed) return;
     if (g_player != player) Start(player);
@@ -258,9 +258,9 @@ void Sample(void* player) {
     }
 }
 void FrameEnd() {
-    if (spectator::Pending() || spectator::Active()) {
-        if (g_file != INVALID_HANDLE_VALUE) End("replay_viewer");
-        g_spectatorPlayer = true;
+    if (state::WatchOnly()) {
+        if (g_file != INVALID_HANDLE_VALUE) End("watch_only");
+        g_watchedPlayer = true;
         return;
     }
     if (g_changed) { End("configuration_changed"); g_failed = false; g_changed = false; }

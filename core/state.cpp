@@ -132,6 +132,15 @@ bool Init() {
 
 const State& Current() { return g_cur; }
 
+namespace {
+volatile LONG g_watchOnly = 0;  // read by the pipe thread too
+}
+void SetWatchOnly(bool on, const char* why) {
+    if ((InterlockedExchange(&g_watchOnly, on ? 1 : 0) != 0) != on)
+        log::Info("state: watch-only %s (%s)", on ? "on" : "off", why);
+}
+bool WatchOnly() { return g_watchOnly != 0; }
+
 int Format(char* out, int cap) {
     EnterCriticalSection(&g_lock);
     const State s = g_cur;
@@ -158,9 +167,9 @@ int Format(char* out, int cap) {
         o += F(out + o, s.victims[i].pos[2]);
         o += wsprintfA(out + o, ",%ld", static_cast<long>(s.victims[i].state));
     }
-    o += wsprintfA(out + o, " fires=%ld fires_burning=%ld fires_out=%ld bot_enabled=%ld bot_claimed=%ld",
+    o += wsprintfA(out + o, " fires=%ld fires_burning=%ld fires_out=%ld bot_enabled=%ld bot_claimed=%ld watch_only=%d",
                    static_cast<long>(s.fires), static_cast<long>(s.firesBurning), static_cast<long>(s.firesOut),
-                   static_cast<long>(s.botEnabled), static_cast<long>(s.botClaimed));
+                   static_cast<long>(s.botEnabled), static_cast<long>(s.botClaimed), WatchOnly() ? 1 : 0);
     return o;
 }
 
