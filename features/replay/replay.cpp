@@ -1,4 +1,4 @@
-// Tests: tests/game/replay.yaml tests/game/spectator_camera.yaml tests/unit/test_replay.cpp tests/unit/test_spectator.cpp
+// Tests: tests/game/replay.yaml tests/game/spectator_camera.yaml tests/game/recordings_menu.yaml tests/unit/test_replay.cpp tests/unit/test_spectator.cpp
 // User: Replay -- Recordings on the briefing browses, favorites, renames and compares runs with a follow/free camera; V plays this map's best and latest, fd_replay picks runs, fd_replay_ghost races each spawn.
 // replay feature (owner request 2026-10-25): the fdny-maps website's recording playback
 // (map_explorer/recording.js), in the game. The data is read the site's way (replay_data.h),

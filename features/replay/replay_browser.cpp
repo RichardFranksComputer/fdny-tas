@@ -7,6 +7,7 @@
 #include "menu.h"
 #include "replay_browser.h"
 #include "replay_data.h"
+#include "testpipe.h"
 namespace fdcore::replay::browser {
 namespace {
 namespace data = fdcore::replay::data;
@@ -540,6 +541,15 @@ bool Init() {
         log::Warn("replay browser: native menu unavailable");
         return false;
     }
+#ifdef FDCORE_DEBUG
+    // Test hook: `recordings`: the page's state (view 0 list, 1 details, 2 compare, 3 rename).
+    testpipe::Register("recordings", [](const char*, char* out, int) {
+        const bool sel = g_selected >= 0 && g_selected < g_count;
+        wsprintfA(out, "open=%d view=%d group=%d filtered=%d page=%d favorite=%d stage=%s name=%s", menu::Active(),
+                  g_view, g_group, g_filtered, g_page, sel && g_meta[g_selected].favorite, g_stage,
+                  sel ? g_meta[g_selected].name : "");
+    });
+#endif
     log::Info("replay browser: ready");
     return true;
 }
