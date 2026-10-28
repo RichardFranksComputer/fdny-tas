@@ -39,8 +39,13 @@ pre-commit hook runs `arch_check` and regenerates `docs/reference.md`.
 
 ## Test
 
-- **Unit tests first where they can reach (D47):** logic that doesn't need the running game
-  (parsing, math, table logic, the warp HUD analysis, the tools) is tested in `tests/unit`.
+- **Unit tests first where they can reach (D47, D60):** logic that doesn't need the running
+  game (parsing, math, table logic, the console's commands and config, the tools) is tested in
+  `tests/unit`. Pull it into a header or a game-free file so it can be (`juggle_math.h`,
+  `recorder_json.h`); a game test then proves only what needs the game, once. The warp HUD's
+  analysis has no correctness test since D52 (open, D60).
+  After a `core/addresses.json` change, rerun `python -I tools/make_override_fixtures.py`
+  (`test_override_fixtures` fails until you do).
   Run `.\tests\unit\run.ps1`: seconds, and CI runs it on every pull request.
 - **Game tests** (`tests/game/*.yaml`) prove the behaviour in the game; don't use them to
   test arithmetic. They run on the VM:

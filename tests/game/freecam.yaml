@@ -136,26 +136,21 @@ steps:
   - assert_mem: {name: game.state, equals: 1}
   - assert_pipe_stat: {cmd: textdraw juggle, key: drawn, equals: 1}
   - screenshot: resumed
-  # a level load ends a pause (and fd_pause goes back to 0)
+  # a level load ends a pause (and fd_pause goes back to 0): a game loadmap typed while
+  # paused. Rendering stops while loading, so the pause service resumes from its
+  # TickSubsystems detour (run fc3: it waited in a frame event that never came, and the load
+  # waited for the simulation: deadlock). pause_service did this too until 2026-10-28.
   - console: "fd_pause 1"
   - wait_pipe: {cmd: freecam, key: paused, equals: 1, timeout: 3}
-  - console: "loadmap bank"
-  - wait_log: {contains: "pause: off (level change)", since_console: true, timeout: 60}
-  - wait_s: 40
+  - loadmap: bank
+  - assert_log: {contains: "pause: off (level change)"}
   - assert_pipe_stat: {cmd: freecam, key: paused, equals: 0}
   - assert_pipe_stat: {cmd: freecam, key: flying, equals: 0}
+  - assert_pipe_stat: {cmd: pause, key: block, equals: 0}
   - console: "fd_pause"
   - assert_log: {contains: "fd_pause is \"0\""}
-  # practice-only: refused under fd_profile run
-  - console: "fd_profile run"
-  - wait_s: 1
-  - console: "fd_pause 1"
-  - wait_s: 1
-  - assert_pipe_stat: {cmd: freecam, key: paused, equals: 0}
-  - key: {key: p, hold: 0.1}
-  - wait_s: 1
-  - assert_pipe_stat: {cmd: freecam, key: paused, equals: 0}
-  - console: "fd_profile practice"
+  # practice-only (refused under fd_profile run): the gate is profile_run's and
+  # keys_default's, the declaration docs_registry's
 expect:
   no_crash: true
   log_errors: 0

@@ -35,6 +35,17 @@ steps:
   - assert_log: {contains: "hooks: created genesis.camera_set_world_xform"}
   - assert_pipe_stat: {cmd: camera_override, key: native_sets, min: 1}
   - assert_pipe_stat: {cmd: recorder, key: active, equals: 0}
+  # A watched level (D59): what acts on play stands down: no fd_pause / free camera, no
+  # checkpoint editor (no trigger boxes: below, with the timeline paused).
+  - console: "fd_pause 1"
+  - assert_log: {contains: "console> fd_pause: not while watching a recording"}
+  - assert_pipe_stat: {cmd: freecam, key: flying, equals: 0}
+  - console: "fd_checkpoints_edit 1"
+  - wait_s: 0.5
+  - assert_pipe_stat: {cmd: freecam, key: flying, equals: 0}
+  - assert_pipe_stat: {cmd: spectator, key: free, equals: 0}
+  - console: "fd_checkpoints_edit 0"
+  - assert_pipe_stat: {cmd: viewer, key: active, equals: 1}
   - focus: {}
   - key: {key: x, hold: 0.1}
   - wait_log: {contains: "viewer: through walls on", since_console: true, timeout: 3}
@@ -54,6 +65,14 @@ steps:
   - wait_s: 0.5
   - assert_pipe_stat: {cmd: viewer, key: time_ms, equals: 0, since: paused_before}
   - assert_pipe_stat: {cmd: pause, key: active, equals: 1}
+  # No trigger boxes in a watched level. `boxes` counts every world box gfx drew, the
+  # viewer's own too, so it is compared with the timeline paused (a still picture):
+  # turning the trigger boxes on must add none.
+  - sample_pipe: {cmd: triggers, as: before_triggers}
+  - console: "fd_triggers 1"
+  - wait_s: 0.5
+  - assert_pipe_stat: {cmd: triggers, key: boxes, equals: 0, since: before_triggers}
+  - console: "fd_triggers 0"
   # Zoom, release the camera, then hook it back to the run without unpausing.
   - key: {key: pgup, hold: 0.1}
   - assert_pipe_stat: {cmd: spectator, key: distance, min: 60, max: 239}

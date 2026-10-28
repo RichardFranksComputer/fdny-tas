@@ -2,7 +2,10 @@ name: hooks_frame
 # Item 3: hooks on Genesis frame exports (geEngine_BeginFrame / EndFrame)
 # fire exactly once per frame, counted against an independent frame clock;
 # the frame_end event fires with them; level_load fires on entering a map.
-# Debug core (uses the Debug-only test pipe).
+# They toggle off/on at runtime 50x while the game renders a level, without a
+# crash; afterwards they still fire once per frame, and while off they don't
+# fire at all (hooks_toggle until 2026-10-28, merged here: both checked the
+# once-per-frame count). Debug core (uses the Debug-only test pipe).
 setup: load_training
 record: true
 steps:
@@ -11,8 +14,12 @@ steps:
   - assert_log: {contains: "event: level_load 'training'"}
   - assert_frame_hooks: {seconds: 5, tolerance: 2}
   - key: {key: w, hold: 1.5}
+  - assert_frame_hooks: {seconds: 3, tolerance: 2}
+  - toggle_hooks: {group: frame, times: 50, gap_s: 0.05}
   - assert_frame_hooks: {seconds: 5, tolerance: 2}
-  - assert_screen_nonblack: in_level
+  - assert_hooks_idle: {group: frame, seconds: 2}
+  - assert_frame_hooks: {seconds: 3, tolerance: 2}
+  - assert_screen_nonblack: after_toggles
 expect:
   no_crash: true
   log_errors: 0

@@ -1,4 +1,4 @@
-// Tests: tests/game/fire_juggle.yaml tests/game/keys_default.yaml
+// Tests: tests/game/fire_juggle.yaml tests/game/keys_default.yaml tests/unit/test_juggle.cpp
 // User: Fire juggling -- an arrow showing where a carried survivor lands if you pass out now.
 // juggle feature (owner request 2026-10-22, docs/evidence/fire_juggle_overlay): the
 // fire-juggling helper. When the player passes out (fire or O2) while carrying a
@@ -30,6 +30,7 @@
 #include "cmd.h"
 #include "console.h"
 #include "hooks.h"
+#include "juggle_math.h"
 #include "log.h"
 #include "modules.h"
 #include "state.h"
@@ -42,12 +43,10 @@ namespace {
 using addr::Id;
 
 constexpr float kDropDx = -30.0f;     // Verb_Reset: the survivor ends 30 u to -X of the spot
-constexpr float kNear = 16.0f;        // closer than this: "o"
 constexpr float kFloorStep = 48.0f;   // SnapToFloor lifts 48 u: beyond that it's another floor
-constexpr float kTan22 = 0.41421356f; // tan(22.5 deg): 8 sectors of 45 deg
 
-// 8 directions clockwise from straight ahead, then "o" (near), then "-" (not locked).
-constexpr int kDirNear = 8, kDirNone = -1;
+// Directions 0-7 and kDirNear (juggle_math.h), then "-" (not locked).
+constexpr int kDirNone = -1;
 #ifdef FDCORE_DEBUG
 constexpr int32_t kPassedOut = 6;  // player.f_state (test hook fd_dbg_tofire)
 const char* const kDirName[] = {"up", "up-right", "right", "down-right", "down", "down-left", "left", "up-left"};
@@ -113,15 +112,6 @@ uintptr_t Player() {
     uint32_t player = 0;
     if (addr::Resolve(Id::player_object, &slot)) addr::SafeRead(slot, &player, 4);
     return player;
-}
-
-// Sector of (forward f, right r): 0 = ahead, clockwise in 45-degree steps.
-int Sector(float f, float r) {
-    const float af = f < 0 ? -f : f, ar = r < 0 ? -r : r;
-    if (ar <= kTan22 * af) return f >= 0 ? 0 : 4;
-    if (af <= kTan22 * ar) return r >= 0 ? 2 : 6;
-    if (f >= 0) return r >= 0 ? 1 : 7;
-    return r >= 0 ? 3 : 5;
 }
 
 long Round(float v) { return static_cast<long>(v + (v >= 0 ? 0.5f : -0.5f)); }
@@ -212,9 +202,7 @@ void FrameEnd() {
         if (v.locked) {
             float sn, cs;
             SinCos(s.yaw, &sn, &cs);
-            const float f = dx * sn + dz * cs;    // along forward (sin, cos)
-            const float r = -dx * cs + dz * sn;   // along strafe right (-cos, sin)
-            v.dir = v.dist < kNear ? kDirNear : Sector(f, r);
+            v.dir = Direction(dx, dz, v.dist, sn, cs);
         }
     }
     // A write that isn't Think's copy of last frame's position: log it with the fields, so

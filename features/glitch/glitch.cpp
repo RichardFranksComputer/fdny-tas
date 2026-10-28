@@ -1,4 +1,4 @@
-// Tests: tests/game/glitch_records.yaml tests/game/glitch_box_cost.yaml tests/game/text_panels.yaml tests/game/keys_default.yaml
+// Tests: tests/game/glitch_records.yaml tests/game/text_panels.yaml tests/game/keys_default.yaml
 // User: Warp HUD -- shows what the player touches and whether it can warp them (the stale-impact warp), with a history of boxes.
 // hud_glitch record layer (backlog item 11a): code caves on the collision hook sites that
 // write one 128-byte record per event to a ring the analysis reads each frame (originally a

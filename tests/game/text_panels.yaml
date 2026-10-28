@@ -6,9 +6,12 @@ name: text_panels
 # D46 (owner 2026-10-24): the cost is checked without depending on the display's refresh
 # rate (57 fps on the VM console, 34 on a 32 Hz remote display):
 #  - frames with the panels on >= 0.9 x frames with them off, 6 s windows back to back;
+#  - the warp HUD's game-thread box build (glitch draw_us_avg: CPU time only) under 1 ms
+#    (item 11d: drawn with geEngine_Printf the boxes had cut ticks to a quarter);
 #  - the HUD layer's time per frame (textdraw_cost) is recorded in Training and Bank, not
 #    asserted: it includes geEngine_FlushPipeline, which can wait on the GPU;
 #  - a floor of 60 frames per window: the game is running at all.
+# glitch_box_cost (boxes shown vs hidden with B, the same ratio) was merged here 2026-10-28.
 pre_files:
   - {src: tests/game/data/game_cfg_player.cfg, dst: FDNYFireFighter.cfg}
   - {src: tests/game/data/fdcore_panels.cfg, dst: FDNYCore.cfg}
@@ -32,6 +35,7 @@ steps:
   - sample_pipe: {cmd: textdraw_cost, as: cost1}
   - assert_pipe_stat: {cmd: stats, key: end, min: 60, since: all_on}
   - assert_sample_ratio: {num: [all_on, on1, end], den: [off0, off1, end], min: 0.9}
+  - assert_pipe_stat: {cmd: glitch, key: draw_us_avg, max: 1000}
   - assert_pipe_contains: {cmd: textdraw glitch, contains: "drawn=1"}
   - assert_pipe_contains: {cmd: textdraw hud_player, contains: "drawn=1"}
   - screenshot: 01_all_panels_training
@@ -41,12 +45,16 @@ steps:
   - assert_pipe_stat: {cmd: glitch_box, key: hidden, equals: 1}
   - screenshot: 03_boxes_hidden
   - key: {key: b, hold: 0.2}
+  - assert_pipe_stat: {cmd: glitch_box, key: hidden, equals: 0}
   - loadmap: bank
   - sample_pipe: {cmd: stats, as: bank}
   - sample_pipe: {cmd: textdraw_cost, as: bank_cost0}
   - wait_s: 6
   - sample_pipe: {cmd: textdraw_cost, as: bank_cost1}
   - assert_pipe_stat: {cmd: stats, key: end, min: 60, since: bank}
+  # survived the level change: still drawn on bank
+  - assert_pipe_contains: {cmd: textdraw glitch, contains: "drawn=1"}
+  - assert_pipe_contains: {cmd: textdraw hud_player, contains: "drawn=1"}
   - screenshot: 04_all_panels_bank
 expect:
   no_crash: true

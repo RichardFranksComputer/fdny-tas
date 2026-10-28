@@ -1,7 +1,8 @@
 name: speedrun_static_spawns
 # Item 8: with fd_static_spawns 1 (default pins = spot 0 for every victim, the
 # same as FDNYDeterministic's skeleton ini), victim positions are identical
-# across three loads of Training and every victim is at its spot 0.
+# across three loads of Training and every victim is at its spot 0; then pins of
+# its own (fd_spawns) apply on the next load.
 pre_files:
   - {src: tests/game/data/game_cfg_player.cfg, dst: FDNYFireFighter.cfg}
   - {src: tests/game/data/fdcore_static_spawns.cfg, dst: FDNYCore.cfg}
@@ -18,6 +19,18 @@ steps:
   - assert_victims_equal: {runs: [run1, run2, run3], tolerance: 0.5}
   - assert_victims_at_spot0: run1
   - assert_victims_at_spot0: run3
+  # Pins of its own (fd_spawns): the first victim at spot 1, the second random ("x", the old
+  # ini's word for -1), the rest beyond the list random too; saved to FDNYCore.cfg; 'default'
+  # removes them.
+  - console: "fd_spawns training 1 x"
+  - assert_log: {contains: "console> fd_spawns training: 1 -1"}
+  - assert_file: {path: FDNYCore.cfg, contains: "fd_spawns training 1 -1"}
+  - loadmap: training
+  - assert_log: {contains: "pinned to spot 1"}
+  - assert_log: {contains: "(random spot kept, pin -1)"}
+  - console: "fd_spawns training default"
+  - assert_log: {contains: "console> fd_spawns training: default"}
+  - assert_file: {path: FDNYCore.cfg, absent: "fd_spawns training"}
 expect:
   no_crash: true
   log_errors: 0

@@ -40,6 +40,14 @@ steps:
   - console: "fd_record_directory Recordings"
   - wait_s: 1
   - assert_pipe_stat: {cmd: recorder, key: active, equals: 1}
+  # fd_record_victims 0: the next recording tracks the player only; 1 brings the victims back
+  - console: "fd_record_victims 0"
+  - wait_s: 1
+  - assert_pipe_stat: {cmd: recorder, key: active, equals: 1}
+  - assert_pipe_stat: {cmd: recorder, key: victims, equals: 0}
+  - console: "fd_record_victims 1"
+  - wait_s: 1
+  - assert_pipe_stat: {cmd: recorder, key: victims, min: 1}
   - console: "fd_record 0"
   - wait_s: 1
   - assert_recordings: {stage: training, min_runs: 2, min_samples: 10, victims: true}

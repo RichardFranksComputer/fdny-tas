@@ -24,7 +24,7 @@ if (-not $PythonExe) { throw "Python not found: in environment\local\tools\pytho
 if ($LASTEXITCODE -ne 0) { throw "addrgen header failed" }
 
 # Core sources under test: pure logic, no game calls (each listed on purpose).
-$under = @('core\addr.cpp', 'core\crashlog.cpp', 'features\replay\replay_data.cpp') | ForEach-Object { Join-Path $repo $_ }
+$under = @('core\addr.cpp', 'core\crashlog.cpp', 'core\cmd.cpp', 'core\binds.cpp', 'features\replay\replay_data.cpp') | ForEach-Object { Join-Path $repo $_ }
 $tests = Get-ChildItem $here -Filter *.cpp | ForEach-Object FullName
 
 $outDir = Join-Path $repo 'build\unit'
@@ -45,10 +45,7 @@ Pop-Location
 
 $pyFailed = $false
 if (-not $NoPython) {
-    $env:FDCORE_UNIT_EXE = $exe
-    $maps = Join-Path $repo 'FDNY SP 1.1\Data\Maps'
-    if (-not $env:FDNY_MAPS -and (Test-Path $maps)) { $env:FDNY_MAPS = (Resolve-Path $maps).Path }
-    "python unit tests (maps: $(if ($env:FDNY_MAPS) { $env:FDNY_MAPS } else { 'none' }))"
+    "python unit tests"
     & $PythonExe -m unittest discover -s $here -p 'test_*.py' -v
     $pyFailed = $LASTEXITCODE -ne 0
 }
