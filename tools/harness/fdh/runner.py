@@ -470,14 +470,13 @@ class Run:
                     + (f"; disabled in this run: {sorted(m for m, on in mods.items() if not on)}"
                        if not all(mods.values()) else ""))
         off = {f for m, f in src_mods.items() if not mods.get(m, True)}
-        for k in ("cvars", "commands", "aliases", "binds", "keys"):
+        for k in ("cvars", "commands", "binds", "keys"):
             reg[k] = [x for x in reg[k] if x["file"] not in off]
         b = lambda x: "1" if x else "0"
         want = {
             "cvar": {(c["name"], c["default"], b(c["read_only"]), b(c["archive"]), b(c["practice"]), c["help"])
                      for c in reg["cvars"]},
             "cmd": {(c["name"], b(c["practice"]), c["help"]) for c in reg["commands"]},
-            "alias": {(a["old"], a["current"]) for a in reg["aliases"]},
             "bind": {(x["key"], x["line"]) for x in reg["binds"]},
             "key": {(k["key"], k["action"], k["when"]) for k in reg["keys"]},
         }

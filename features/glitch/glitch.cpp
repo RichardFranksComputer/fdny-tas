@@ -501,10 +501,6 @@ bool Init() {
     cmd::SetPracticeOnly("fd_warp_hide");
     cmd::SetPracticeOnly("fd_warp_freeze");
     cmd::SetPracticeOnly("fd_warp_clear");
-    cmd::RegisterAlias("fd_hud_glitch", "fd_hud_warp");  // the names before 0.19
-    cmd::RegisterAlias("fd_glitch_hide", "fd_warp_hide");
-    cmd::RegisterAlias("fd_glitch_freeze", "fd_warp_freeze");
-    cmd::RegisterAlias("fd_glitch_clear", "fd_warp_clear");
     binds::BindDefault("g", "toggle fd_hud_warp");  // D37
     // Hotkeys() reads these itself (the clear's place in the frame, above).
     binds::DescribeKey("b", "show / hide the warp HUD's boxes (fd_warp_hide)", "while fd_hud_warp is 1");

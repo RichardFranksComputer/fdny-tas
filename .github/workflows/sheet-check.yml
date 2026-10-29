@@ -1,4 +1,4 @@
-# The player reference (docs/reference.md, D41) must match the code it is generated from. The pre-commit
+# The player reference (docs/quick-reference.md, D41) must match the code it is generated from. The pre-commit
 # hook regenerates it locally, but commits made on GitHub (web edits, PR suggestions) skip
 # the hook: 2026-10-24 "Set recorder default to off" changed fd_record's default in
 # recorder.cpp while the reference kept saying 1. This fails such a push or PR.
@@ -19,10 +19,10 @@ jobs:
         with:
           python-version: "3.x"
       - name: Regenerate the reference
-        run: python -I tools/docgen.py sheet docs/reference.md
-      - name: docs/reference.md matches the source
+        run: python -I tools/docgen.py sheet docs/quick-reference.md
+      - name: docs/quick-reference.md matches the source
         run: |
-          if ! git diff --ignore-cr-at-eol --exit-code -- docs/reference.md; then
-            echo "::error file=docs/reference.md::docs/reference.md is out of date with the code: run 'python -I tools/docgen.py sheet docs/reference.md' (or any build) and commit it"
+          if ! git diff --ignore-cr-at-eol --exit-code -- docs/quick-reference.md; then
+            echo "::error file=docs/quick-reference.md::docs/quick-reference.md is out of date with the code: run 'python -I tools/docgen.py sheet docs/quick-reference.md' (or any build) and commit it"
             exit 1
           fi

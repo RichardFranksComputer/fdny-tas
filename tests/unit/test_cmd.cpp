@@ -1,4 +1,4 @@
-// cmd + binds: how a console line is split and run, old names, toggle, the profile gates,
+// cmd + binds: how a console line is split and run, toggle, the profile gates,
 // exec, and what FDNYCore.cfg holds (only changes: archived variables off their default,
 // binds that differ from a feature's default key, `unbind` for a removed default, `unbindall`),
 // `cmdlist`. The
@@ -69,7 +69,6 @@ void TestCmdAndBinds() {
     binds::Init();
     cmd::RegisterCommand("fd_t_cmd", "probe", Probe);
     cmd::RegisterCvar(&g_a), cmd::RegisterCvar(&g_b), cmd::RegisterCvar(&g_p);
-    cmd::RegisterAlias("fd_t_old", "fd_t_a");
     cmd::RegisterConfigWriter(Writer);
     CHECK(binds::BindDefault("j", "toggle fd_t_a"));
     CHECK(!binds::BindDefault("j", "echo taken"));       // a key already bound
@@ -83,11 +82,11 @@ void TestCmdAndBinds() {
     CHECK(!cmd::Dispatch("loadmap bank"));
     CHECK(cmd::Dispatch("fd_nosuch 1") && unit::LogContains("console> unknown command: fd_nosuch"));
 
-    // Variables: show, set, old name, toggle, read-only.
+    // Variables: show, set, toggle, read-only.
     CHECK(cmd::Dispatch("fd_t_a") && unit::LogContains("console> fd_t_a is \"0\" (default \"0\") - archived"));
-    CHECK(cmd::Dispatch("fd_t_old 1") && strcmp(g_a.value, "1") == 0);
+    CHECK(cmd::Dispatch("fd_t_a 1") && strcmp(g_a.value, "1") == 0);
     CHECK(cmd::Dispatch("toggle fd_t_a") && strcmp(g_a.value, "0") == 0);
-    CHECK(cmd::Dispatch("toggle fd_t_old") && strcmp(g_a.value, "1") == 0);
+    CHECK(cmd::Dispatch("toggle FD_T_A") && strcmp(g_a.value, "1") == 0);
     CHECK(cmd::Dispatch("fd_version 9") && unit::LogContains("console> fd_version is read-only"));
     CHECK(strcmp(cmd::FindCvar("fd_version")->value, "0.0.0-unit") == 0);
 

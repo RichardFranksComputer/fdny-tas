@@ -15,7 +15,7 @@ follow the steps in `.claude/skills/new-feature/SKILL.md` (it is also the agents
 | `tests/unit/` | Unit tests that need no game: C++ and Python |
 | `tools/` | `arch_check.py`, `addrgen.py`, `docgen.py`, `test_check.py`; `harness/` (the game-test runner); `templates/` (a new feature and test) |
 | `ghidra/` | The Ghidra labels (names, comments, types; no game bytes), the script that exports them, and how to restore them |
-| `docs/` | `architecture.md`, `decisions.md`, `reference.md` (generated), `game-research.md`, `decomp-vm.md`, `evidence/<topic>/` |
+| `docs/` | `architecture.md`, `decisions.md`, `quick-reference.md` (generated), `game-research.md`, `decomp-vm.md`, `evidence/<topic>/` |
 | `build/` | Build output and test runs (untracked) |
 
 The repository holds only what the tooling needs: no game binaries, no Ghidra `.rep`, no raw
@@ -32,10 +32,10 @@ logs or run output, no files nothing uses.
 It needs Zig 0.16.0 and Python 3 (standard library only), from `environment\local\tools` on
 the VM or from PATH. It runs `arch_check` first, regenerates the address-table header,
 compiles with `-Werror`, and writes `build\<Config>\FDNYCore.asi` with that build's player
-reference, `build\<Config>\reference.md`. A build also rewrites `docs/reference.md`.
+reference, `build\<Config>\quick-reference.md`. A build also rewrites `docs/quick-reference.md`.
 
 Enable the tracked hooks once per clone: `git config core.hooksPath .githooks`. The
-pre-commit hook runs `arch_check` and `test_check`, and regenerates `docs/reference.md` (and
+pre-commit hook runs `arch_check` and `test_check`, and regenerates `docs/quick-reference.md` (and
 the address-override fixtures when `core/addresses.json` changes).
 
 ## Test
@@ -95,7 +95,7 @@ the address-override fixtures when `core/addresses.json` changes).
    verdict). Add logs or screenshots only when the README can't carry the point.
 4. **Docs:** anything player-visible is described in the code: help texts, the `// User:`
    line, `binds::DescribeKey` (the reference is generated from them, D41; check
-   `docs/reference.md` reads well). A non-obvious choice gets a `docs/decisions.md` entry
+   `docs/quick-reference.md` reads well). A non-obvious choice gets a `docs/decisions.md` entry
    (what, why, rejected). The commit message says what changed and how it was tested; there
    is no separate progress log.
 5. **Where findings go:** choices in `docs/decisions.md`; findings, measurements,
@@ -115,10 +115,12 @@ the address-override fixtures when `core/addresses.json` changes).
   release PR for several merged features; a PR that doesn't release leaves both alone.
 - Merging a `VERSION` change to `main` runs `.github/workflows/release.yml`: it builds
   Release from source on a GitHub Windows runner and publishes `v<VERSION>`:
-  `FDNYCore-<VERSION>.asi`, a zip with it and its `reference.md`, and the SHA-256. An
-  existing tag is never overwritten. The GitHub release is the only download (D45): no
+  one file, `FDNYCore-<VERSION>.zip`, holding `FDNYCore-<VERSION>.asi` and its
+  `quick-reference.md` (no bare `.asi`, so nobody gets it without the reference; D62). The
+  `.asi`'s SHA-256 is in the release notes and the quick reference. An existing tag is never
+  overwritten. The GitHub release is the only download (D45): no
   `.asi` is committed.
 - CI on pull requests and pushes to `main`: `unit` (`tests/unit`) and `sheet-check`
-  (`docs/reference.md` matches the source).
+  (`docs/quick-reference.md` matches the source).
 - Never commit a file over 100 MB, the game's binaries, or the Ghidra project's `.rep` (it
   contains the game's bytes).

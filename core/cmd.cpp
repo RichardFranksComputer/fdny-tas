@@ -176,28 +176,7 @@ void RegisterCvar(Cvar* v) {
     g_cvars[g_nCvars++] = v;
 }
 
-namespace {
-struct Alias {
-    const char* old;
-    const char* current;
-};
-constexpr int kMaxAliases = 16;
-Alias g_aliases[kMaxAliases];
-int g_nAliases = 0;
-}  // namespace
-
-void RegisterAlias(const char* old, const char* current) {
-    if (g_nAliases < kMaxAliases) g_aliases[g_nAliases++] = {old, current};
-}
-
-const char* ResolveAlias(const char* name) {
-    for (int i = 0; i < g_nAliases; ++i)
-        if (IEq(g_aliases[i].old, name)) return g_aliases[i].current;
-    return name;
-}
-
 Cvar* FindCvar(const char* name) {
-    name = ResolveAlias(name);
     for (int i = 0; i < g_nCvars; ++i)
         if (IEq(g_cvars[i]->name, name)) return g_cvars[i];
     return nullptr;
@@ -236,8 +215,6 @@ void CmdRegistry(int, const char* const*) {
     for (int i = 0; i < g_nCommands && o < cap; ++i)
         o += wsprintfA(buf + o, "cmd\t%s\t%d\t%s\r\n", g_commands[i].name, IsPracticeOnly(g_commands[i].name) ? 1 : 0,
                        g_commands[i].help);
-    for (int i = 0; i < g_nAliases && o < cap; ++i)
-        o += wsprintfA(buf + o, "alias\t%s\t%s\r\n", g_aliases[i].old, g_aliases[i].current);
     const char *a, *b, *c;
     for (int i = 0; binds::DefaultAt(i, &a, &b) && o < cap; ++i) o += wsprintfA(buf + o, "bind\t%s\t%s\r\n", a, b);
     for (int i = 0; binds::DescribedAt(i, &a, &b, &c) && o < cap; ++i)
@@ -320,7 +297,6 @@ bool Dispatch(const char* line) {
     const char* argv[kMaxArgs];
     int argc = Tokenize(line, buf, sizeof(buf), argv);
     if (argc == 0) return false;
-    argv[0] = ResolveAlias(argv[0]);
     if (IEq(argv[0], "exec")) {
         if (argc < 2) {
             console::Print("usage: exec <file>  (FDNYCore .cfg next to the game exe)");
@@ -371,7 +347,7 @@ void RegisterBuiltins() {
     RegisterCommand("fd_writeconfig", "write FDNYCore.cfg now (it is also written on every change)", CmdWriteConfig);
 #ifdef FDCORE_DEBUG
     RegisterCommand("fd_dbg_registry", "(Debug test hook) write FDNYCore_registry.txt: every variable, command, "
-                                       "alias, default bind and described key",
+                                       "default bind and described key",
                     CmdRegistry);
 #endif
 }

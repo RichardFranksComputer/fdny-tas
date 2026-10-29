@@ -43,7 +43,7 @@ and one `module <name>: enabled | disabled (reason)` line each.
 | R6 | Harness channels are Debug-only (`#ifdef FDCORE_DEBUG` around `testpipe::Register`). | Release build fails otherwise |
 | R7 | No dynamically initialised globals or exit-time destructors: there is no CRT, they never run. Globals must be constant-initialisable (`= {}`, `constexpr`). | `-Wglobal-constructors -Wexit-time-destructors -Werror` |
 | R8 | The draw order is gfx's: only gfx subscribes to the late frame step (`hooks::OnFrameEndLate`); everything else draws from a gfx layer (D40). | arch_check |
-| R9 | The player reference (`docs/reference.md`) is built from the source (D41). Each feature module has a `// User: <Title> -- <one sentence>` line. A feature that reads keys itself (not a bind) declares them with `binds::DescribeKey`. Registrations take string literals. | arch_check, `tools/docgen.py` (in `build.ps1` and the pre-commit hook, which also stages `docs/reference.md`), `tests/game/docs_registry.yaml` |
+| R9 | The player reference (`docs/quick-reference.md`) is built from the source (D41). Each feature module has a `// User: <Title> -- <one sentence>` line. A feature that reads keys itself (not a bind) declares them with `binds::DescribeKey`. Registrations take string literals. | arch_check, `tools/docgen.py` (in `build.ps1` and the pre-commit hook, which also stages `docs/quick-reference.md`), `tests/game/docs_registry.yaml` |
 | R10 | A feature's `Init()` logs why it refuses: every `return false` follows a `log::` / `console::Print` call in the same or the previous statement. A refusal logged elsewhere (an early step) carries `// arch-allow: R10 <where>`. | arch_check |
 
 Not machine-checked, still rules:

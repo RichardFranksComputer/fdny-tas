@@ -7,7 +7,7 @@
 # Freestanding: no CRT, imports kernel32/user32/gdi32/bcrypt only
 # (gdi32: the hud_glitch box is rendered with GDI, item 11d).
 
-# Every build writes build\<Config>\reference.md: the player reference (tools\docgen.py) for that source.
+# Every build writes build\<Config>\quick-reference.md: the player reference (tools\docgen.py) for that source.
 # Releases are built by .github/workflows/release.yml from this script, not from a local build (D45).
 
 param([ValidateSet('Debug', 'Release', 'Both')] [string]$Config = 'Both',
@@ -102,13 +102,13 @@ foreach ($c in $configs) {
     if ($mach -ne 0x14C) { throw "$c build is not x86 (machine 0x$('{0:X}' -f $mach))" }
 
     # The player reference, read from the same source (a registration it can't read stops the build).
-    & $PythonExe -I (Join-Path $here 'tools\docgen.py') sheet (Join-Path $outDir 'reference.md') --asi $out
+    & $PythonExe -I (Join-Path $here 'tools\docgen.py') sheet (Join-Path $outDir 'quick-reference.md') --asi $out
     if ($LASTEXITCODE -ne 0) { throw "docgen failed: see above (tools/docgen.py explains what it reads)" }
 }
 
-# The source's own reference: docs/reference.md (tracked; the pre-commit hook also rewrites
+# The source's own reference: docs/quick-reference.md (tracked; the pre-commit hook also rewrites
 # and stages it).
 if (-not $Without) {
-    & $PythonExe -I (Join-Path $here 'tools\docgen.py') sheet (Join-Path $here 'docs\reference.md')
+    & $PythonExe -I (Join-Path $here 'tools\docgen.py') sheet (Join-Path $here 'docs\quick-reference.md')
     if ($LASTEXITCODE -ne 0) { throw "docgen failed: see above" }
 }
