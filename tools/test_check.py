@@ -10,8 +10,8 @@ What the game tests (tests/game, tools/harness/setups) name must exist in the co
   - every step kind is one the harness runs (tools/harness/fdh/runner.py);
   - every pipe channel (`cmd:`) is registered (testpipe::Register, testpipe.cpp's own),
     and every field a step reads (`key:`) is written by some source line (`<key>=`);
-  - every fd_ name in a step, a test cfg or a setup is a registered variable, command or
-    old name; every `name:` of assert_mem / sample_mem is an address-table entry;
+  - every fd_ name in a step, a test cfg or a setup is a registered variable or command;
+    every `name:` of assert_mem / sample_mem is an address-table entry;
   - every expected text (assert_log, wait_log, assert_log_count, assert_pipe_contains,
     `contains:` or `absent:`) can be produced by a string literal in the source (printf
     fields match anything) or is text the test feeds in itself (an echo line);
@@ -115,8 +115,7 @@ class Code:
         self.raw = "\n".join(self.files.values())
         reg = docgen.read_source()
         self.reg = reg
-        self.names = ({c["name"] for c in reg["cvars"]} | {c["name"] for c in reg["commands"]}
-                      | {a["old"] for a in reg["aliases"]})
+        self.names = {c["name"] for c in reg["cvars"]} | {c["name"] for c in reg["commands"]}
         self.public = sorted(c["name"] for c in reg["cvars"] + reg["commands"]
                              if not c["debug"] and not c["help"].startswith("internal:"))
         self.channels = {}  # channel -> file
@@ -257,7 +256,7 @@ def check(code=None):
                 errors.append(f"{at}: since '{m.group(2)}' is not a sample_pipe of '{m.group(1)}' in this test")
             for m in re.finditer(r"\bfd_\w+", body):
                 if m.group(0) not in code.names:
-                    errors.append(f"{at}: '{m.group(0)}' is not a registered variable, command or old name")
+                    errors.append(f"{at}: '{m.group(0)}' is not a registered variable or command")
             if re.match(r"\s*- (assert|sample)_mem:", body):
                 m = re.search(r"\bname:\s*([\w.]+)", body)
                 if m and m.group(1) not in code.entries:
@@ -374,7 +373,6 @@ def affected(base="origin/main"):
             mine = [c for c, src in code.channels.items() if src == f]
             uses(lambda text: any(re.search(r"cmd:\s*" + c + r"\b", text) for c in mine), f"{f} (pipe)")
             names = [c["name"] for c in code.reg["cvars"] + code.reg["commands"] if c["file"] == f]
-            names += [a["old"] for a in code.reg["aliases"] if a["file"] == f]
             uses(lambda text: any(re.search(r"\b" + re.escape(n) + r"\b", text) for n in names), f"{f} (names)")
             for t, text in texts.items():
                 if t in picked:

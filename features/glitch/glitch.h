@@ -4,7 +4,7 @@
 
 namespace fdcore::glitch {
 
-bool Init();       // registers fd_hud_glitch (hooks install when it is set to 1)
+bool Init();       // registers fd_hud_warp (hooks install when it is set to 1)
 bool Installed();
 
 // Debug pipe / tests: "installed=.. tick=.. trace=.. commit=.. engine_ray=.. dropped=..".

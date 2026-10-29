@@ -1,5 +1,5 @@
 name: glitch_records
-# Item 11a: fd_hud_warp (the warp HUD; fd_hud_glitch before 0.19, still an alias)
+# Item 11a: fd_hud_warp (the warp HUD)
 # installs the collision overlay's 8 hooks inside the
 # game (same caves, same 128-byte records). Records flow in a level: player
 # collision traces and the per-frame tick (commits are rare on flat ground and
@@ -7,7 +7,7 @@ name: glitch_records
 # and on at runtime without a crash.
 pre_files:
   - {src: tests/game/data/game_cfg_player.cfg, dst: FDNYFireFighter.cfg}
-  - {src: tests/game/data/fdcore_hud_glitch.cfg, dst: FDNYCore.cfg}
+  - {src: tests/game/data/fdcore_hud_warp.cfg, dst: FDNYCore.cfg}
 setup: load_training
 record: true
 steps:
@@ -18,12 +18,12 @@ steps:
   - assert_pipe_stat: {cmd: glitch, key: tick, min: 100, since: g0}
   - assert_pipe_stat: {cmd: glitch, key: trace, min: 100, since: g0}
   - assert_pipe_stat: {cmd: glitch, key: dropped, equals: 0}
-  - console: "fd_hud_glitch 0"
+  - console: "fd_hud_warp 0"
   - assert_log: {contains: "glitch: hooks removed, original bytes restored"}
   - sample_pipe: {cmd: glitch, as: g_off}
   - key: {key: s, hold: 1.0}
   - assert_pipe_stat: {cmd: glitch, key: trace, equals: 0, since: g_off}
-  - console: "fd_hud_glitch 1"
+  - console: "fd_hud_warp 1"
   - key: {key: w, hold: 1.0}
   - wait_s: 0.5
   - assert_pipe_stat: {cmd: glitch, key: trace, min: 50, since: g_off}

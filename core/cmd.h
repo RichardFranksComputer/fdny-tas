@@ -19,9 +19,6 @@ struct Cvar {
 };
 
 void RegisterCommand(const char* name, const char* help, CommandFn fn);
-// An old name kept working after a rename (old configs, habits): `old` is read as `current`
-// for commands and variables alike. Both names must be static.
-void RegisterAlias(const char* old, const char* current);
 // The Cvar must outlive the core (static storage). Value starts at its default.
 void RegisterCvar(Cvar* v);
 Cvar* FindCvar(const char* name);

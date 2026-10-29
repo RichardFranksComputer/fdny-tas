@@ -37,9 +37,6 @@ steps:
   - assert_log: {contains: "console> fd_watermark is practice-only (fd_profile is run)"}
   - console: "fd_warp_clear"
   - assert_log: {contains: "console> fd_warp_clear is practice-only (fd_profile is run)"}
-  # the pre-0.19 name is an alias: refused the same way, under the current name
-  - console: "fd_glitch_clear"
-  - assert_log_count: {contains: "console> fd_warp_clear is practice-only (fd_profile is run)", equals: 2}
   # allowed in run: other settings, shown on the watermark
   - console: "fd_fov 95"
   - assert_pipe_contains: {cmd: watermark, contains: "fov 95"}

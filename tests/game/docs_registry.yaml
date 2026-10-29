@@ -1,7 +1,7 @@
 name: docs_registry
-# D41: the player reference (docs/reference.md, and each release's) is read from the source by tools/docgen.py. This
-# checks that reading against what the Debug build really registered: every variable
-# (default, read-only, saved, practice-only, help), command, old name, default bind and
+# D41: the quick reference (docs/quick-reference.md, and each release's) is read from the source by tools/docgen.py.
+# This checks that reading against what the Debug build really registered: every variable
+# (default, read-only, saved, practice-only, help), command, default bind and
 # feature key (binds::DescribeKey), both ways. A registration docgen can't see fails here.
 # Also: bindlist shows the feature keys.
 pre_files:

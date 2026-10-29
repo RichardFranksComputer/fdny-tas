@@ -4,7 +4,8 @@
 #     build, then release v<VERSION> unless that tag already exists (never overwritten);
 #   - push to any other branch (a feature branch): build only, uploaded as an
 #     artifact, no tag or release.
-# The build is build.ps1: arch_check, the address table, -Werror, the player reference.
+# The build is build.ps1: arch_check, the address table, -Werror, the quick reference.
+# The release's one download is FDNYCore-<VERSION>.zip: the .asi and its quick reference.
 # Zig comes from mlugg/setup-zig, the same version as the VM's (environment/local/tools);
 # Python only needs its standard library here.
 name: release
@@ -56,19 +57,19 @@ jobs:
           $asi = "FDNYCore-$v.asi"
           $out = 'release-out'
           New-Item -ItemType Directory -Force $out | Out-Null
-          Copy-Item build/Release/FDNYCore.asi $out/$asi
-          # The package: the .asi and this build's player reference (reference.md: version, SHA-256,
-          # every key / feature / variable / command), the same as the repository's docs/reference.md
+          # The only download is the zip (owner 2026-10-29: a bare .asi gets downloaded without
+          # its reference): the .asi and this build's quick reference (quick-reference.md:
+          # version, SHA-256, every key / feature / variable / command), the same as the
+          # repository's docs/quick-reference.md. The .asi's SHA-256 is in the notes too.
           $pkg = 'package'
           New-Item -ItemType Directory -Force $pkg | Out-Null
           Copy-Item build/Release/FDNYCore.asi $pkg/$asi
-          Copy-Item build/Release/reference.md $pkg/reference.md
+          Copy-Item build/Release/quick-reference.md $pkg/quick-reference.md
           Compress-Archive -Path "$pkg/*" -DestinationPath "$out/FDNYCore-$v.zip"
-          $sha = (Get-FileHash $out/$asi -Algorithm SHA256).Hash.ToLower()
-          "$sha  $asi" | Out-File -Encoding ascii "$out/$asi.sha256"
+          $sha = (Get-FileHash $pkg/$asi -Algorithm SHA256).Hash.ToLower()
           "sha=$sha" >> $env:GITHUB_OUTPUT
           "asi=$asi" >> $env:GITHUB_OUTPUT
-          Write-Host "$asi $((Get-Item $out/$asi).Length) bytes, sha256 $sha"
+          Write-Host "$asi $((Get-Item $pkg/$asi).Length) bytes, sha256 $sha"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -92,9 +93,9 @@ jobs:
           $notes = @"
           FDNYCore $v, built from ${{ github.sha }} (${{ github.ref_name }}).
 
-          ``FDNYCore-$v.zip`` = ``${{ steps.package.outputs.asi }}`` + ``reference.md``, the player reference for this build: every key, feature, variable and command. The .asi is also attached on its own.
+          Download ``FDNYCore-$v.zip``: ``${{ steps.package.outputs.asi }}`` + ``quick-reference.md``, the quick reference for this build: every key, feature, variable and command.
 
-          Install: copy ``${{ steps.package.outputs.asi }}`` next to ``FDNYFirefighter.exe`` (it loads through Ultimate ASI Loader).
+          Install: unzip, then copy ``${{ steps.package.outputs.asi }}`` next to ``FDNYFirefighter.exe`` (it loads through Ultimate ASI Loader).
           **Remove any older ``FDNYCore*.asi`` first:** the loader loads every ``.asi`` in the folder; only the first copy of the core runs, and the others stay inert.
 
           SHA-256: ``${{ steps.package.outputs.sha }}``

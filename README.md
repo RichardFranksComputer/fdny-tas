@@ -14,15 +14,16 @@ built on a Ghidra decompilation of it.
   shows the watermark.
 
 Everything is a console command or variable, with default keys. The full list of keys,
-features, variables and commands is the [reference](docs/reference.md), generated from the
+features, variables and commands is the [quick reference](docs/quick-reference.md), generated from the
 source on every build.
 
 ## Install
 
 1. Download `FDNYCore-<version>.zip` from the
    [releases](https://github.com/RichardFranksComputer/fdny-tas/releases).
-2. Copy `FDNYCore-<version>.asi` next to `FDNYFirefighter.exe`. It loads through Ultimate ASI
-   Loader (`dinput8.dll` in the game folder).
+2. Unzip it and copy `FDNYCore-<version>.asi` next to `FDNYFirefighter.exe`. It loads through
+   Ultimate ASI Loader (`dinput8.dll` in the game folder). Keep `quick-reference.md` from the
+   zip: it lists that build's keys and commands.
 3. Remove any older `FDNYCore*.asi`, and don't run other FDNY `.asi` mods alongside it
    (FOV fix, alttabfix, FDNYDeterministic): FDNYCore replaces them.
 

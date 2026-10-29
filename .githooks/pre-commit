@@ -3,7 +3,7 @@
 # git config core.hooksPath .githooks):
 #   - architecture rules (docs/architecture.md, tools/arch_check.py);
 #   - the player reference (D41): tools/docgen.py reads the source (a registration it can't
-#     read stops the commit) and rewrites docs/reference.md, which is added to the commit;
+#     read stops the commit) and rewrites docs/quick-reference.md, which is added to the commit;
 #   - the tests in step with the code (D61, tools/test_check.py); with core/addresses.json
 #     staged, the address-override fixtures are regenerated and added to the commit.
 #     They read the working tree, like arch_check.
@@ -15,11 +15,11 @@ if echo "$staged" | grep -qE '^(core|features|tests|tools)/|^VERSION$'; then
         echo "pre-commit: arch_check failed -- fix the code (rules + reasons: docs/architecture.md, docs/decisions.md)"
         exit 1
     fi
-    if ! "$PY" -I tools/docgen.py sheet docs/reference.md; then
+    if ! "$PY" -I tools/docgen.py sheet docs/quick-reference.md; then
         echo "pre-commit: docgen failed -- see above (what it reads: tools/docgen.py)"
         exit 1
     fi
-    git add docs/reference.md
+    git add docs/quick-reference.md
     if echo "$staged" | grep -qE '^core/addresses\.json$'; then
         "$PY" -I tools/make_override_fixtures.py || exit 1
         git add tests/game/data/addr_override_unknown.txt tests/game/data/addr_override_badsig.txt

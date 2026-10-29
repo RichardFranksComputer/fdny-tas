@@ -1,9 +1,22 @@
 # FDNYCore release notes
 
 Hand-written: what changed in each version. Downloads are the GitHub releases (the
-Releases section of the repository page); each one's zip carries the key sheet generated
+Releases section of the repository page); each one's zip carries the quick reference generated
 for that build. The release workflow copies a version's `## <version>` section below into
 its release notes (`CONTRIBUTING.md`, "Branches, commits, releases").
+
+## 0.23.0
+
+**Changed:**
+- **One download:** the release is now just `FDNYCore-0.23.0.zip`, with the `.asi` and its
+  `quick-reference.md` (every key, feature, variable and command). Unzip it and copy the
+  `.asi` next to `FDNYFirefighter.exe`. The `.asi`'s SHA-256 is in the release notes and the
+  quick reference.
+- **The key sheet is now `quick-reference.md`.**
+- **The pre-0.19 warp HUD names are gone:** `fd_hud_glitch`, `fd_glitch_hide`,
+  `fd_glitch_freeze` and `fd_glitch_clear` now give "unknown command". Use `fd_hud_warp`,
+  `fd_warp_hide`, `fd_warp_freeze` and `fd_warp_clear` (FDNYCore.cfg already uses the new
+  names; check your `autoexec.cfg` and binds).
 
 ## 0.22.0
 

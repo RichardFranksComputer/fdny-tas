@@ -15,7 +15,7 @@ them, and don't work around them; if a rule blocks a good design, stop and ask t
 
 - Read `docs/decisions.md` and the recent `git log`.
 - **Check for something existing first** (owner rule). Look in `features/`, the services in
-  `core/` and the console commands (`docs/reference.md`). Extend what's there instead of
+  `core/` and the console commands (`docs/quick-reference.md`). Extend what's there instead of
   adding a parallel path.
 - Decide the shape:
   - **Feature or service?** A feature uses services. If it needs a hook another piece
@@ -83,7 +83,7 @@ them, and don't work around them; if a rule blocks a good design, stop and ask t
 
 - Evidence: `docs/evidence/<name>/README.md` with the numbers (`CONTRIBUTING.md`, "Done
   means").
-- The player docs are the generated reference (`docs/reference.md`, rewritten by every build
+- The player docs are the generated reference (`docs/quick-reference.md`, rewritten by every build
   and the pre-commit hook): check your feature's lines read well, and fix the help texts
   and `// User:` line in the code, never the reference. A new service goes in
   `docs/architecture.md`'s "Core services" table.
