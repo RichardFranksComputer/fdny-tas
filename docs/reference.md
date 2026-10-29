@@ -1,4 +1,4 @@
-# FDNYCore 0.21.0 reference: keys, features and settings
+# FDNYCore 0.22.0 reference: keys, features and settings
 
 Generated from the source by `tools/docgen.py` on every build; do not edit. To change a
 line here, change the help text or `// User:` line in the code. What changed between
