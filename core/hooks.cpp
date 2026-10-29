@@ -1,3 +1,4 @@
+// Tests: tests/game/hooks_frame.yaml
 #include "hooks.h"
 
 #include <windows.h>

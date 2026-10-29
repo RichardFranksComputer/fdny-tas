@@ -72,8 +72,10 @@ them, and don't work around them; if a rule blocks a good design, stop and ask t
 - Copy `tools/templates/test.yaml` to `tests/game/<name>.yaml` (in the suite). Prove the
   behaviour with assertions (log lines, memory, pipe), not just "no crash". Add
   screenshots for anything visible.
-- Run it and the other tests the change touches; the full suite only before a release
-  (`CONTRIBUTING.md`, "Test").
+- `python -I tools/test_check.py` (D61): every new variable and command is used by a test,
+  or gets an `UNTESTED` line with the reason; what the tests name exists in the code.
+- Run it and the other tests the change touches (`python -I tools/test_check.py affected`);
+  the full suite only before a release (`CONTRIBUTING.md`, "Test").
 - Never weaken a test (D21). For a failure you believe is environmental, rerun it, show it
   fails identically on the previous version or passes on rerun, and report it as such.
 

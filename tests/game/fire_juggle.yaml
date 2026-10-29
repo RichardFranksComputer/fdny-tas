@@ -5,7 +5,8 @@ name: fire_juggle
 # (Think's write copies it); otherwise it's frozen, and the arrow points at the landing
 # point T = spot - 30 X, relative to the view. Test hooks (Debug only): fd_dbg_setpos /
 # fd_dbg_o2 (O2 <= 0.5 is one way the game stops writing) and fd_dbg_tofire (real fire).
-# Refused under fd_profile run.
+# Practice-only (refused under fd_profile run): the gate is profile_run's and keys_default's,
+# the declaration docs_registry's.
 pre_files:
   - {src: tests/game/data/game_cfg_player.cfg, dst: FDNYFireFighter.cfg}
   - {src: null, dst: FDNYCore.cfg}
@@ -75,48 +76,14 @@ steps:
   - assert_pipe_stat: {cmd: juggle, key: dir, equals: 2}  # right
   - assert_pipe_stat: {cmd: juggle, key: dist, equals: 600}  # tenths: 60 u
   - screenshot: glyph_yaw000_right
-  - console: "fd_dbg_setpos -667 -47 1196 45 0.1"
-  - wait_log: {contains: "juggle: setpos -667 -47 1196 (+yaw) (+o2): ok", since_console: true, timeout: 10}
-  - wait_s: 0.4
-  - assert_pipe_stat: {cmd: juggle, key: dir, equals: 3}  # down-right
-  - assert_pipe_stat: {cmd: juggle, key: dist, equals: 600}
-  - screenshot: glyph_yaw045_down-right
-  - console: "fd_dbg_setpos -667 -47 1196 90 0.1"
-  - wait_log: {contains: "juggle: setpos -667 -47 1196 (+yaw) (+o2): ok", since_console: true, timeout: 10}
-  - wait_s: 0.4
-  - assert_pipe_stat: {cmd: juggle, key: dir, equals: 4}  # down
-  - assert_pipe_stat: {cmd: juggle, key: dist, equals: 600}
-  - screenshot: glyph_yaw090_down
+  # Turned 135 degrees: the arrow turns with the view (all eight directions and the sector
+  # edges are unit-tested, tests/unit/test_juggle.cpp).
   - console: "fd_dbg_setpos -667 -47 1196 135 0.1"
   - wait_log: {contains: "juggle: setpos -667 -47 1196 (+yaw) (+o2): ok", since_console: true, timeout: 10}
   - wait_s: 0.4
   - assert_pipe_stat: {cmd: juggle, key: dir, equals: 5}  # down-left
   - assert_pipe_stat: {cmd: juggle, key: dist, equals: 600}
   - screenshot: glyph_yaw135_down-left
-  - console: "fd_dbg_setpos -667 -47 1196 180 0.1"
-  - wait_log: {contains: "juggle: setpos -667 -47 1196 (+yaw) (+o2): ok", since_console: true, timeout: 10}
-  - wait_s: 0.4
-  - assert_pipe_stat: {cmd: juggle, key: dir, equals: 6}  # left
-  - assert_pipe_stat: {cmd: juggle, key: dist, equals: 600}
-  - screenshot: glyph_yaw180_left
-  - console: "fd_dbg_setpos -667 -47 1196 225 0.1"
-  - wait_log: {contains: "juggle: setpos -667 -47 1196 (+yaw) (+o2): ok", since_console: true, timeout: 10}
-  - wait_s: 0.4
-  - assert_pipe_stat: {cmd: juggle, key: dir, equals: 7}  # up-left
-  - assert_pipe_stat: {cmd: juggle, key: dist, equals: 600}
-  - screenshot: glyph_yaw225_up-left
-  - console: "fd_dbg_setpos -667 -47 1196 270 0.1"
-  - wait_log: {contains: "juggle: setpos -667 -47 1196 (+yaw) (+o2): ok", since_console: true, timeout: 10}
-  - wait_s: 0.4
-  - assert_pipe_stat: {cmd: juggle, key: dir, equals: 0}  # up
-  - assert_pipe_stat: {cmd: juggle, key: dist, equals: 600}
-  - screenshot: glyph_yaw270_up
-  - console: "fd_dbg_setpos -667 -47 1196 315 0.1"
-  - wait_log: {contains: "juggle: setpos -667 -47 1196 (+yaw) (+o2): ok", since_console: true, timeout: 10}
-  - wait_s: 0.4
-  - assert_pipe_stat: {cmd: juggle, key: dir, equals: 1}  # up-right
-  - assert_pipe_stat: {cmd: juggle, key: dist, equals: 600}
-  - screenshot: glyph_yaw315_up-right
   - assert_pipe_stat: {cmd: juggle, key: elsewhere, equals: 0}
   - console: "fd_dbg_o2 1"
   - wait_s: 1
@@ -168,14 +135,6 @@ steps:
   - assert_pipe_stat: {cmd: juggle, key: elsewhere, min: 1}
   - assert_log: {contains: "juggle: spot written elsewhere"}
   - screenshot: respawned
-  # practice-only
-  - console: "fd_profile run"
-  - wait_s: 1
-  - assert_pipe_stat: {cmd: juggle, key: enabled, equals: 0}
-  - console: "fd_juggle 1"
-  - wait_s: 0.5
-  - assert_pipe_stat: {cmd: juggle, key: enabled, equals: 0}
-  - console: "fd_profile practice"
 expect:
   no_crash: true
   log_errors: 0

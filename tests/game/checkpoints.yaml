@@ -38,10 +38,6 @@ steps:
   - wait_pipe: {cmd: triggers, key: n, equals: 27, timeout: 10}
   # The N press logs its line before a wait_log could start counting: count both loads.
   - assert_log_count: {contains: "checkpoints: loaded 2 native checkpoints for training", equals: 2}
-  - console: "fd_profile run"
-  - console: "fd_checkpoints 1"
-  - assert_log: {contains: "fd_checkpoints is practice-only (fd_profile is run)"}
-  - console: "fd_profile practice"
   # Edit a file without changing live native entities; the next mission load applies it.
   - console: "fd_checkpoints_edit 1"
   - assert_pipe_stat: {cmd: freecam, key: flying, equals: 1}
@@ -80,10 +76,8 @@ steps:
   - assert_pipe_stat: {cmd: freecam, key: flying, equals: 0}
   - loadmap: training
   - wait_pipe: {cmd: triggers, key: n, equals: 28, timeout: 10}
-  - console: "fd_profile run"
-  - console: "fd_checkpoints_edit 1"
-  - assert_log: {contains: "fd_checkpoints_edit is practice-only (fd_profile is run)"}
-  - console: "fd_profile practice"
+  # Practice-only (refused in fd_profile run): the gate is profile_run's and keys_default's,
+  # the declarations docs_registry's.
 expect:
   no_crash: true
   log_errors: 0

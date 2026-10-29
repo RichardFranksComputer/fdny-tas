@@ -5,9 +5,17 @@ name: replay
 # gaps and colours are unit-tested (tests/unit/test_replay.cpp); this proves the drawing in the
 # game and that it doesn't cost frame rate (D46: frames with the trace drawn >= 0.9 x frames
 # with it cleared, back to back).
+# Then choosing runs without file names (D51; replay_pick until 2026-10-28, merged here to
+# load mbase once), in a folder of its own: the reference mbase run (pid 204, run 1) and a
+# stub run 2 of the same game on bank, so run 1 counts as finished. The index rules are
+# unit-tested (replay_index); this proves them in the game: V loads the best and latest, the
+# picker pauses and toggles runs with the number keys, fd_replay <text> loads by part of a
+# name, and the ghost starts with a spawn.
 pre_files:
   - {src: tests/game/data/game_cfg_player.cfg, dst: FDNYFireFighter.cfg}
   - {src: null, dst: FDNYCore.cfg}
+  - {src: tests/game/data/mbase_2026-10-23T21-11-10.274Z_pid204_run0001.jsonl, dst: fdtest_recordings/mbase_2026-10-23T21-11-10.274Z_pid204_run0001.jsonl}
+  - {src: tests/game/data/replay_next_run.jsonl, dst: fdtest_recordings/bank_2026-10-23T21-12-00.000Z_pid204_run0002.jsonl}
 setup: load_training
 record: true
 steps:
@@ -40,6 +48,45 @@ steps:
   - wait_s: 6
   - sample_pipe: {cmd: stats, as: off1}
   - assert_sample_ratio: {num: [on0, on1, end], den: [off0, off1, end], min: 0.9}
+  # choosing runs (D51): nothing loaded now, so V picks this map's best and latest
+  - console: "fd_replay_xray 0"
+  - console: "fd_replay_speed 1"
+  - console: "fd_record_directory fdtest_recordings"
+  - focus: {}
+  - key: {key: v, hold: 0.1}
+  - wait_s: 1
+  - assert_log: {contains: "replay: V on mbase: best mbase_2026-10-23T21-11-10.274Z_pid204_run0001.jsonl, latest mbase_2026-10-23T21-11-10.274Z_pid204_run0001.jsonl"}
+  - assert_pipe_stat: {cmd: replay, key: loaded, equals: 1}
+  - assert_pipe_stat: {cmd: replay, key: playing, equals: 1}
+  - console: "fd_replay"
+  - focus: {}
+  - wait_s: 1
+  - assert_pipe_stat: {cmd: replay, key: picker, equals: 1}
+  - assert_pipe_stat: {cmd: replay, key: rows, equals: 1}
+  - assert_pipe_stat: {cmd: pause, key: active, equals: 1}
+  - screenshot: picker
+  - key: {key: "1", hold: 0.1}
+  - wait_s: 0.5
+  - assert_pipe_stat: {cmd: replay, key: loaded, equals: 0}
+  - key: {key: "1", hold: 0.1}
+  - wait_s: 0.5
+  - assert_pipe_stat: {cmd: replay, key: loaded, equals: 1}
+  - key: {key: v, hold: 0.1}   # closes the picker and plays
+  - wait_s: 0.5
+  - assert_pipe_stat: {cmd: replay, key: picker, equals: 0}
+  - assert_pipe_stat: {cmd: pause, key: active, equals: 0}
+  - assert_pipe_stat: {cmd: replay, key: playing, equals: 1}
+  - console: "fd_replay_clear"
+  - console: "fd_replay pid204_run0001"
+  - assert_log: {contains: "replay: loaded mbase_2026-10-23T21-11-10.274Z_pid204_run0001.jsonl"}
+  - assert_pipe_stat: {cmd: replay, key: loaded, equals: 1}
+  - console: "fd_replay_ghost 1"
+  - loadmap: mbase
+  - wait_s: 1
+  - assert_log: {contains: "replay: ghost mbase_2026-10-23T21-11-10.274Z_pid204_run0001.jsonl (best, 33847 ms)"}
+  - assert_pipe_stat: {cmd: replay, key: loaded, equals: 1}
+  - assert_pipe_stat: {cmd: replay, key: playing, equals: 1}
+  - console: "fd_replay_clear"
 expect:
   no_crash: true
   log_errors: 0

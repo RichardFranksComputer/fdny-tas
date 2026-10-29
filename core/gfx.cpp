@@ -1,3 +1,4 @@
+// Tests: tests/game/draw_layers.yaml tests/game/triggers.yaml
 // User: On-screen text -- size and opacity of every FDNYCore text panel.
 #include "gfx.h"
 
@@ -109,7 +110,7 @@ WorldBoxStats g_boxStats = {}, g_boxAcc = {};
 #ifdef FDCORE_DEBUG
 char g_order[32], g_lastOrder[32];
 // Bounded: FrameBegin resets g_order, but with the frame hooks off (fd_hooks_frame 0,
-// tests/game/hooks_toggle.yaml) only the RenderWorld detour runs, and an unbounded append grew
+// tests/game/hooks_frame.yaml) only the RenderWorld detour runs, and an unbounded append grew
 // " world" past 32 bytes into the box-list globals next to it (DrawBoxes read a list at 0x1).
 void MarkLayer(const char* name) {
     const int used = lstrlenA(g_order), need = lstrlenA(name) + (used ? 1 : 0);

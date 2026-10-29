@@ -2,7 +2,8 @@ name: window_alttab
 # Item 7: FDNYCore's window module gives alttabfix.asi's behaviour: five
 # scripted alt-tab cycles; while away the mouse
 # is free, when back it is held at the game window centre, the game keeps
-# rendering, no crash, and the player can still move afterwards.
+# rendering, no crash, and the player can still move afterwards. Holding O
+# frees the cursor in the game too.
 pre_files:
   - {src: tests/game/data/game_cfg_player.cfg, dst: FDNYFireFighter.cfg}
   - {src: null, dst: FDNYCore.cfg}
@@ -13,6 +14,16 @@ steps:
   - wait_s: 0.5
   - assert_cursor: {window_centre: true, tolerance: 1}
   - run_setup: alttab_cycles
+  # Holding O frees the cursor in the focused game; released, it is held at the centre again.
+  - focus: {}
+  - key_down: o
+  - wait_s: 0.3
+  - set_cursor: [100, 100]
+  - wait_s: 0.5
+  - assert_cursor: {at: [100, 100], tolerance: 1}
+  - key_up: o
+  - wait_s: 0.5
+  - assert_cursor: {window_centre: true, tolerance: 1}
   - sample_mem: {name: player.pos_x, as: x0}
   - sample_mem: {name: player.pos_z, as: z0}
   - key: {key: w, hold: 1.5}

@@ -1,7 +1,8 @@
 name: tp_teleport
 # Item 13: fd_tp_save stores position + view; fd_tp_load restores them (and
 # they stay: the next frames integrate from the new spot) -- also bound to a
-# key; refused on another map (position unchanged) and in fd_profile run.
+# key; refused on another map (position unchanged). Practice-only (refused in fd_profile
+# run): the gate is profile_run's and keys_default's, the declaration docs_registry's.
 pre_files:
   - {src: tests/game/data/game_cfg_player.cfg, dst: FDNYFireFighter.cfg}
   - {src: null, dst: FDNYCore.cfg}
@@ -39,11 +40,6 @@ steps:
   - wait_s: 1.0
   - assert_same_pos: {x: x_saved, z: z_saved, tolerance: 2}
   - console: "unbind f5"
-  # practice-only
-  - console: "fd_profile run"
-  - console: "fd_tp_load"
-  - assert_log: {contains: "console> fd_tp_load is practice-only (fd_profile is run)"}
-  - console: "fd_profile practice"
   # another map: refused, position unchanged
   - loadmap: bank
   - sample_mem: {name: player.pos_x, as: x_bank}

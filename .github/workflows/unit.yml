@@ -1,6 +1,6 @@
 # Unit tests (tests/unit, D47) on pull requests and pushes to main: the core's pure logic built
 # for the host and run without the game (address table, crash log, replay data), plus the
-# tools (arch_check rules, docgen). The game-driven suite
+# tools (arch_check rules, docgen, test_check: the game tests in step with the code, D61). The game-driven suite
 # (tests/game) still needs the VM.
 # Once per change: a push to a PR's branch runs only the pull_request event (push is limited
 # to main, where merges land), so a PR no longer runs the tests twice.

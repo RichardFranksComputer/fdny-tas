@@ -1,3 +1,4 @@
+// Tests: tests/game/core_loads.yaml tests/game/core_release.yaml tests/game/core_single_instance.yaml
 // FDNYCore entry point. Loaded by Ultimate ASI Loader (dinput8.dll) like the
 // other .asi plugins. DllMain only spawns the init thread (loader lock);
 // everything else happens there.

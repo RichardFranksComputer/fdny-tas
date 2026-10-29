@@ -26,6 +26,9 @@ void TestReplaySimplify();
 void TestReplayAirFlags();
 void TestReplayIndex();
 void TestReplayBrowser();
+void TestRecorderJson();
+void TestJuggleDirection();
+void TestCmdAndBinds();
 
 namespace {
 
@@ -50,6 +53,9 @@ const Test kTests[] = {
     {"replay_air_flags", TestReplayAirFlags},
     {"replay_index", TestReplayIndex},
     {"replay_browser", TestReplayBrowser},
+    {"recorder_json", TestRecorderJson},
+    {"juggle_direction", TestJuggleDirection},
+    {"cmd_and_binds", TestCmdAndBinds},
     {"crashlog_reports_fault", TestCrashlogReportsFault},  // last: it leaves the handler installed
 };
 

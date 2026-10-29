@@ -49,6 +49,9 @@ steps:
   - wait_pipe: {cmd: camera_override, key: active, equals: 0, timeout: 3}
   - wait_s: 0.5
   - screenshot: override_off
+  # the override moved the picture; switched off, the paused view is back as it was
+  - assert_screen_diff: {a: paused, b: override_up150, min: 5}
+  - assert_screen_diff: {a: paused, b: override_off, max: 2}
   # resume: the clock goes on from where it stopped (no jump of the paused 5+ s)
   - pipe: "pause off"
   - wait_pipe: {cmd: pause, key: active, equals: 0, timeout: 3}
@@ -58,16 +61,8 @@ steps:
   - assert_mem: {name: clock.elapsed_ms, equals_sample: clock_p1, tolerance: 2500}
   - assert_mem: {name: mission.time_left, equals_sample: time_p1, tolerance: 2.5}
   - screenshot: resumed
-  # leaving the level ends a pause: a game loadmap typed while paused. Rendering stops while
-  # loading, so the service resumes from its TickSubsystems detour (run fc3: it waited in a
-  # frame event that never came, and the load waited for the simulation: deadlock)
-  - pipe: "pause on"
-  - wait_pipe: {cmd: pause, key: active, equals: 1, timeout: 3}
-  - console: "loadmap training"
-  - wait_log: {contains: "pause: off (level change)", since_console: true, timeout: 60}
-  - wait_s: 30
-  - assert_pipe_stat: {cmd: pause, key: active, equals: 0}
-  - assert_pipe_stat: {cmd: pause, key: block, equals: 0}
+  # Leaving the level ends a pause: freecam.yaml (fd_pause through this service, plus the
+  # variable going back to 0).
 expect:
   no_crash: true
   log_errors: 0

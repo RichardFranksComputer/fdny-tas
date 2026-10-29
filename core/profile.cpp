@@ -1,3 +1,4 @@
+// Tests: tests/game/profile_run.yaml
 // User: Profiles -- practice (everything allowed) or run (practice-only settings refused, watermark always on).
 #include "profile.h"
 

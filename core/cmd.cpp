@@ -1,3 +1,4 @@
+// Tests: tests/game/console_basic.yaml tests/game/autoexec.yaml tests/game/vars_binds_persist.yaml tests/game/docs_registry.yaml tests/unit/test_cmd.cpp
 // User: Console -- FDNYCore's commands and variables, typed in the game's console (` key); changed settings are saved to FDNYCore.cfg, your own lines go in autoexec.cfg.
 #include "cmd.h"
 

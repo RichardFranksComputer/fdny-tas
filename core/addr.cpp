@@ -1,3 +1,4 @@
+// Tests: tests/game/addr_verified.yaml tests/game/addr_bad_signature.yaml tests/game/addr_unknown_exe.yaml tests/unit/test_addr.cpp
 #include "addr.h"
 
 #include <windows.h>

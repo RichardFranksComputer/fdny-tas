@@ -1,3 +1,4 @@
+// Tests: tests/game/console_basic.yaml tests/game/console_menu_safe.yaml
 #include "console.h"
 
 #include <windows.h>

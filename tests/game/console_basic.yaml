@@ -1,7 +1,7 @@
 name: console_basic
 # Item 4: in a normal player setup (ImADeveloper = false) the core provides
 # the game's console: backtick opens it, it is drawn in-game, echo / cvarlist
-# / exec work, and keystrokes don't reach the game while it is open.
+# / exec work (a file that isn't FDNYCore's goes to the game's exec), and keystrokes don't reach the game while it is open.
 pre_files:
   - {src: tests/game/data/game_cfg_player.cfg, dst: FDNYFireFighter.cfg}
   - {src: tests/game/data/fdtest_exec.cfg, dst: fdtest_exec.cfg}
@@ -31,6 +31,8 @@ steps:
   - key: enter
   - wait_s: 0.5
   - assert_log: {contains: "console> exec-ok-4242"}
+  # an exec of a file FDNYCore doesn't have goes to the game's own exec verb
+  - assert_log: {contains: "cmd: to game: exec fdtest_no_such_script"}
   - screenshot: 02_console_exec
   # keystrokes must not reach the game while the console is open
   - sample_mem: {name: player.pos_x, as: x_open_before}

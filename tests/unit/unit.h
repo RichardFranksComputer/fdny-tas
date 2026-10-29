@@ -20,6 +20,8 @@ inline void Check(bool ok, const char* what, const char* file, int line) {
 bool LogContains(const char* text);
 int LogCount(const char* text);
 void ClearLog();
+// What console::GameDir returns (with a trailing backslash).
+void SetGameDir(const char* dir);
 
 } // namespace unit
 

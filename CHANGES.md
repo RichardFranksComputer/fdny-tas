@@ -3,7 +3,36 @@
 Hand-written: what changed in each version. Downloads are the GitHub releases (the
 Releases section of the repository page); each one's zip carries the key sheet generated
 for that build. The release workflow copies a version's `## <version>` section below into
-its release notes (`core/CLAUDE.md`, "Done means").
+its release notes (`CONTRIBUTING.md`, "Branches, commits, releases").
+
+## 0.22.0
+
+**New: the Recordings page** (by Jacob Pilawa; practice only). A **Recordings** button on
+the mission briefing opens a list of your recordings for that stage:
+- **List:** page through it (PgUp / PgDn, Escape goes back), mark favourites, and give
+  runs your own names.
+- **Watch:** pick one run, or two to compare, and the stage loads to be watched, not
+  played. The game stays paused and a camera follows the run:
+  - Space plays or pauses; Left / Right seek; Home restarts; Tab switches run;
+  - F switches between following the run and a free camera (W A S D E Q, Shift fast,
+    Ctrl slow); drag with the right mouse button to orbit or look; PgUp / PgDn zoom;
+  - X shows the traces through walls; Escape goes back to the briefing and the page.
+- `fd_replay_view <stage> <file> [second file]` does the same from the console, in the
+  stage that is loaded.
+- While watching, nothing is recorded and the checkpoint editor, trigger boxes and free
+  camera stay off.
+
+**Changed:**
+- **Keys only work inside a level.** A bound key does nothing at the menus (the
+  Recordings page reads its own keys).
+- **Free camera** (`fd_pause`): it is now the same camera as the Recordings viewer. It
+  moves at one speed in every direction (diagonals used to be faster), and looking up or
+  down stops at 89 degrees.
+- **Run FDNYCore on its own.** It no longer looks for the old tools (alttabfix, the FOV
+  fix, FDNYDeterministic, FDNYVictimSpawns): static spawns and RescueBot are always
+  offered, and a game location another mod changed is reported as a mismatch and left
+  alone.
+- The key sheet is now called `reference.md` (in the release zip).
 
 ## 0.21.0
 
