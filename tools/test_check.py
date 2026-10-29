@@ -262,11 +262,13 @@ def check(code=None):
                 m = re.search(r"\bname:\s*([\w.]+)", body)
                 if m and m.group(1) not in code.entries:
                     errors.append(f"{at}: '{m.group(1)}' is not an address-table entry")
+            # build/ is build output: absent in a clean checkout (CI), so not checked
             for m in re.finditer(r"\bsrc:\s*([^,}\s]+)", body):
-                if m.group(1) != "null" and not os.path.exists(os.path.join(REPO, m.group(1))):
+                if m.group(1) != "null" and not m.group(1).startswith("build/") \
+                        and not os.path.exists(os.path.join(REPO, m.group(1))):
                     errors.append(f"{at}: '{m.group(1)}' does not exist")
             for m in re.finditer(r"\{repo\}/([^\s\"']+)", body):
-                if not os.path.exists(os.path.join(REPO, m.group(1))):
+                if not m.group(1).startswith("build/") and not os.path.exists(os.path.join(REPO, m.group(1))):
                     errors.append(f"{at}: '{m.group(1)}' does not exist")
             for m in re.finditer(r"\b(?:run_)?setup:\s*(\w+)", body):
                 if not os.path.exists(os.path.join(SETUPS, m.group(1) + ".yaml")):
