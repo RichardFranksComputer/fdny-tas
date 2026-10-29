@@ -1,3 +1,4 @@
+// Tests: tests/game/keys_default.yaml tests/game/vars_binds_persist.yaml tests/game/autoexec.yaml tests/unit/test_cmd.cpp
 // User: Keys -- bind any key to a console line (bind / unbind / bindlist); keys act only inside a level while the game has focus and the console is closed; menu typing never toggles gameplay bindings.
 #include "binds.h"
 

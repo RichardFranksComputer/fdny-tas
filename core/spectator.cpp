@@ -1,3 +1,4 @@
+// Tests: tests/game/spectator_camera.yaml tests/game/freecam.yaml tests/unit/test_spectator.cpp
 #include "spectator.h"
 #include <windows.h>
 #include "addr.h"

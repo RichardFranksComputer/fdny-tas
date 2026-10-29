@@ -70,3 +70,35 @@ New steps' numbers (run 1 unless noted):
 
 Not run (unchanged by this branch beyond comments): `keys_default`, `docs_registry` and the
 rest of the suite; `baseline_route` (release only).
+
+## Second pass (2026-10-29): owner rulings, tests kept in step (D61)
+
+The owner's rulings (D60): no warp HUD correctness test; one practice-only refusal test; the
+spot-0 test is enough for fd_spawns and Z / X need no game test, so the steps added for
+them in the first pass were taken out again (`glitch_records`, `speedrun_static_spawns` are
+back to `main`'s); `keys_default`'s comment no longer claims Z / X are tested. Added: an
+`exec` of a file FDNYCore doesn't have goes to the game (`console_basic`, through
+`fdtest_exec.cfg`); `unbindall` and `cmdlist` in `test_cmd`.
+
+`tools/test_check.py` on its first run over the repository found:
+
+| Found | Fixed |
+|---|---|
+| 16 game tests no `// Tests:` line named (the core's: addr, console, profile, pause, ...) | `// Tests:` lines on 18 core files |
+| `tests/game/data/owner_cfg_20261022.cfg`: unused since 1f1c125 removed its test | deleted |
+| `fd_spawns`, `cmdlist`, `unbindall` used by no test (plus 15 older gaps) | unit test for `cmdlist` / `unbindall`; the rest listed in `UNTESTED` with reasons |
+| no step, channel, field, name, entry, file or message out of step | |
+
+Its own test (`tests/unit/test_test_check.py`) edits `console_basic.yaml` the way a rename in
+the code would leave it and checks each is caught: an unknown step, an unregistered fd_
+name, an address entry, a reworded log message, a missing data file or setup, an unknown
+pipe channel or field, a `since:` without a sample. Its limits: a field's value (what `%s`
+printed) can't be checked, so "pause: ended (level change)" passes against
+"pause: %s (%s)".
+
+The harness change (a missing pipe field fails) touches every test, so the whole suite ran
+(`build/refactor_testing_suite2.txt`, 34 tests, 13 game launches, 1373 s): 32 PASS.
+`core_release` and `profile_run` FAIL with "window hung > 10s" at `core_ready`, while the game
+was starting, before any of their steps (the same launch hang as `pause_service` in the
+first pass). Rerun together (`build/refactor_testing_rerun2.txt`, 150 s): both PASS.
+Recorded as environmental.

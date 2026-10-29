@@ -1,3 +1,4 @@
+// Tests: tests/game/recordings_menu.yaml
 #include "menu.h"
 #include <windows.h>
 #include "addr.h"

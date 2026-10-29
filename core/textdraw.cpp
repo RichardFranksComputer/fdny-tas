@@ -1,3 +1,4 @@
+// Tests: tests/game/text_panels.yaml tests/game/text_alpha.yaml
 // User: On-screen text -- size and opacity of every FDNYCore text panel.
 #include "textdraw.h"
 

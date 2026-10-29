@@ -178,7 +178,8 @@ def read_source():
     cvar_defs, cvar_regs, errors = {}, [], []
     for path in files:
         rel = os.path.relpath(path, REPO).replace("\\", "/")
-        text = open(path, encoding="utf-8-sig").read()
+        with open(path, encoding="utf-8-sig") as f:
+            text = f.read()
         toks = tokens(text)
         um = USER.search(text)
         section = {"file": rel, "title": um.group(1) if um else None, "summary": um.group(2) if um else None,

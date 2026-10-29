@@ -1,3 +1,4 @@
+// Tests: tests/game/core_release.yaml tests/game/console_basic.yaml
 // User: Startup -- optional startup changes.
 #include "patches.h"
 

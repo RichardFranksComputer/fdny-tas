@@ -180,7 +180,7 @@ class Run:
             t0, timeout, val = time.time(), float(arg.get("timeout", 3)), None
             while True:
                 reply = dict(kv.split("=", 1) for kv in pipe.call(arg["cmd"]).split() if "=" in kv)
-                val = int(reply.get(arg["key"], "-1"))
+                val = int(reply.get(arg["key"], "-1"))  # missing: -1, never a wanted value
                 if val == int(arg["equals"]) or time.time() - t0 >= timeout:
                     break
                 time.sleep(0.05)
@@ -315,8 +315,15 @@ class Run:
             # {cmd, key, min|max|equals|changed, since: <sample label>} numeric field of a pipe
             # reply (min and max may be combined; changed: true = differs from the sample)
             reply = dict(kv.split("=", 1) for kv in pipe.call(arg["cmd"]).split() if "=" in kv)
-            val = int(reply.get(arg["key"], "-1"))
-            base = int(self.samples.get(arg["since"], {}).get(arg["key"], 0)) if arg.get("since") else 0
+            since = self.samples.get(arg["since"], {}) if arg.get("since") else {arg["key"]: "0"}
+            if arg["key"] not in reply or arg["key"] not in since:
+                # A field the core no longer sends would read as a number and could pass a
+                # min/max check forever: a missing field is a failure.
+                self.record("assert_pipe_stat", False, f"{arg['cmd']}.{arg['key']} missing"
+                            + (f" (reply or sample {arg['since']!r})" if arg.get("since") else f": {reply}"))
+                return
+            val = int(reply[arg["key"]])
+            base = int(since[arg["key"]])
             d = val - base
             if arg.get("changed"):
                 ok, want = d != 0, "changed"

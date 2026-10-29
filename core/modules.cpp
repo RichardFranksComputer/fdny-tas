@@ -1,3 +1,4 @@
+// Tests: tests/game/core_loads.yaml tests/game/addr_unknown_exe.yaml
 #include "modules.h"
 
 #include <windows.h>

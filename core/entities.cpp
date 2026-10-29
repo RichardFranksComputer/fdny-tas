@@ -1,3 +1,4 @@
+// Tests: tests/game/speedrun_static_spawns.yaml tests/game/recorder.yaml tests/game/triggers.yaml
 #include "entities.h"
 
 #include <windows.h>

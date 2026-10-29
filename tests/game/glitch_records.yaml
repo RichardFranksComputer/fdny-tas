@@ -3,8 +3,8 @@ name: glitch_records
 # installs the collision overlay's 8 hooks inside the
 # game (same caves, same 128-byte records). Records flow in a level: player
 # collision traces and the per-frame tick (commits are rare on flat ground and
-# are validated by the 11b replay); the Z / X keys freeze and clear the boxes;
-# hooks toggle off and on at runtime without a crash.
+# are validated by the 11b replay); hooks toggle off
+# and on at runtime without a crash.
 pre_files:
   - {src: tests/game/data/game_cfg_player.cfg, dst: FDNYFireFighter.cfg}
   - {src: tests/game/data/fdcore_hud_glitch.cfg, dst: FDNYCore.cfg}
@@ -18,24 +18,6 @@ steps:
   - assert_pipe_stat: {cmd: glitch, key: tick, min: 100, since: g0}
   - assert_pipe_stat: {cmd: glitch, key: trace, min: 100, since: g0}
   - assert_pipe_stat: {cmd: glitch, key: dropped, equals: 0}
-  # Z freezes the boxes (the analysis goes on, the drawn text stays), Z again unfreezes;
-  # X clears the history (its note goes to the log)
-  - focus: {}
-  - key: {key: z, hold: 0.2}
-  - wait_s: 0.3
-  - assert_pipe_stat: {cmd: glitch_box, key: frozen, equals: 1}
-  - sample_pipe: {cmd: glitch_box, as: frozen0}
-  - sample_pipe: {cmd: glitch, as: frozen_g0}
-  - key: {key: w, hold: 1.0}
-  - assert_pipe_stat: {cmd: glitch_box, key: shown_tick, equals: 0, since: frozen0}
-  - assert_pipe_stat: {cmd: glitch, key: tick, min: 30, since: frozen_g0}
-  - key: {key: z, hold: 0.2}
-  - wait_s: 0.5
-  - assert_pipe_stat: {cmd: glitch_box, key: frozen, equals: 0}
-  - assert_pipe_stat: {cmd: glitch_box, key: shown_tick, min: 1, since: frozen0}
-  - key: {key: x, hold: 0.2}
-  - wait_s: 0.3
-  - assert_log: {contains: "history cleared"}
   - console: "fd_hud_glitch 0"
   - assert_log: {contains: "glitch: hooks removed, original bytes restored"}
   - sample_pipe: {cmd: glitch, as: g_off}

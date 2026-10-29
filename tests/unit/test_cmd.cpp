@@ -1,6 +1,7 @@
 // cmd + binds: how a console line is split and run, old names, toggle, the profile gates,
 // exec, and what FDNYCore.cfg holds (only changes: archived variables off their default,
-// binds that differ from a feature's default key, `unbind` for a removed default). The
+// binds that differ from a feature's default key, `unbind` for a removed default, `unbindall`),
+// `cmdlist`. The
 // game tests keep what needs the game: keys pressed in a level, the console window, a
 // restart (vars_binds_persist, keys_default, profile_run).
 #include <stdio.h>
@@ -117,6 +118,10 @@ void TestCmdAndBinds() {
     CHECK(cmd::Dispatch("unbind w") && cmd::Dispatch("unbind f5") && !CfgHas("bind f5") && !CfgHas("bind w"));
     const char *key, *line;
     CHECK(binds::DefaultCount() == 1 && binds::DefaultAt(0, &key, &line) && strcmp(line, "toggle fd_t_a") == 0);
+    // unbindall: every bind goes, a default key's too (kept unbound in FDNYCore.cfg).
+    CHECK(cmd::Dispatch("bind j \"toggle fd_t_a\"") && cmd::Dispatch("bind f6 echo x") && CfgHas("bind f6"));
+    CHECK(cmd::Dispatch("unbindall") && CfgHas("unbind j") && !CfgHas("bind f6"));
+    CHECK(cmd::Dispatch("cmdlist") && unit::LogContains("console> fd_t_cmd - probe"));
 
     // exec: our lines run here, the game's are queued for it one per frame, comments skipped.
     WriteText("t_exec.cfg", "// a comment\r\n# another\r\n  fd_t_b 7\r\n\r\nloadmap bank\nfd_t_cmd z\n");

@@ -1,3 +1,4 @@
+// Tests: tests/unit/test_crashlog.cpp
 // Logs fatal-looking exceptions (first chance) to FDNYCore.log with the
 // faulting module+offset and the code addresses found on the stack, so a
 // crash can be traced to a function in Ghidra without a debugger attached.

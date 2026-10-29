@@ -1,3 +1,4 @@
+// Tests: tests/game/state_snapshot.yaml
 #include "state.h"
 
 #include <windows.h>

@@ -1,3 +1,4 @@
+// Tests: tests/game/pause_service.yaml tests/game/spectator_camera.yaml tests/game/fov_sets_camera.yaml
 #include "camera.h"
 
 #include <windows.h>

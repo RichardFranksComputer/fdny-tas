@@ -33,6 +33,9 @@ if ($LASTEXITCODE -ne 0) { throw "arch_check failed: fix the code (rules + reaso
 # The address table is compiled in: regenerate the header from addresses.json.
 & $PythonExe -I (Join-Path $here 'tools\addrgen.py') header (Join-Path $here 'core\gen\addresses_gen.h')
 if ($LASTEXITCODE -ne 0) { throw "addrgen header failed ($LASTEXITCODE)" }
+# ... and the Debug override fixtures the address tests load (D61): the table with one change each.
+& $PythonExe -I (Join-Path $here 'tools\make_override_fixtures.py') | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "make_override_fixtures failed ($LASTEXITCODE)" }
 
 # Core services in core/, one folder per feature module in features/ (self-registered, see core/modules.h).
 $features = Get-ChildItem (Join-Path $here 'features') -Directory |

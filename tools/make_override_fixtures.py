@@ -3,8 +3,9 @@
   tests/game/data/addr_override_unknown.txt  real table with exe/Genesis hashes zeroed
   tests/game/data/addr_override_badsig.txt   real table with game.map_name's signature corrupted
 
-python -I tools/make_override_fixtures.py [out_dir]   (default tests/game/data). Rerun it after
-every core/addresses.json change: tests/unit/test_override_fixtures.py fails until you do.
+python -I tools/make_override_fixtures.py [out_dir]   (default tests/game/data). build.ps1 and the
+pre-commit hook (with core/addresses.json staged) run it; tests/unit/test_override_fixtures.py
+fails on a stale fixture (D61).
 """
 import os
 import subprocess

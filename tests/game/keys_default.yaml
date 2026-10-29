@@ -3,9 +3,10 @@ name: keys_default
 # This test proves the binds: each default key, pressed in a level (game focused,
 # console closed), dispatches its command ("bind: <key> -> <command>"), and J's toggle
 # really runs (the `toggle <var>` builtin, both ways). What each command then does is
-# the feature's own test: juggle fire_juggle, H hud_player, G / B / Z / X glitch_records
-# and text_panels, T / Y triggers, K / L tp_teleport, P freecam, V replay. Which key maps to which command
-# is checked against the source by docs_registry.
+# the feature's own test: juggle fire_juggle, H hud_player, G / B glitch_records and
+# text_panels, T / Y triggers, K / L tp_teleport, P freecam, V replay. Z / X (freeze, clear
+# the warp boxes) are not pressed by any test (owner 2026-10-29: not needed). Which key maps
+# to which command is checked against the source by docs_registry.
 # Narrowed by the suite review (2026-10-24): it used to re-check every feature's effect
 # (24 key presses, 22 fixed waits), so a failure didn't say whether the bind or the
 # feature broke. Kept here because nothing else covers them: G off and on shows the boxes
