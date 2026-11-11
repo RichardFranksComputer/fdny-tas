@@ -9,6 +9,7 @@
 #include "hooks.h"
 #include "log.h"
 #include "modules.h"
+#include "notify.h"
 #include "num.h"
 
 namespace fdcore::cmd {
@@ -69,7 +70,10 @@ void CmdToggle(int argc, const char* const* argv) {
         console::Print("usage: toggle <variable> (0 <-> 1)");
         return;
     }
-    if (SetCvar(v, v->value[0] == '0' ? "1" : "0")) console::Print("%s %s", v->name, v->value);
+    if (!SetCvar(v, v->value[0] == '0' ? "1" : "0")) return;
+    console::Print("%s %s", v->name, v->value);
+    // Seen with the console closed (a key bind): the variable's label, if it has one.
+    if (const char* label = Label(v->name)) notify::Show("%s %s", label, Bool(*v) ? "on" : "off");
 }
 
 void CmdEcho(int argc, const char* const* argv) {
@@ -226,6 +230,24 @@ constexpr int kMaxPractice = 96;
 const char* g_practice[kMaxPractice];
 int g_nPractice = 0;
 } // namespace
+namespace {
+struct Labelled {
+    const char* name;
+    const char* label;
+};
+constexpr int kMaxLabels = 96;
+Labelled g_labels[kMaxLabels];
+int g_nLabels = 0;
+} // namespace
+void SetLabel(const char* name, const char* label) {
+    if (g_nLabels < kMaxLabels) g_labels[g_nLabels++] = {name, label};
+    else Full("label", name);
+}
+const char* Label(const char* name) {
+    for (int i = 0; i < g_nLabels; ++i)
+        if (IEq(g_labels[i].name, name)) return g_labels[i].label;
+    return nullptr;
+}
 void SetPracticeOnly(const char* name) {
     if (IsPracticeOnly(name)) return;
     if (g_nPractice < kMaxPractice) g_practice[g_nPractice++] = name;

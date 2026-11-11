@@ -72,11 +72,11 @@ int ParseInt(const char* s, bool* ok) {
 void PrintPins(const char* map) {
     Pins* p = FindPins(map);
     if (!p) {
-        console::Print("fd_spawns %s: default (every victim at spot 0 while fd_static_spawns is 1)", map);
+        console::Print("spawns: %s: default (every victim at spot 0 while fd_static_spawns is 1)", map);
         return;
     }
     char line[256];
-    int o = wsprintfA(line, "fd_spawns %s:", p->map);
+    int o = wsprintfA(line, "spawns: %s:", p->map);
     for (int i = 0; i < p->n && o < 240; ++i) o += wsprintfA(line + o, " %d", p->spot[i]);
     console::Print("%s", line);
 }
@@ -100,7 +100,7 @@ void CmdSpawns(int argc, const char* const* argv) {
         return;
     }
     if (!p) {
-        if (g_nPins >= kMaxMaps) return console::Print("fd_spawns: too many maps");
+        if (g_nPins >= kMaxMaps) return console::Print("spawns: too many maps");
         p = &g_pins[g_nPins++];
         lstrcpynA(p->map, argv[1], sizeof(p->map));
     }
@@ -118,7 +118,7 @@ void CmdSpawns(int argc, const char* const* argv) {
             if (*s) {
                 bool ok;
                 int v = ParseInt(s, &ok);
-                if (!ok) return console::Print("fd_spawns: bad spot \"%s\"", s);
+                if (!ok) return console::Print("spawns: bad spot \"%s\"", s);
                 if (p->n < kMaxVictims) p->spot[p->n++] = v;
             }
             if (!save) break;
@@ -196,7 +196,7 @@ void ApplyRescueBot(cmd::Cvar& v) {
     uintptr_t tryStart = addr::ExportAddress(Id::patch_rescuebot_trystart);
     uintptr_t ctorImm = addr::ExportAddress(Id::patch_rescuebot_ctor_enable);
     if (!tryStart || !ctorImm) {
-        console::Print("fd_rescuebot: unavailable (patch sites not verified)");
+        console::Print("rescuebot: unavailable (patch sites not verified)");
         return;
     }
     bool ok = WriteByte(tryStart, on ? 0x6A : 0xC3) && WriteByte(ctorImm, on ? 0x01 : 0x00);
@@ -225,10 +225,11 @@ bool Init() {
                              "shows them; used while fd_static_spawns is 1)",
                              CmdSpawns);
         cmd::RegisterConfigWriter(WritePins);
+        cmd::SetLabel("fd_static_spawns", "Fixed victim spawns");
     }
     if (addr::Usable(Id::patch_rescuebot_trystart) && addr::Usable(Id::patch_rescuebot_ctor_enable) &&
         addr::Usable(Id::rescuebot_enabled))
-        cmd::RegisterCvar(&g_fdRescueBot);
+        cmd::RegisterCvar(&g_fdRescueBot), cmd::SetLabel("fd_rescuebot", "RescueBot");
     else log::Warn("speedrun: RescueBot sites unavailable (signature mismatch, see above)");
     log::Info("speedrun: ready (static spawns %s, rescuebot %s)", spawnsOk ? "available" : "unavailable",
               addr::Usable(Id::patch_rescuebot_trystart) ? "available" : "unavailable");

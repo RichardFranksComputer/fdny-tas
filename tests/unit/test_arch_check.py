@@ -1,4 +1,4 @@
-"""arch_check (docs/architecture.md, R1-R11) on a copy of the source: clean, it passes; with one
+"""arch_check (docs/architecture.md, R1-R12) on a copy of the source: clean, it passes; with one
 seeded violation per rule, it reports exactly that rule (D47). Without this, a rule that
 silently stopped matching would only show as a passing build.
 """
@@ -101,6 +101,20 @@ class ArchCheck(unittest.TestCase):
     def test_r11_allowed_with_reason(self):
         self.write("features/probe/probe.cpp", FEATURE.format(
             body='void f() { cmd::FindCvar("fd_hud_warp"); }  // arch-allow: R11 fixture'))
+        self.assertEqual(self.rules(), (0, []))
+
+    def test_r12_console_line_named_after_a_command(self):
+        self.write("features/probe/probe.cpp", FEATURE.format(body='void f() { console::Print("fd_probe_do: done"); }'))
+        self.assertEqual(self.rules(), (1, ["R12"]))
+
+    def test_r12_bare_sentence(self):
+        self.write("features/probe/probe.cpp", FEATURE.format(body='void f() { console::Print("Exit the viewer first."); }'))
+        self.assertEqual(self.rules(), (1, ["R12"]))
+
+    def test_r12_tag_usage_and_list_rows_are_fine(self):
+        self.write("features/probe/probe.cpp", FEATURE.format(
+            body='void f() { console::Print("probe: done %d", 1); console::Print("usage: fd_probe <x>");\n'
+                 '  console::Print("  %s", "row"); console::Print("%2d %s", 1, "row"); }'))
         self.assertEqual(self.rules(), (0, []))
 
     def test_r2_feature_includes_other_feature(self):

@@ -525,7 +525,7 @@ void ContactEvent(int index, bool entering) {
     wsprintfA(line, "%s %02lu:%02lu:%03lu", g_set.points[index].label,
               static_cast<unsigned long>(time.minutes), static_cast<unsigned long>(time.seconds), static_cast<unsigned long>(time.millis));
     if (!textdraw::GameHint(line, 4000)) { g_hit[index] = false; return; }
-    console::Print("checkpoint %s: %02lu:%02lu:%03lu", g_set.points[index].label,
+    console::Print("checkpoints: %s %02lu:%02lu:%03lu", g_set.points[index].label,
                    static_cast<unsigned long>(time.minutes), static_cast<unsigned long>(time.seconds), static_cast<unsigned long>(time.millis));
 }
 void FrameEnd() {
@@ -572,6 +572,7 @@ bool Init() {
     cmd::SetPracticeOnly("fd_checkpoints");
     cmd::SetPracticeOnly("fd_checkpoints_status");
     binds::BindDefault("n", "toggle fd_checkpoints");
+    cmd::SetLabel("fd_checkpoints", "Checkpoint times");
     InitEditor();
     hooks::OnLevelLoad(LevelLoad); hooks::OnFrameEnd(FrameEnd);
     log::Info("checkpoints: ready (Checkpoints/<mission>.txt; native contacts, elapsed level clock)"); return true;

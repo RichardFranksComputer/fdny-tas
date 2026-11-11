@@ -47,6 +47,10 @@ void SetGates(CvarGate cvarGate, CommandGate commandGate);
 // the profile gate refuses them in `fd_profile run`. Name must be static.
 void SetPracticeOnly(const char* name);
 bool IsPracticeOnly(const char* name);
+// A variable's short name for the player ("Player HUD"): what `toggle` confirms on screen
+// ("Player HUD on") and a settings page shows. Both must be static strings.
+void SetLabel(const char* name, const char* label);
+const char* Label(const char* name);  // null when it has none
 // Profile switches put practice-only vars back without the gate.
 bool SetCvarUngated(Cvar* v, const char* value);
 // Every registered variable (watermark: what is not at its default).

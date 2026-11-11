@@ -228,6 +228,7 @@ bool Init() {
         log::Warn("recorder: standalone FDNYRecorder.asi present; move it out to use this feature"); return false;
     }
     cmd::RegisterCvar(&g_enable); cmd::RegisterCvar(&g_victimEnable); cmd::RegisterCvar(&g_directory);
+    cmd::SetLabel("fd_record", "Recording"); cmd::SetLabel("fd_record_victims", "Record victims");
     // These keys are observed, never intercepted or rebound.
     binds::DescribeKey("w a s d uparrow leftarrow downarrow rightarrow c ctrl space shift mouse1 mouse2 1 2 3",
         "sample raw virtual keys into JSONL (no input changes)", "while fd_record is 1 and the game has focus");

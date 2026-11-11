@@ -38,7 +38,7 @@ steps:
   # A watched level (D59): what acts on play stands down: no fd_pause / free camera, no
   # checkpoint editor (no trigger boxes: below, with the timeline paused).
   - console: "fd_pause 1"
-  - assert_log: {contains: "console> fd_pause: not while watching a recording"}
+  - assert_log: {contains: "console> pause: not while watching a recording"}
   - assert_pipe_stat: {cmd: freecam, key: flying, equals: 0}
   - console: "fd_checkpoints_edit 1"
   - wait_s: 0.5

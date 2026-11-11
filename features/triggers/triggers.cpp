@@ -22,6 +22,7 @@
 #include "hooks.h"
 #include "log.h"
 #include "modules.h"
+#include "notify.h"
 #include "state.h"
 #include "testpipe.h"
 
@@ -237,14 +238,15 @@ void CmdToggle(int, const char* const*) {
         cmd::SetCvar(&g_fdTriggers, "0");
         cmd::SetCvar(&g_fdTriggersXray, "0");
     }
-    console::Print("trigger boxes: %s", !Bool(g_fdTriggers) ? "off" : Bool(g_fdTriggersXray) ? "on, x-ray" : "on");
+    console::Print("triggers: %s", !Bool(g_fdTriggers) ? "off" : Bool(g_fdTriggersXray) ? "on, x-ray" : "on");
+    notify::Show("Trigger boxes %s", !Bool(g_fdTriggers) ? "off" : Bool(g_fdTriggersXray) ? "on, through walls" : "on");
 }
 
 // "-123" (wsprintf has no %f; whole units are enough for a listing)
 long R(float v) { return static_cast<long>(v + (v >= 0 ? 0.5f : -0.5f)); }
 
 void CmdList(int, const char* const*) {
-    console::Print("triggers on '%s': %d", g_map, g_n);
+    console::Print("triggers: %d on '%s'", g_n, g_map);
     for (int i = 0; i < g_n; ++i) {
         const Trigger& t = g_trig[i];
         console::Print("%2d %-6s%s %-16s (%ld %ld %ld)-(%ld %ld %ld)", i, kKindName[t.kind],
@@ -268,6 +270,9 @@ bool Init() {
     cmd::SetPracticeOnly("fd_triggers_list");
     binds::BindDefault("t", "fd_triggers_toggle");
     binds::BindDefault("y", "toggle fd_triggers_all");  // D37; x-ray is T's second press
+    cmd::SetLabel("fd_triggers", "Trigger boxes");
+    cmd::SetLabel("fd_triggers_all", "All triggers");
+    cmd::SetLabel("fd_triggers_xray", "Trigger boxes through walls");
     hooks::OnFrameEnd(FrameEnd);
 #ifdef FDCORE_DEBUG
     testpipe::Register("triggers", [](const char*, char* resp, int cap) {

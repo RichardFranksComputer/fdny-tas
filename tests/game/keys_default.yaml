@@ -54,7 +54,7 @@ steps:
   - assert_log_count: {contains: "bind: y -> toggle fd_triggers_all", equals: 2}
   - assert_log: {contains: "bind: k -> fd_tp_save"}
   - assert_log: {contains: "bind: l -> fd_tp_load"}
-  - assert_log: {contains: "console> trigger boxes: off"}   # T three times: back to off
+  - assert_log: {contains: "console> triggers: off"}   # T three times: back to off
   - key: {key: p, hold: 0.1}
   - wait_pipe: {cmd: pause, key: active, equals: 1, timeout: 3}
   - key: {key: p, hold: 0.1}

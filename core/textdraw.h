@@ -56,9 +56,11 @@ void HideWhilePaused(int panel, bool on);
 
 // The game's own bitmap-font hint renderer; no Canvas/AlphaSurface uploads.
 // A priority hint suppresses other hints until it expires; newer priority hints replace it.
-// Offsets checkpoint hints upward; retains the original center if positioning is unavailable.
+// Without priority (a confirmation, notify.h) the game's next hint replaces it, and a
+// priority hint still in its window keeps the window. Offsets FDNYCore's hints upward;
+// retains the original center if positioning is unavailable.
 bool InitGameHints();
-bool GameHint(const char* text, uint32_t milliseconds);
+bool GameHint(const char* text, uint32_t milliseconds, bool priority = true);
 void ClearGameHint(bool hide = true);
 
 // Core service: registers the draw as a late frame-end subscriber, so it runs

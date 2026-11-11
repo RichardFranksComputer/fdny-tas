@@ -15,6 +15,7 @@
 #include "hooks.h"
 #include "log.h"
 #include "modules.h"
+#include "notify.h"
 #include "patches.h"
 #include "pause.h"
 #include "spectator.h"
@@ -132,6 +133,7 @@ DWORD WINAPI InitThread(LPVOID) {
         fdcore::pause::Init();     // after state (it reads the level state each paused frame)
         fdcore::spectator::Init(); // after pause, camera and binds (it flies over a pause)
         fdcore::textdraw::Init();  // draws late in the frame, after every module's update
+        fdcore::notify::Init();    // after textdraw (the game's hint text)
         fdcore::profile::Init();   // gates read cmd::IsPracticeOnly at use time
     }
     fdcore::modules::StartAll(services);

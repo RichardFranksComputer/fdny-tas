@@ -254,6 +254,17 @@ def main():
                     fail("R11 feature-names-feature", f, i, f'"{n}" is the {owner[n]} feature\'s setting: '
                          "ask a core service instead")
 
+    # R12: one console voice (D64). A feature's console line starts with its own short tag
+    # ("tp: saved ..."), "usage: ", or is a list row (two spaces, or a format). Never a
+    # command name ("fd_tp_save: ...": it goes stale on a rename) or a bare sentence.
+    for f in feat_files:
+        raw = open(f, encoding="utf-8-sig").read()
+        for m in re.finditer(r'console::Print\(\s*"((?:[^"\\]|\\.)*)"', raw):
+            s = m.group(1)
+            if not re.match(r"(usage: |  |%|[a-z][a-z ]*: )", s):
+                fail("R12 console-voice", f, raw.count("\n", 0, m.start()) + 1,
+                     f'console line "{s[:40]}" should start with the feature\'s tag ("name: ...") or "usage: "')
+
     # Not here, enforced by the compiler instead (build.ps1 flags, -Werror):
     #   R6 Debug-only testpipe::Register: declared only in Debug, a stray call breaks Release.
     #   R7 no static constructors / exit-time destructors (no CRT runs them):

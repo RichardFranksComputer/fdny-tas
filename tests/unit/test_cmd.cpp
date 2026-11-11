@@ -109,6 +109,12 @@ void TestCmdAndBinds() {
     CHECK(cmd::Dispatch("fd_t_float -1") && cmd::Dispatch("fd_t_float 1.2.3") && cmd::Float(g_float) == 0.075f);
     CHECK(cmd::Dispatch("fd_t_float 2.5") && cmd::Float(g_float) == 2.5f);
     CHECK(!cmd::SetCvarUngated(&g_int, "99") && cmd::Int(g_int) == 16);  // a profile restore can't bypass it
+    // `toggle` confirms on screen with the variable's label; one without a label stays quiet.
+    cmd::SetLabel("fd_t_on", "Probe");
+    CHECK(strcmp(cmd::Label("FD_T_ON"), "Probe") == 0 && !cmd::Label("fd_t_a"));
+    CHECK(cmd::Dispatch("toggle fd_t_on") && unit::LogContains("notify> Probe on"));
+    CHECK(cmd::Dispatch("toggle fd_t_on") && unit::LogContains("notify> Probe off"));
+    CHECK(cmd::Dispatch("toggle fd_t_a") && cmd::Dispatch("toggle fd_t_a") && unit::LogCount("notify> ") == 2);
     CHECK(cmd::Dispatch("fd_t_b anything goes"));                         // untyped: text
 
     // Numbers as text (num.h): what every panel and console line prints.

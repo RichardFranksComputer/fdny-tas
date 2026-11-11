@@ -356,13 +356,13 @@ bool InitGameHints() {
 #endif
     return g_hintReady;
 }
-bool GameHint(const char* text, uint32_t milliseconds) {
+bool GameHint(const char* text, uint32_t milliseconds, bool priority) {
     void* owner = HintOwner(); uint32_t now = 0;
     if (!g_hintReady || !owner || !milliseconds || !Tick(&now)) return false;
     g_ownHint = true;
     g_hintOriginal(owner, static_cast<float>(milliseconds)*.001f, console::MakeGameString(text));
     g_ownHint = false;
-    g_hintOwner = owner; g_hintStart = now; g_hintDuration = milliseconds; g_priority = true;
+    if (priority) { g_hintOwner = owner; g_hintStart = now; g_hintDuration = milliseconds; g_priority = true; }
     return true;
 }
 void ClearGameHint(bool hide) {

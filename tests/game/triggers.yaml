@@ -80,12 +80,12 @@ steps:
   # T's second press: x-ray on, boxes still drawn; the third: off (owner 2026-10-22)
   - key: {key: t, hold: 0.1}
   - wait_s: 1
-  - assert_log: {contains: "console> trigger boxes: on, x-ray"}
+  - assert_log: {contains: "console> triggers: on, x-ray"}
   - assert_pipe_stat: {cmd: triggers, key: boxes, min: 1}
   - screenshot: bank_xray_by_key
   - key: {key: t, hold: 0.1}
   - wait_s: 1
-  - assert_log: {contains: "console> trigger boxes: off"}
+  - assert_log: {contains: "console> triggers: off"}
   - assert_pipe_stat: {cmd: triggers, key: boxes, equals: 0}
   - screenshot: bank_off
 expect:
