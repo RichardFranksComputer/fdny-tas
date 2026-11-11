@@ -487,7 +487,7 @@ bool g_entered;
 void PlayerInitialized(void*) { ++g_playerGeneration; }
 enum Phase { WaitingForPlayer, Ready, Failed, Inactive };
 Phase g_phase = Inactive;
-cmd::Cvar g_fdCheckpoints = {"fd_checkpoints", "0", "1 = checkpoint names and elapsed level time (N toggles); 0 = off", false, true, nullptr, {0}, cmd::T_BOOL};
+cmd::Cvar g_fdCheckpoints = {"fd_checkpoints", "0", "1 = checkpoint names and elapsed level time; 0 = off", false, true, nullptr, {0}, cmd::T_BOOL};
 bool Clock(uint32_t* value) {
     uintptr_t slot = 0;
     return addr::Resolve(addr::Id::clock_elapsed_ms, &slot) && addr::SafeRead(slot, value, sizeof(*value));
@@ -566,9 +566,9 @@ bool Init() {
     if (!textdraw::InitGameHints()) { log::Warn("checkpoints: native hint hook unavailable"); return false; }
     g_fdCheckpoints.onChange = OnTimestamps;
     cmd::RegisterCvar(&g_fdCheckpoints);
-    cmd::RegisterCommand("fd_checkpoints_status", "show timestamp enable state and number of loaded native checkpoints", Status);
+    cmd::RegisterCommand("fd_checkpoints_info", "show timestamp enable state and number of loaded native checkpoints", Status);
     cmd::SetPracticeOnly("fd_checkpoints");
-    cmd::SetPracticeOnly("fd_checkpoints_status");
+    cmd::SetPracticeOnly("fd_checkpoints_info");
     binds::BindDefault("n", "toggle fd_checkpoints");
     cmd::SetLabel("fd_checkpoints", "Checkpoint times");
     InitEditor();

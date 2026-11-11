@@ -19,14 +19,14 @@ setup: load_training
 record: true
 steps:
   - assert_log: {contains: "textdraw: ready"}
-  - console: "fd_hud_warp 0"
-  - console: "fd_hud_player 0"
+  - console: "fd_warp 0"
+  - console: "fd_hud 0"
   - wait_s: 2
   - sample_pipe: {cmd: stats, as: off0}
   - wait_s: 6
   - sample_pipe: {cmd: stats, as: off1}
-  - console: "fd_hud_warp 1"
-  - console: "fd_hud_player 1"
+  - console: "fd_warp 1"
+  - console: "fd_hud 1"
   - wait_s: 2
   - sample_pipe: {cmd: stats, as: all_on}
   - sample_pipe: {cmd: textdraw_cost, as: cost0}

@@ -77,7 +77,7 @@ class Sheet(unittest.TestCase):
     def test_reads_the_source(self):
         reg = docgen.read_source()
         names = {c["name"] for c in reg["cvars"]}
-        for expected in ("fd_profile", "fd_hud_warp", "fd_static_spawns", "fd_record"):
+        for expected in ("fd_profile", "fd_warp", "fd_spawns", "fd_record"):
             self.assertIn(expected, names)
         self.assertTrue(all(s["title"] for s in reg["sections"]))
 

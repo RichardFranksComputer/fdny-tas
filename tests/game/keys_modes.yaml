@@ -11,7 +11,7 @@ setup: load_training
 record: false
 steps:
   - console: "fd_watermark 0"
-  - console: "fd_hud_warp 1"
+  - console: "fd_warp 1"
   - console: "bind warp"
   - assert_log: {contains: "console> warp (while the warp HUD is on):"}
   - focus: {}
@@ -46,7 +46,7 @@ steps:
   - assert_log: {contains: "console> warp: default keys"}
   - assert_file: {path: FDNYCore.cfg, absent: "bind warp"}
   # the mode is off with the HUD: its key does nothing
-  - console: "fd_hud_warp 0"
+  - console: "fd_warp 0"
   - focus: {}
   - wait_s: 1
   - sample_pipe: {cmd: notify, as: hud_off}

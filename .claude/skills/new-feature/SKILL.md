@@ -6,7 +6,7 @@ description: Add or substantially change an FDNYCore feature (a mod feature, ove
 # Adding an FDNYCore feature
 
 Follow these steps in order. The rules are in `docs/architecture.md` (arch_check enforces
-R1-R5 and R8-R12, the compiler R6-R7), how to build, test and release in `CONTRIBUTING.md`
+R1-R5 and R8-R13, the compiler R6-R7), how to build, test and release in `CONTRIBUTING.md`
 (both loaded through `CLAUDE.md`), and the reasons in `docs/decisions.md`. Don't re-derive
 them, and don't work around them; if a rule blocks a good design, stop and ask the owner
 (a rule changes only with a `docs/decisions.md` entry).
@@ -52,6 +52,8 @@ them, and don't work around them; if a rule blocks a good design, stop and ask t
   - fill the `// Tests:` line (paths from the repository root), the
     `// User: <Title> -- <one sentence>` line (the reference's entry, R9) and the header
     paragraph;
+  - names follow one grammar (R13, D68): the switch is `fd_<noun>`, settings and commands
+    `fd_<noun>_<what>`; no `_toggle` command (bind `toggle fd_<noun>`); help texts name no keys;
   - register variables, commands, practice-only names and default keys with string literals
     (the reference reads them, D41); give every variable its type and range (`cmd::T_BOOL`,
     `T_INT` / `T_FLOAT` with min and max) and read it with `cmd::Bool` / `Int` / `Float`;

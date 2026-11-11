@@ -49,8 +49,8 @@ steps:
   - wait_s: 0.2   # a release the core sees (it polls once per frame)
   - key: {key: l, hold: 0.1}
   - wait_s: 0.5
-  - assert_log_count: {contains: "bind: h -> toggle fd_hud_player", equals: 2}   # every press seen
-  - assert_log_count: {contains: "bind: t -> fd_triggers_toggle", equals: 3}
+  - assert_log_count: {contains: "bind: h -> toggle fd_hud", equals: 2}   # every press seen
+  - assert_log_count: {contains: "bind: t -> fd_triggers_cycle", equals: 3}
   - assert_log_count: {contains: "bind: y -> toggle fd_triggers_all", equals: 2}
   - assert_log: {contains: "bind: k -> fd_tp_save"}
   - assert_log: {contains: "bind: l -> fd_tp_load"}
@@ -59,18 +59,18 @@ steps:
   - wait_pipe: {cmd: pause, key: active, equals: 1, timeout: 3}
   - key: {key: p, hold: 0.1}
   - wait_pipe: {cmd: pause, key: active, equals: 0, timeout: 3}
-  - assert_log: {contains: "bind: p -> fd_pause_toggle"}
+  - assert_log: {contains: "bind: p -> toggle fd_pause"}
   # G on, B hides the boxes; G off and on again always shows them (owner 2026-10-22)
   - key: {key: g, hold: 0.1}
   - wait_s: 1
-  - assert_log: {contains: "bind: g -> toggle fd_hud_warp"}
+  - assert_log: {contains: "bind: g -> toggle fd_warp"}
   - assert_log: {contains: "glitch: hooks installed"}
   - key: {key: b, hold: 0.2}
   - wait_s: 0.3
   - assert_pipe_stat: {cmd: glitch_box, key: hidden, equals: 1}
   - key: {key: g, hold: 0.1}
   - wait_s: 0.5
-  - assert_log: {contains: "console> fd_hud_warp 0"}
+  - assert_log: {contains: "console> fd_warp 0"}
   - key: {key: g, hold: 0.1}
   - wait_s: 1
   - assert_pipe_stat: {cmd: glitch_box, key: hidden, equals: 0}
@@ -78,11 +78,11 @@ steps:
   - wait_s: 0.5
   # FDNYCore.cfg holds only changes: the variables set above, not the default binds
   # (owner 2026-10-22: every default bind was written out); a changed default is written
-  - console: "fd_writeconfig"
+  - console: "fd_config_save"
   - assert_file: {path: FDNYCore.cfg, absent: "bind j"}
   - assert_file: {path: FDNYCore.cfg, absent: "bind p"}
-  - console: 'bind j "toggle fd_hud_player"'
-  - assert_file: {path: FDNYCore.cfg, contains: "bind j \"toggle fd_hud_player\""}
+  - console: 'bind j "toggle fd_hud"'
+  - assert_file: {path: FDNYCore.cfg, contains: "bind j \"toggle fd_hud\""}
   - console: 'bind j "toggle fd_juggle"'
   - assert_file: {path: FDNYCore.cfg, absent: "bind j"}
   - console: "unbind y"

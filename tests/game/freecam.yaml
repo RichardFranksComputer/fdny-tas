@@ -1,7 +1,7 @@
 name: freecam
 # fd_pause + free camera (docs/evidence/freecam; D34). On bank with the RescueBot off,
 # standing near a fire (Debug test hook fd_dbg_setpos from the juggle module). Key P
-# (default bind fd_pause_toggle) pauses: the simulation step is skipped and the game
+# (default bind toggle fd_pause) pauses: the simulation step is skipped and the game
 # clock paused; the free camera starts at the game's camera pose. Proven through the Debug
 # pipe `freecam` (its rate / along / turn are measured game-side since `freecam reset`,
 # independent of the harness's key timing) and screenshots.

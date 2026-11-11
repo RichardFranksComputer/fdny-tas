@@ -1,5 +1,5 @@
 name: speedrun_static_spawns
-# Item 8: with fd_static_spawns 1 (default pins = spot 0 for every victim, the
+# Item 8: with fd_spawns 1 (default pins = spot 0 for every victim, the
 # same as FDNYDeterministic's skeleton ini), victim positions are identical
 # across three loads of Training and every victim is at its spot 0.
 pre_files:

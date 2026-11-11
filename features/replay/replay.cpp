@@ -1,5 +1,5 @@
 // Tests: tests/game/replay.yaml tests/game/spectator_camera.yaml tests/game/recordings_menu.yaml tests/unit/test_replay.cpp tests/unit/test_spectator.cpp tests/unit/test_recorder.cpp
-// User: Replay -- Recordings on the briefing browses, favorites, renames and compares runs with a follow/free camera; V plays this map's best and latest, fd_replay picks runs, fd_replay_ghost races each spawn.
+// User: Replay -- Recordings on the briefing browses, favorites, renames and compares runs with a follow/free camera; V plays this map's best and latest, fd_replay_pick picks runs, fd_replay_ghost races each spawn.
 // replay feature (owner request 2026-10-25): the fdny-maps website's recording playback
 // (map_explorer/recording.js), in the game. The data is read the site's way (replay_data.h),
 // so both draw the same trace. Colours (owner spec, not the site's): one recording fades red ->
@@ -10,7 +10,7 @@
 // The line is narrower with distance, half as wide in the air, has a white tick every second,
 // and is drawn through the samples it needs (replay_data's Simplify; all are used for playback).
 // Choosing runs without file names (D51): V loads this map's best finished and latest run,
-// fd_replay opens a picker, fd_replay_ghost starts a run with each spawn.
+// fd_replay_pick opens a picker, fd_replay_ghost starts a run with each spawn.
 #include <windows.h>
 #include <xmmintrin.h>
 
@@ -489,7 +489,7 @@ void ViewerFrame(const state::State& s) {
     textdraw::SetTitled(g_viewPanel, text[0], lines, n - 1, n - first); textdraw::Show(g_viewPanel, true);
 }
 
-// --- The picker (fd_replay; D51) --------------------------------------------------------
+// --- The picker (fd_replay_pick; D51) --------------------------------------------------------
 // This map's newest runs (and the best, if older), numbered 1-9; a number shows / hides that
 // run. The game is paused while it's open (game input blocked; the keys are read here).
 constexpr int kRows = 9;
@@ -520,7 +520,7 @@ void FillPicker() {
                   g_row[r] == latest ? "  latest" : "");
     }
     if (!g_nRows) lstrcpyA(lines[n++], "No complete recordings of this map yet: fd_record 1 records your runs");
-    lstrcpyA(lines[n++], "A row's number shows / hides it | fd_replay closes");
+    lstrcpyA(lines[n++], "A row's number shows / hides it | fd_replay_pick closes");
     for (int i = 1; i < n; ++i) ptrs[i - 1] = lines[i];
     textdraw::SetTitled(g_panel, lines[0], ptrs, n - 1, 1);
 }
@@ -598,7 +598,7 @@ void CmdList(int, const char* const*) {
     console::Print("replay: %d recording(s) in %s; loaded: %d", n, pattern, g_nRec);
 }
 
-// fd_replay: the picker; fd_replay <text>: load the first recording (by name) containing text.
+// fd_replay_pick: the picker; fd_replay_pick <text>: load the first recording (by name) containing text.
 void CmdReplay(int argc, const char* const* argv) {
     if (ViewerRunning()) return console::Print("replay: exit the recordings viewer before changing loaded runs");
     if (argc < 2) {
@@ -787,21 +787,21 @@ bool Init() {
     cmd::RegisterCommand("fd_replay_load", "fd_replay_load <file.jsonl>: load a recording (the recordings folder, or a full path); "
                          "several on one map are drawn together", CmdLoad);
     cmd::RegisterCommand("fd_replay_clear", "unload every recording", CmdClear);
-    cmd::RegisterCommand("fd_replay_toggle", "play / pause this map's recordings (with none loaded, loads its best finished and latest run first); from the end, start again (key V)", CmdToggle);
+    cmd::RegisterCommand("fd_replay_play", "play / pause this map's recordings (with none loaded, loads its best finished and latest run first); from the end, start again", CmdToggle);
     cmd::RegisterCommand("fd_replay_list", "list the .jsonl recordings in the recordings folder", CmdList);
-    cmd::RegisterCommand("fd_replay", "fd_replay: pick this map's runs from a list (pauses); fd_replay <text>: load the first "
+    cmd::RegisterCommand("fd_replay_pick", "fd_replay_pick: pick this map's runs from a list (pauses); fd_replay_pick <text>: load the first "
                          "recording whose name contains text", CmdReplay);
     cmd::RegisterCvar(&g_fdReplayGhost);
     cmd::SetPracticeOnly("fd_replay_speed");
     cmd::SetPracticeOnly("fd_replay_xray");
     cmd::SetPracticeOnly("fd_replay_load");
-    cmd::SetPracticeOnly("fd_replay_toggle");
-    cmd::SetPracticeOnly("fd_replay");
+    cmd::SetPracticeOnly("fd_replay_play");
+    cmd::SetPracticeOnly("fd_replay_pick");
     cmd::SetPracticeOnly("fd_replay_ghost");
-    binds::BindDefault("v", "fd_replay_toggle");  // D37
+    binds::BindDefault("v", "fd_replay_play");  // D37
     cmd::SetLabel("fd_replay_xray", "Replay through walls");
     cmd::SetLabel("fd_replay_ghost", "Ghost at spawn"), cmd::SetOptions("fd_replay_ghost", "Off|Best run|Latest run");
-    binds::Mode("picker", "while the fd_replay list is open", PickerOpen, binds::M_NORMAL);
+    binds::Mode("picker", "while the fd_replay_pick list is open", PickerOpen, binds::M_NORMAL);
     g_pick[0] = binds::Action("picker", "run1", "1", "show / hide run 1");
     g_pick[1] = binds::Action("picker", "run2", "2", "show / hide run 2");
     g_pick[2] = binds::Action("picker", "run3", "3", "show / hide run 3");

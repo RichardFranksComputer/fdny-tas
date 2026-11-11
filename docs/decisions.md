@@ -214,6 +214,29 @@ later session might "simplify" away; change one only with the owner's approval
 
 ## Process
 
+- **D68 One grammar for names; a clean break** (owner 2026-11-11, PR 6 of 6: "Renames are fine for a clean break").
+  - **The grammar:** `fd_<noun>[_<what>]`. The noun is the feature and its switch; a second word is a setting or a command. `_info` prints state, `_list` prints a list. On / off is a variable toggled with the `toggle` builtin, so a key's line reads the same for every feature.
+  - **Renamed (14):**
+
+    | Was | Is |
+    |---|---|
+    | `fd_hud_player` | `fd_hud` |
+    | `fd_hud_warp` | `fd_warp` (its commands were `fd_warp_*` already) |
+    | `fd_static_spawns` | `fd_spawns` |
+    | `fd_spawns` (the command pinning spots) | `fd_spawns_pin` |
+    | `fd_freecam_speed`, `fd_freecam_sens` | `fd_pause_speed`, `fd_pause_sens` |
+    | `fd_pause_toggle` | removed: P runs `toggle fd_pause` |
+    | `fd_triggers_toggle` | `fd_triggers_cycle` (it has three states) |
+    | `fd_replay_toggle` | `fd_replay_play` |
+    | `fd_replay` (the picker) | `fd_replay_pick` |
+    | `fd_fovinfo`, `fd_textdraw`, `fd_checkpoints_status` | `fd_fov_info`, `fd_text_info`, `fd_checkpoints_info` |
+    | `fd_writeconfig` | `fd_config_save` |
+  - **No aliases** (D62 already said so). An old name in `FDNYCore.cfg`, `autoexec.cfg` or a bind gets `unknown command: <name>` in the console and the log, and that line does nothing. Two cases to know: an old `fd_static_spawns "1"` is ignored, so victims spawn at random again until `fd_spawns 1` is set (the watermark shows `spawns 1` when it is on); an old `fd_spawns <map> <spots>` line now meets the on / off variable and is refused (`fd_spawns takes 0 or 1`), so pins have to be entered again as `fd_spawns_pin`. The release notes must say both.
+  - **Help texts no longer name keys** ("(key T)", "(N toggles)", "default key P"): a key can be rebound, and the reference's key tables and `bind <mode>` show what is bound now.
+  - **R13 (arch_check):** names follow the grammar, no `fd_*_toggle` command, a feature's names sit under two nouns at most.
+  - **Not renamed:** `fd_record*` and `fd_replay*` stay two nouns for two features; `fd_tp_*`, `fd_checkpoints*`, `fd_triggers*`, `fd_text_*`, `fd_fov*`, `fd_window_cursor`, `fd_profile`, `fd_watermark` already fit; the builtins without a prefix (`bind`, `exec`, `echo`, `toggle`, `cvarlist`, `cmdlist`) are the console's own words; internal names the player never types (the module `glitch`, the `glitch|` log lines, pipe channels, panel names, test file names) keep theirs. History (earlier entries here, `docs/evidence/`, `CHANGES.md`, `docs/game-research.md`) keeps the names it was written with.
+  - **Rejected:** keeping aliases for a release (D62; and an alias for `fd_spawns` is impossible, the name now means something else); `fd_hud_player` kept beside a new `fd_hud_warp` family (the warp HUD's commands had already left `fd_hud_`); renaming the builtins to `fd_`.
+  - **Tests:** every game test and fixture uses the new names (110 replacements in 32 files, by script, word-bounded and ordered so `fd_spawns` moves before `fd_static_spawns` takes its place); `test_arch_check.py` has R13's three cases; the full suite ran on this branch. Evidence: `docs/evidence/renames/README.md`.
 - **D67 The settings page: the registry as a page of the game's own Options widgets, entered from the game's Options screen** (owner 2026-11-11, PR 5 of 6: "as if they are a part of an existing debug menu within the game"; entry: "Main menu and in level").
   - **The game has no debug menu to join** (dev mode is the console, a few F-keys and two stats toggles: game-research, cycle 33). What it has is its Options screen, built from two widgets, `Slider` and `OptionCycler`. The page is made of those, with the Options screen's own backgrounds, grid and Back button.
   - **`menu::RegisterForm`:** rows of option cyclers and sliders, eight to a page (the game's row height at a 40 px pitch; it uses 55 for six), "prev" / "next" rows, a status line with the page and the row last changed. Built the first time it is opened, while the menu is active (when the game builds its own screens), as a screen appended to the menu's list like the Recordings page. The client describes rows and answers get / set / describe; it never touches a widget.

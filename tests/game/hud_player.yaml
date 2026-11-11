@@ -1,5 +1,5 @@
 name: hud_player
-# Item 10: fd_hud_player draws every field of the old Python player overlay
+# Item 10: fd_hud draws every field of the old Python player overlay
 # in-game (X/Y/Z position, player state, screen state, X/Y/Z velocity, XY
 # speed) in its textdraw panel (it used geEngine_Printf until text moved in-frame,
 # 0.15), and each drawn value equals memory
@@ -30,7 +30,7 @@ steps:
   - wait_s: 0.5
   - assert_hud_matches: {}
   - screenshot: hud_state_change
-  - console: "fd_hud_player 0"
+  - console: "fd_hud 0"
   - wait_s: 0.5
   - screenshot: hud_off
 expect:
