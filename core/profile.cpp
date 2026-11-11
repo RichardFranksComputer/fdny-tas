@@ -200,6 +200,8 @@ bool Init() {
     cmd::RegisterCvar(&g_fdProfile);
     cmd::RegisterCvar(&g_fdWatermark);
     cmd::SetPracticeOnly("fd_watermark");  // turning it off is refused in run
+    cmd::SetLabel("fd_profile", "Profile"), cmd::SetOptions("fd_profile", "practice|run");
+    cmd::SetLabel("fd_watermark", "Watermark");
     cmd::RegisterCommand("fd_profile_saved", "internal: a practice setting remembered while fd_profile is run",
                          CmdSaved);
     cmd::RegisterConfigWriter(WriteConfig);

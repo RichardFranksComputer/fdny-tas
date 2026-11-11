@@ -51,6 +51,10 @@ bool IsPracticeOnly(const char* name);
 // ("Player HUD on") and a settings page shows. Both must be static strings.
 void SetLabel(const char* name, const char* label);
 const char* Label(const char* name);  // null when it has none
+// Names for a variable's values on the settings page: "Off|Best run|Latest run" for a whole
+// number (its min, min + 1, ...), or the values themselves for text ("practice|run").
+void SetOptions(const char* name, const char* options);
+const char* Options(const char* name);  // null when it has none
 // Profile switches put practice-only vars back without the gate.
 bool SetCvarUngated(Cvar* v, const char* value);
 // Every registered variable (watermark: what is not at its default).

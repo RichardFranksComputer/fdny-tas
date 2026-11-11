@@ -223,6 +223,7 @@ bool Init() {
     cmd::RegisterCvar(&g_fdPause);
     cmd::RegisterCvar(&g_fdSpeed);
     cmd::RegisterCvar(&g_fdSens);
+    cmd::SetLabel("fd_freecam_sens", "Camera look speed");
     cmd::RegisterCommand("fd_pause_toggle", "pause / resume with the free camera (fd_pause; default key P)", CmdToggle);
     cmd::SetPracticeOnly("fd_pause");
     cmd::SetPracticeOnly("fd_pause_toggle");

@@ -115,6 +115,8 @@ void TestCmdAndBinds() {
     CHECK(cmd::Dispatch("toggle fd_t_on") && unit::LogContains("notify> Probe on"));
     CHECK(cmd::Dispatch("toggle fd_t_on") && unit::LogContains("notify> Probe off"));
     CHECK(cmd::Dispatch("toggle fd_t_a") && cmd::Dispatch("toggle fd_t_a") && unit::LogCount("notify> ") == 2);
+    cmd::SetOptions("fd_t_int", "Low|High");
+    CHECK(strcmp(cmd::Options("FD_T_INT"), "Low|High") == 0 && !cmd::Options("fd_t_on"));
     CHECK(cmd::Dispatch("fd_t_b anything goes"));                         // untyped: text
 
     // Numbers as text (num.h): what every panel and console line prints.

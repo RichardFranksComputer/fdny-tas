@@ -6,6 +6,7 @@
 
 #include "log.h"
 #include "pause.h"
+#include "state.h"
 #include "testpipe.h"
 #include "textdraw.h"
 
@@ -47,7 +48,11 @@ void Show(const char* fmt, ...) {
     log::Info("notify> %s", text);
     if (!g_ready) return;
     // Not over a pause: the hint's timer is the game clock, which is stopped.
-    const bool shown = g_hints && !pause::Active() && textdraw::GameHint(text, kShowMs, false);
+    // In a level only: the hint belongs to the player object, and at a menu that pointer is the
+    // last level's (a practice-only refusal from the settings page crashed in the hint; D67).
+    const state::State& s = state::Current();
+    const bool shown = g_hints && s.gameState == 1 && s.playerValid && !pause::Active() &&
+                       textdraw::GameHint(text, kShowMs, false);
     EnterCriticalSection(&g_lock);
     lstrcpynA(g_last, text, sizeof(g_last));
     ++g_count, g_shown += shown;

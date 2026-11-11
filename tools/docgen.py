@@ -324,6 +324,8 @@ def sheet(reg, asi=None):
               "Ultimate ASI Loader (`dinput8.dll`), like the other `.asi` plugins. Open the game's console",
               "with the ` key; `cvarlist`, `cmdlist` and `bindlist` show everything below in the game.", ""]
 
+    L += ["**In the game:** most settings are also on the game's own Options screen: Options, then",
+          "FDNYCore (from the main menu, or after Escape in a level). Everything is in the console.", ""]
     L += ["## Keys", "",
           "Keys act only while the game has focus and the console is closed.", "",
           "**Default binds**: rebind with `bind <key> \"<command>\"`, remove with `unbind <key>`; only",

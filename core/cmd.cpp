@@ -236,9 +236,18 @@ struct Labelled {
     const char* label;
 };
 constexpr int kMaxLabels = 96;
-Labelled g_labels[kMaxLabels];
-int g_nLabels = 0;
+Labelled g_labels[kMaxLabels], g_options[kMaxLabels];
+int g_nLabels = 0, g_nOptions = 0;
 } // namespace
+void SetOptions(const char* name, const char* options) {
+    if (g_nOptions < kMaxLabels) g_options[g_nOptions++] = {name, options};
+    else Full("options", name);
+}
+const char* Options(const char* name) {
+    for (int i = 0; i < g_nOptions; ++i)
+        if (IEq(g_options[i].name, name)) return g_options[i].label;
+    return nullptr;
+}
 void SetLabel(const char* name, const char* label) {
     if (g_nLabels < kMaxLabels) g_labels[g_nLabels++] = {name, label};
     else Full("label", name);

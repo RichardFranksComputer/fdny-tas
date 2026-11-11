@@ -800,6 +800,7 @@ bool Init() {
     cmd::SetPracticeOnly("fd_replay_ghost");
     binds::BindDefault("v", "fd_replay_toggle");  // D37
     cmd::SetLabel("fd_replay_xray", "Replay through walls");
+    cmd::SetLabel("fd_replay_ghost", "Ghost at spawn"), cmd::SetOptions("fd_replay_ghost", "Off|Best run|Latest run");
     binds::Mode("picker", "while the fd_replay list is open", PickerOpen, binds::M_NORMAL);
     g_pick[0] = binds::Action("picker", "run1", "1", "show / hide run 1");
     g_pick[1] = binds::Action("picker", "run2", "2", "show / hide run 2");

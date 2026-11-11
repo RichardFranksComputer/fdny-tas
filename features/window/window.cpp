@@ -89,6 +89,7 @@ bool ApplyEarlyPatch() {
 bool Init() {
     if (!g_patched) return false;  // arch-allow: R10 ApplyEarlyPatch logged why
     cmd::RegisterCvar(&g_fdWindowCursor);
+    cmd::SetLabel("fd_window_cursor", "Alt-tab cursor fix");
     binds::DescribeKey("o", "free the mouse cursor from the game window (held)", "while fd_window_cursor is 1");  // CursorWarp
     return true;
 }

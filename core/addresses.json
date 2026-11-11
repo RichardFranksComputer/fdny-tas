@@ -2098,6 +2098,124 @@
           "ghidra": "RichTextLabel size: last field +0x100 (line array); ListRow holds two, at +0x4C and +0x150 (native-label spike 2026-11-11, docs/evidence/theme/README.md)",
           "note": "gfx::NativeText: storage for one label"
         },
+        "menu.cycler_construct": {
+          "module": "exe",
+          "kind": "code",
+          "rva": "0x35510",
+          "chain": [],
+          "type": "ptr",
+          "sig": {
+            "rva": "0x35510",
+            "bytes": "6A FF 68 13 E4 4C 00 64 A1 00 00 00 00 50 64 89",
+            "ref": "first 16 bytes of the native menu function"
+          },
+          "ghidra": "OptionCycler::Construct 0x00435510 (vtable 0x004E0740): thiscall(MenuScreen* owner, String* label -- copied, int id, const int rect[4] {L,R,T,B}); Options ctor 0x00432080 builds Video Driver / Resolution with it (menu-widget spike 2026-11-11, docs/game-research.md)",
+          "note": "menu service: an option row of a form (on/off, a named choice)"
+        },
+        "menu.slider_construct": {
+          "module": "exe",
+          "kind": "code",
+          "rva": "0x37090",
+          "chain": [],
+          "type": "ptr",
+          "sig": {
+            "rva": "0x37090",
+            "bytes": "6A FF 68 A3 E5 4C 00 64 A1 00 00 00 00 50 64 89",
+            "ref": "first 16 bytes of the native menu function"
+          },
+          "ghidra": "Slider::Construct 0x00437090 (vtable 0x004E08C8): same signature as the cycler's; +0x6EC position 0..1, +0x6F0 min, +0x6F4 max (ctor: 0 and 1); Options ctor builds its four sliders with it (menu-widget spike 2026-11-11, docs/game-research.md)",
+          "note": "menu service: a slider row of a form (a number in a range)"
+        },
+        "menu.f_session_manager": {
+          "module": "field",
+          "rva": "0x3C8",
+          "chain": [],
+          "type": "ptr",
+          "sig": null,
+          "ghidra": "GameSession +0x3C8: the embedded MenuManager (GameSession::OnKey 0x004295F0 passes session+0x3C8 to MenuManager::Activate) (menu-widget spike 2026-11-11, docs/game-research.md)",
+          "note": "menu service: forms (the settings page)"
+        },
+        "menu.f_menu_active": {
+          "module": "field",
+          "rva": "0x284",
+          "chain": [],
+          "type": "ptr",
+          "sig": null,
+          "ghidra": "MenuManager +0x284 (= session+0x64C) menu-active byte: RunFrame 0x0042AEA0 runs only the menu frame when set; TeardownToLoading clears it (menu-widget spike 2026-11-11, docs/game-research.md)",
+          "note": "menu service: forms (the settings page)"
+        },
+        "menu.f_cycler_size": {
+          "module": "field",
+          "rva": "0x4A8",
+          "chain": [],
+          "type": "ptr",
+          "sig": null,
+          "ghidra": "sizeof(OptionCycler): Options ctor PUSH 0x4A8 before operator_new (menu-widget spike 2026-11-11, docs/game-research.md)",
+          "note": "menu service: forms (the settings page)"
+        },
+        "menu.f_cycler_index": {
+          "module": "field",
+          "rva": "0x4A4",
+          "chain": [],
+          "type": "ptr",
+          "sig": null,
+          "ghidra": "OptionCycler +0x4A4 int current option index (-1 when empty): OnClick 0x00435230 changes it by one, no wrap (menu-widget spike 2026-11-11, docs/game-research.md)",
+          "note": "menu service: forms (the settings page)"
+        },
+        "menu.f_cycler_add": {
+          "module": "field",
+          "rva": "0x30",
+          "chain": [],
+          "type": "ptr",
+          "sig": null,
+          "ghidra": "OptionCycler vtbl[12] (+0x30) AddOption(String*) 0x004354B0: appends to the StringArray at +0x4A0; the index stays -1 until SetIndex (menu-widget spike 2026-11-11, docs/game-research.md)",
+          "note": "menu service: forms (the settings page)"
+        },
+        "menu.f_cycler_set": {
+          "module": "field",
+          "rva": "0x3C",
+          "chain": [],
+          "type": "ptr",
+          "sig": null,
+          "ghidra": "OptionCycler vtbl[15] (+0x3C) SetIndex(int) 0x00435360 -> bool (menu-widget spike 2026-11-11, docs/game-research.md)",
+          "note": "menu service: forms (the settings page)"
+        },
+        "menu.f_slider_size": {
+          "module": "field",
+          "rva": "0x6F8",
+          "chain": [],
+          "type": "ptr",
+          "sig": null,
+          "ghidra": "sizeof(Slider): Options ctor PUSH 0x6F8 before operator_new (menu-widget spike 2026-11-11, docs/game-research.md)",
+          "note": "menu service: forms (the settings page)"
+        },
+        "menu.f_slider_range": {
+          "module": "field",
+          "rva": "0x20",
+          "chain": [],
+          "type": "ptr",
+          "sig": null,
+          "ghidra": "Slider vtbl[8] (+0x20) SetRange(float min, float max) 0x00436D70 (menu-widget spike 2026-11-11, docs/game-research.md)",
+          "note": "menu service: forms (the settings page)"
+        },
+        "menu.f_slider_set": {
+          "module": "field",
+          "rva": "0x24",
+          "chain": [],
+          "type": "ptr",
+          "sig": null,
+          "ghidra": "Slider vtbl[9] (+0x24) SetValue(float) 0x00436DB0 (menu-widget spike 2026-11-11, docs/game-research.md)",
+          "note": "menu service: forms (the settings page)"
+        },
+        "menu.f_vtable_slider": {
+          "module": "field",
+          "rva": "0x8",
+          "chain": [],
+          "type": "ptr",
+          "sig": null,
+          "ghidra": "MenuScreen vtbl +8 = OnSliderChanged(int id, float value), RET 8: base nop 0x0043F650; a Slider held in its track calls it (0x00436F40) with GetValue() (menu-widget spike 2026-11-11, docs/game-research.md)",
+          "note": "menu service: forms (the settings page)"
+        },
         "menu.allocate": {
           "module": "exe",
           "kind": "code",
