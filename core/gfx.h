@@ -107,8 +107,43 @@ private:
     bool Attach(Tile& t);
 };
 
+// --- NativeText ----------------------------------------------------------------------
+// Text in the game's own bitmap font: a standalone RichTextLabel (the class behind the
+// game's hint, status line and menu rows), built and drawn through the game's functions
+// (D66, docs/evidence/theme). Short texts that should look like the game's HUD use this
+// (textdraw STYLE_NATIVE); dense tables stay on the Canvas.
+//   text    lines split by '\n'; "^(r,g,b)" (0-255) colours the glyphs after it (the game's
+//           own markup; it resets every frame, so repeat it per line)
+//   font    FONT_HUD 8x12 (the status line's), FONT_HINT 16x24, FONT_CONSOLE 8x14
+// Positions and sizes are in the game's 640x480 layout, which the game scales to the view
+// (the HUD's own behaviour). It draws in a level only: the HUD fonts aren't loaded in menus.
+enum NativeFont : int { FONT_HUD = 0, FONT_HINT = 1, FONT_CONSOLE = 3 };
+bool NativeTextReady();
+// Glyph cell of a font in layout pixels (the advance, and the line height).
+void NativeCell(NativeFont font, int* w, int* h);
+class NativeText {
+public:
+    // New text and font; false if labels are unavailable. hAlign: 0 left, 1 right, 2 centre.
+    bool Set(const char* text, NativeFont font, float scale = 1.0f);
+    // Inside the rect (layout pixels); false when it can't draw this frame (no level).
+    bool Draw(int left, int top, int right, int bottom, int hAlign = 0);
+    void Destroy();
+
+private:
+    // Every member starts as zero: a panel table holding these stays in .bss (the first
+    // version's -1 and 1.0f defaults put 140 KB of zeros into the .asi).
+    alignas(4) unsigned char mem_[0x104] = {};  // the label itself (label.size)
+    bool built_ = false, dirty_ = false, placed_ = false;
+    unsigned level_ = 0;      // the level (gfx's count) its font bitmap was looked up in
+    int font_ = 0, align_ = 0, rect_[4] = {};
+    float scale_ = 0;
+    char text_[4096] = {};
+};
+
 // --- SolidRect -------------------------------------------------------------------------
 bool SolidRect(int x, int y, int w, int h, uint32_t rgb);
+// An untextured opaque convex polygon, 3 to 8 points in view pixels (an arrow, a marker).
+bool SolidPoly(const float (*pts)[2], int n, uint32_t rgb);
 
 // --- Draw layers (D40) ---------------------------------------------------------------------
 // Everything FDNYCore draws belongs to one layer. gfx runs them in this order every frame

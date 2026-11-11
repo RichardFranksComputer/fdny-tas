@@ -153,6 +153,13 @@ entry entity.script_actor 2 2 1 0x24 0x0 - -
 entry hint.show 0 2 1 0x564C0 0x564C0 6AFF68D80A4D0064A100000000506489 -
 entry hint.text_widget 0 2 1 0x8C780 0x8C780 6AFF689A3D4D0064A100000000506489 -
 entry player.hint 2 2 1 0x5F4 0x0 - -
+entry label.construct 0 2 1 0x8c120 0x8c120 64A1000000006AFF68763C4D00506489 -
+entry label.init 0 2 1 0x8abb0 0x8abb0 8B4424045333DB3BC3568BF1895E147C -
+entry label.destroy 0 2 1 0x8c1d0 0x8c1d0 6AFF68A43C4D0064A100000000506489 -
+entry label.f_visible 2 2 1 0x10 0x0 - -
+entry label.f_bitmap 2 2 1 0x14 0x0 - -
+entry label.f_scale 2 2 1 0xF8 0x0 - -
+entry label.size 2 2 1 0x104 0x0 - -
 entry menu.allocate 0 2 1 0xa5a84 0xa5a84 568B742408EB1056E8E156010085C059 -
 entry menu.array_resize 0 2 1 0x3b6e0 0x3b6e0 568BF18B4604578B7C240C3BF80F847E -
 entry menu.text_set 0 2 1 0x8c780 0x8c780 6AFF689A3D4D0064A100000000506489 -

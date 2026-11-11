@@ -6,13 +6,15 @@
 // player, and DropAtPlayer puts the survivor there, -30 on X, on the floor below
 // (research.db KB fire-juggling; docs/evidence/fire_juggling).
 //
-// fd_juggle 1 shows, 30 px below the screen centre with no background:
-//   "-"          the spot is following the player;
-//   an arrow     the spot is frozen: points at the landing point T = (S.x - 30, S.y, S.z),
-//                relative to the view (up = straight ahead), 8 directions, with the
-//                horizontal distance below ("120u", plus " ^" / " v" when T is over 48 u
-//                above / below);
-//   "o"          frozen and within 16 u.
+// fd_juggle 1 shows, just below the screen centre, drawn like the game's HUD (D66: a white
+// shape with a black edge, and the game's font; it was two lines of ASCII art):
+//   a short bar  the spot is following the player ("following" under it);
+//   an arrow     the spot is frozen: it points at the landing point T = (S.x - 30, S.y, S.z),
+//                relative to the view (up = straight ahead), at its true angle, with the
+//                horizontal distance under it ("120u", plus "above" / "below" when T is over
+//                48 u above / below) and the frozen spot's coordinates;
+//   a square     frozen and within 16 u.
+// The pipe and the log still name the direction as one of 8 sectors (juggle_math.h).
 // Following vs frozen is observed, not predicted (owner, D32): when Think writes the spot
 // it copies the position the player had at the end of the previous frame, so
 //   following = this frame's spot == last frame's position.
@@ -29,14 +31,17 @@
 #include "binds.h"
 #include "cmd.h"
 #include "console.h"
+#include "gfx.h"
 #include "hooks.h"
 #include "juggle_math.h"
 #include "log.h"
 #include "modules.h"
 #include "num.h"
+#include "pause.h"
 #include "state.h"
 #include "testpipe.h"
 #include "textdraw.h"
+#include "theme.h"
 
 namespace fdcore::juggle {
 namespace {
@@ -52,17 +57,6 @@ constexpr int kDirNone = -1;
 constexpr int32_t kPassedOut = 6;  // player.f_state (test hook fd_dbg_tofire)
 const char* const kDirName[] = {"up", "up-right", "right", "down-right", "down", "down-left", "left", "up-left"};
 #endif
-// Two lines of three characters each, ASCII only.
-const char* const kGlyph[8][2] = {
-    {" ^ ", " | "},    // up
-    {"  ^", " / "},    // up-right
-    {"-->", "   "},    // right
-    {" \\ ", "  v"},   // down-right
-    {" | ", " v "},    // down
-    {" / ", "v  "},    // down-left
-    {"<--", "   "},    // left
-    {"^  ", " \\ "},   // up-left
-};
 
 struct View {  // what the panel and the pipe show (game thread writes, pipe thread reads)
     bool on, valid, locked;  // locked = frozen: the spot isn't last frame's position
@@ -72,6 +66,7 @@ struct View {  // what the panel and the pipe show (game thread writes, pipe thr
     int32_t state;
     uint8_t ground;
     int dir;
+    float ux, uy;        // the arrow on screen: unit vector, x right, y down (up = straight ahead)
     bool frozen;         // locked and the spot is still where it was when the lock began
     uint32_t locks;      // following -> frozen transitions
     uint32_t elsewhere;  // frames the spot was written to somewhere other than last frame's position
@@ -122,48 +117,72 @@ const char* F1(char* out, float v) {
     return out;
 }
 
+// The text under the shape (the game's font, centred): what the shape can't say.
 void Draw(const View& v) {
     if (g_panel < 0) return;
     if (!v.on || !v.valid) {
         textdraw::Show(g_panel, false);
         return;
     }
-    char dist[24] = "", spot[48] = "";
-    const char* lines[4];
-    int n = 0;
-    if (v.locked) {  // the frozen spot's coordinates above the arrow (owner 2026-10-23)
-        char a[16], b[16], c[16];
-        wsprintfA(spot, "%s %s %s", F1(a, v.safe[0]), F1(b, v.safe[1]), F1(c, v.safe[2]));
-        lines[n++] = spot;
-    }
+    static char text[2][textdraw::kLineLen];
+    static uint8_t attr[2][textdraw::kLineLen];
+    int n = 1;
     if (!v.locked) {
-        lines[n++] = " - ";
-    } else if (v.dir == kDirNear) {
-        lines[n++] = " o ";
+        lstrcpyA(text[0], "following");
+        __builtin_memset(attr[0], textdraw::C_DIM, sizeof(attr[0]));
     } else {
-        lines[n++] = kGlyph[v.dir][0];
-        lines[n++] = kGlyph[v.dir][1];
+        wsprintfA(text[0], "%ldu%s", Round(v.dist), v.dy > kFloorStep ? " above" : v.dy < -kFloorStep ? " below" : "");
+        __builtin_memset(attr[0], textdraw::C_TEXT, sizeof(attr[0]));
+        char a[16], b[16], c[16];  // the frozen spot's coordinates (owner 2026-10-23)
+        wsprintfA(text[1], "%s %s %s", F1(a, v.safe[0]), F1(b, v.safe[1]), F1(c, v.safe[2]));
+        __builtin_memset(attr[1], textdraw::C_DIM, sizeof(attr[1]));
+        n = 2;
     }
-    if (v.locked) {
-        wsprintfA(dist, "%ldu%s", Round(v.dist), v.dy > kFloorStep ? " ^" : v.dy < -kFloorStep ? " v" : "");
-        lines[n++] = dist;
-    }
-    // Centre every line over the widest (monospace grid, panel centred); the glyph lines are
-    // all 3 columns, so the arrow keeps its shape.
-    static char pad[4][64];
-    int width = 3;
-    for (int i = 0; i < n; ++i)
-        if (lstrlenA(lines[i]) > width) width = lstrlenA(lines[i]);
-    for (int i = 0; i < n; ++i) {
-        const int len = lstrlenA(lines[i]);
-        const int left = (width - len) / 2;
-        int o = 0;
-        for (; o < left; ++o) pad[i][o] = ' ';
-        lstrcpynA(pad[i] + o, lines[i], 64 - o);
-        lines[i] = pad[i];
-    }
-    textdraw::SetLines(g_panel, lines, n);
+    textdraw::Set(g_panel, text, attr, n);
     textdraw::Show(g_panel, true);
+}
+
+// The shape, in the HUD layer: white with a black edge, like the game's hint text. Sizes
+// are in the game's 640x480 layout and scale with the view, like its HUD.
+constexpr float kShapeBelowCentre = 40, kArrowLen = 36, kShaftWidth = 5, kHeadLen = 15, kHeadWidth = 16, kEdgePx = 1.5f;
+View g_drawn = {};  // the frame end's view (game thread only)
+
+void Arrow(float cx, float cy, float ux, float uy, float len, float shaft, float headLen, float headWidth, float grow,
+           uint32_t rgb) {
+    const float nx = -uy, ny = ux;  // across the arrow
+    const float ax = cx - ux * (len / 2 + grow), ay = cy - uy * (len / 2 + grow);            // tail
+    const float bx = cx + ux * (len / 2 - headLen - grow), by = cy + uy * (len / 2 - headLen - grow);  // head's base
+    const float tx = cx + ux * (len / 2 + 2 * grow), ty = cy + uy * (len / 2 + 2 * grow);    // tip
+    const float hs = shaft / 2 + grow, hh = headWidth / 2 + 1.5f * grow;
+    const float quad[4][2] = {{ax - nx * hs, ay - ny * hs}, {bx - nx * hs, by - ny * hs},
+                              {bx + nx * hs, by + ny * hs}, {ax + nx * hs, ay + ny * hs}};
+    const float head[3][2] = {{bx - nx * hh, by - ny * hh}, {tx, ty}, {bx + nx * hh, by + ny * hh}};
+    gfx::SolidPoly(quad, 4, rgb);
+    gfx::SolidPoly(head, 3, rgb);
+}
+
+void DrawShape() {
+    const View& v = g_drawn;
+    if (!v.on || !v.valid || pause::Active()) return;  // view-relative: nothing to a free camera (D35)
+    int vw, vh;
+    gfx::ViewSize(&vw, &vh);
+    const float s = static_cast<float>(vh) / 480.0f, e = kEdgePx * s;
+    const float cx = static_cast<float>(vw) * 0.5f, cy = static_cast<float>(vh) * 0.5f + kShapeBelowCentre * s;
+    auto rect = [&](float halfW, float halfH, uint32_t rgb) {
+        gfx::SolidRect(static_cast<int>(cx - halfW), static_cast<int>(cy - halfH), static_cast<int>(2 * halfW),
+                       static_cast<int>(2 * halfH), rgb);
+    };
+    if (!v.locked) {  // following: a short bar
+        rect(8 * s + e, 1.5f * s + e, 0x000000);
+        rect(8 * s, 1.5f * s, theme::kSoft);
+    } else if (v.dir == kDirNear) {  // at your feet: a square
+        rect(7 * s + e, 7 * s + e, 0x000000);
+        rect(7 * s, 7 * s, theme::kText);
+        rect(4 * s, 4 * s, 0x000000);
+    } else {
+        Arrow(cx, cy, v.ux, v.uy, kArrowLen * s, kShaftWidth * s, kHeadLen * s, kHeadWidth * s, e, 0x000000);
+        Arrow(cx, cy, v.ux, v.uy, kArrowLen * s, kShaftWidth * s, kHeadLen * s, kHeadWidth * s, 0, theme::kText);
+    }
 }
 
 #ifdef FDCORE_DEBUG
@@ -202,6 +221,10 @@ void FrameEnd() {
             float sn, cs;
             SinCos(s.yaw, &sn, &cs);
             v.dir = Direction(dx, dz, v.dist, sn, cs);
+            // The same forward / right split as Direction, as a screen vector: forward is up.
+            const float f = dx * sn + dz * cs, r = -dx * cs + dz * sn;
+            if (v.dist > 0.01f) v.ux = r / v.dist, v.uy = -f / v.dist;
+            else v.uy = -1;
         }
     }
     // A write that isn't Think's copy of last frame's position: log it with the fields, so
@@ -228,6 +251,7 @@ void FrameEnd() {
                   static_cast<unsigned long>(v.flinch), static_cast<long>(v.state), v.ground);
     g_view = v;
     LeaveCriticalSection(&g_lock);
+    g_drawn = v;
     Draw(v);
 }
 
@@ -412,9 +436,9 @@ bool Init() {
     cmd::SetPracticeOnly("fd_juggle");
     binds::BindDefault("j", "toggle fd_juggle");  // D37
     cmd::SetLabel("fd_juggle", "Juggle arrow");
-    g_panel = textdraw::Create("juggle", textdraw::CENTER, 0, 30, 1, textdraw::C_WHITE | textdraw::A_BOLD,
-                               textdraw::STYLE_TEXT_ONLY);
+    g_panel = textdraw::Create("juggle", textdraw::CENTER, 0, 62, 1, textdraw::C_TEXT, textdraw::STYLE_NATIVE);
     if (g_panel >= 0) textdraw::Show(g_panel, false), textdraw::HideWhilePaused(g_panel, true);  // D35
+    gfx::OnLayer(gfx::LAYER_HUD, DrawShape);
     hooks::OnFrameEnd(FrameEnd);
 #ifdef FDCORE_DEBUG
     cmd::RegisterCommand("fd_dbg_setpos", "(Debug test hook) move the player: x y z [yaw [o2]]", CmdSetPos);

@@ -2020,6 +2020,84 @@
           "ghidra": "PlayerRescueEnt root+0x5f4: constructor 0x44d550 and hint route 0x44ee50",
           "note": "Native hint UI receiver, textdraw service"
         },
+        "label.construct": {
+          "module": "exe",
+          "kind": "code",
+          "rva": "0x8c120",
+          "chain": [],
+          "type": "ptr",
+          "sig": {
+            "rva": "0x8c120",
+            "bytes": "64 A1 00 00 00 00 6A FF 68 76 3C 4D 00 50 64 89",
+            "ref": "first 16 bytes of the native label function"
+          },
+          "ghidra": "RichTextLabel ctor 0x0048C120: thiscall, ECX only, returns this; base ctor 0x00491BB0, vtable 0x004E399C, mallocs +0xC8 (0x24) and +0x100 (0x18) (native-label spike 2026-11-11, docs/evidence/theme/README.md)",
+          "note": "gfx::NativeText: construct a standalone label in FDNYCore's own 0x104 bytes"
+        },
+        "label.init": {
+          "module": "exe",
+          "kind": "code",
+          "rva": "0x8abb0",
+          "chain": [],
+          "type": "ptr",
+          "sig": {
+            "rva": "0x8abb0",
+            "bytes": "8B 44 24 04 53 33 DB 3B C3 56 8B F1 89 5E 14 7C",
+            "ref": "first 16 bytes of the native label function"
+          },
+          "ghidra": "HudAnimQuad::Init 0x0048ABB0: thiscall(int fontIdx 0..4, char registerWithRenderMgr, int bitmapId), RET 0xC; font table 0x005030F0 stride 0x14 (0: 8x12 HUD status, 1: 16x24 hint, 2: digits, 3: 8x14 console) (native-label spike 2026-11-11, docs/evidence/theme/README.md)",
+          "note": "gfx::NativeText: bind the font (register 0: stays out of the game's render list; bitmap -1: the font's own)"
+        },
+        "label.destroy": {
+          "module": "exe",
+          "kind": "code",
+          "rva": "0x8c1d0",
+          "chain": [],
+          "type": "ptr",
+          "sig": {
+            "rva": "0x8c1d0",
+            "bytes": "6A FF 68 A4 3C 4D 00 64 A1 00 00 00 00 50 64 89",
+            "ref": "first 16 bytes of the native label function"
+          },
+          "ghidra": "RichTextLabel non-deleting dtor 0x0048C1D0: thiscall, ECX only; frees +0xEC, +0xC8, +0x100 and unregisters. Never 0x0048C760 (it frees `this`) (native-label spike 2026-11-11, docs/evidence/theme/README.md)",
+          "note": "gfx::NativeText: release the label's game-heap arrays"
+        },
+        "label.f_visible": {
+          "module": "field",
+          "rva": "0x10",
+          "chain": [],
+          "type": "ptr",
+          "sig": null,
+          "ghidra": "RichTextLabel+0x10 visible byte: Render 0x0048B7C0 returns when 0; HudWidget::SetVisible 0x0040CB80 writes it (native-label spike 2026-11-11, docs/evidence/theme/README.md)",
+          "note": "gfx::NativeText"
+        },
+        "label.f_bitmap": {
+          "module": "field",
+          "rva": "0x14",
+          "chain": [],
+          "type": "ptr",
+          "sig": null,
+          "ghidra": "RichTextLabel+0x14 cached geBitmap*: Render acquires the font bitmap once when it is 0 and +0xEC is null (native-label spike 2026-11-11, docs/evidence/theme/README.md)",
+          "note": "gfx::NativeText: cleared when the rendered world changes, so the font bitmap is looked up again"
+        },
+        "label.f_scale": {
+          "module": "field",
+          "rva": "0xF8",
+          "chain": [],
+          "type": "ptr",
+          "sig": null,
+          "ghidra": "RichTextLabel+0xF8 / +0xFC float glyph scale X / Y (glyph = cell x scale, in the 640x480 layout) (native-label spike 2026-11-11, docs/evidence/theme/README.md)",
+          "note": "gfx::NativeText: text size"
+        },
+        "label.size": {
+          "module": "field",
+          "rva": "0x104",
+          "chain": [],
+          "type": "ptr",
+          "sig": null,
+          "ghidra": "RichTextLabel size: last field +0x100 (line array); ListRow holds two, at +0x4C and +0x150 (native-label spike 2026-11-11, docs/evidence/theme/README.md)",
+          "note": "gfx::NativeText: storage for one label"
+        },
         "menu.allocate": {
           "module": "exe",
           "kind": "code",
@@ -2059,7 +2137,7 @@
             "bytes": "6A FF 68 9A 3D 4D 00 64 A1 00 00 00 00 50 64 89",
             "ref": "first 16 bytes of the native menu function"
           },
-          "ghidra": "RichTextLabel::SetText 0x0048C780: thiscall(String text by value -- consumed, released on exit; const RECT* -> +0xD0..+0xDC; int hAlign +0xE0 (1 centre, 2 right); int vAlign +0xE4), RET 0x10, returns void. Caller 0x0042F3F1 (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
+          "ghidra": "RichTextLabel::SetText 0x0048C780: thiscall(String text by value -- consumed, released on exit; const RECT* -> +0xD0..+0xDC; int hAlign +0xE0 (0 left, 1 right, 2 centre; corrected 2026-11-11, case 1 at 0x0048BA01 is right - width); the rect is {left, right, top, bottom}, not a Win32 RECT; int vAlign +0xE4), RET 0x10, returns void. Caller 0x0042F3F1 (menu-address spike 2026-10-28, docs/evidence/recordings/README.md)",
           "note": "menu service: set a row label's text (a fresh String from str.from_cstr, consumed); also hooked by textdraw (hint.text_widget, the same function)"
         },
         "menu.row_construct": {

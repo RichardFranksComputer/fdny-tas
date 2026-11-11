@@ -26,8 +26,10 @@ them, and don't work around them; if a rule blocks a good design, stop and ask t
   - **Drawing?** Pick the layer first (`docs/architecture.md`, "Drawing"; D40).
     - `LAYER_WORLD` for 3D things walls should hide.
     - `LAYER_OVERLAY` for x-ray views.
-    - Text panels are `LAYER_HUD` automatically: a `textdraw` panel, `STYLE_TRANSLUCENT` by
-      default, `STYLE_OPAQUE` if it must show in menus.
+    - Text panels are `LAYER_HUD` automatically: a `textdraw` panel. A short readout is
+      `STYLE_NATIVE` (the game's font); a table or a tool's panel is `STYLE_TRANSLUCENT`, set
+      with `textdraw::SetTitled`; `STYLE_OPAQUE` if it must show in menus. Colours come from
+      `core/theme.h`, the place from a corner and `textdraw::kEdge` (D66).
     - Use `gfx` blocks only for non-text, and never `hooks::OnFrameEndLate` (R8).
 - Owner decisions that need asking (gameplay semantics, what's speedrun-legal): ask
   once, up front, with a recommendation.

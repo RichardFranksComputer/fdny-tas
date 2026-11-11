@@ -12,15 +12,16 @@
 #include "log.h"
 #include "pause.h"
 #include "testpipe.h"
+#include "theme.h"
 
 namespace fdcore::textdraw {
 namespace {
 
 constexpr int kPad = 4;  // around the text, like the original Text widget
 
-// Default palette (C_TEXT, C_WHITE) and background slots (panel, then highlights).
-const uint32_t kDefaultFg[] = {0xe8e8e8, 0xffffff};
-const uint32_t kDefaultBg[4] = {0x101418, 0x5a1010, 0xb02020, 0xb02020};
+// Default palette (C_TEXT .. C_BAD) and background slots (panel, then highlights): the theme's.
+const uint32_t kDefaultFg[] = {theme::kText, theme::kText, theme::kAccent, theme::kSoft, theme::kGood, theme::kBad};
+const uint32_t kDefaultBg[4] = {theme::kPanel, 0x5a1010, 0xb02020, 0xb02020};
 constexpr uint8_t kHighlightAlpha = 230;  // background slots 1-3 stay nearly opaque
 
 void OnAlpha(cmd::Cvar&);
@@ -50,6 +51,8 @@ struct Panel {
     gfx::Canvas canvas;
     gfx::AlphaSurface surf;
     gfx::Decal decal;
+    gfx::NativeText native;  // STYLE_NATIVE
+    int w, h;           // last drawn size, view pixels
     bool rendered;      // the canvas holds the current text
     bool alphaReady;    // surf holds it
     bool decalStale;    // decal doesn't (translucent panels upload it only for the fallback)
@@ -126,8 +129,63 @@ void Draw() {
 #endif
 }
 
+// STYLE_NATIVE: the panel's lines as one string in the game's markup ("^(r,g,b)" per colour
+// run, '\n' between lines), drawn in the game's 640x480 layout.
+constexpr int kLayoutW = 640, kLayoutH = 480;
+constexpr gfx::NativeFont kNativeFont = gfx::FONT_HINT;
+constexpr float kNativeScale = 0.75f;  // the hint's font at three quarters (docs/evidence/theme: why not the small HUD font)
+void NativeString(const Panel& p, char* out, int cap, int* cols) {
+    int o = 0;
+    *cols = 0;
+    for (int r = 0; r < p.n && o + 32 < cap; ++r) {
+        const int len = lstrlenA(p.text[r]);
+        if (len > *cols) *cols = len;
+        int last = -1;
+        for (int c = 0; c < len && o + 24 < cap; ++c) {
+            const int color = (p.attr[r][c] & A_COLOR_MASK) < p.nFg ? (p.attr[r][c] & A_COLOR_MASK) : 0;
+            if (color != last && p.text[r][c] != ' ') {
+                const uint32_t rgb = p.fg[color];
+                o += wsprintfA(out + o, "^(%lu,%lu,%lu)", static_cast<unsigned long>((rgb >> 16) & 255),
+                               static_cast<unsigned long>((rgb >> 8) & 255), static_cast<unsigned long>(rgb & 255));
+                last = color;
+            }
+            out[o++] = p.text[r][c];
+        }
+        if (r + 1 < p.n) out[o++] = '\n';
+    }
+    out[o] = 0;
+}
+
+// Places a panel of w x h (view pixels) on its anchor, clear of the panels on the same
+// anchor drawn before it this frame.
+struct Placed {
+    Anchor anchor;
+    int top, bottom;
+};
+Placed g_placed[16];
+int g_nPlaced = 0;
+void Place(const Panel& p, int vw, int vh, int w, int h, int* x, int* y) {
+    *x = p.dx, *y = p.dy;
+    if (p.anchor == TOP_RIGHT) *x = vw - p.dx - w;
+    if (p.anchor == BOTTOM_LEFT) *y = vh - p.dy - h;
+    if (p.anchor == CENTER) *x = (vw - w) / 2 + p.dx, *y = vh / 2 + p.dy;
+    if (p.anchor != CENTER)
+        for (int i = 0; i < g_nPlaced; ++i) {
+            if (g_placed[i].anchor != p.anchor) continue;
+            if (p.anchor == BOTTOM_LEFT) {
+                if (*y + h > g_placed[i].top - 2) *y = g_placed[i].top - 2 - h;
+            } else if (*y < g_placed[i].bottom + 2) {
+                *y = g_placed[i].bottom + 2;
+            }
+        }
+    if (*x < 0) *x = 0;
+    if (*y < 0) *y = 0;
+    if (g_nPlaced < 16) g_placed[g_nPlaced++] = {p.anchor, *y, *y + h};
+}
+
 void DrawPanels() {
     ++g_frame;
+    g_nPlaced = 0;
     if (!gfx::Ready() || !gfx::Engine()) return;
     if (const unsigned gen = gfx::FontGeneration(); gen != g_fontGen) g_fontGen = gen, DirtyAll();
     int vw, vh;
@@ -140,6 +198,34 @@ void DrawPanels() {
         const gfx::AlphaKey keys[] = {
             {p.bg[0], textOnly ? static_cast<uint8_t>(0) : alpha}, {p.bg[1], high}, {p.bg[2], high}, {p.bg[3], high}};
         if (!p.visible || p.n <= 0 || (p.pauseHidden && pause::Active())) continue;
+        if (p.style == STYLE_NATIVE && gfx::NativeTextReady()) {
+            // The game's HUD font, in its 640x480 layout (scaled to the view like the HUD).
+            static char text[4096];
+            int cols, cw, ch;
+            NativeString(p, text, sizeof(text), &cols);
+            gfx::NativeCell(kNativeFont, &cw, &ch);
+            const int lw = static_cast<int>(cols * cw * kNativeScale) + 2, lh = static_cast<int>(p.n * ch * kNativeScale) + 1;  // layout pixels
+            int lx, ly;
+            Place(p, kLayoutW, kLayoutH, lw, lh, &lx, &ly);
+            // Placement compares view pixels; this panel's are layout pixels: record it in view pixels.
+            Placed& me = g_placed[g_nPlaced - 1];
+            me.top = ly * vh / kLayoutH, me.bottom = (ly + lh) * vh / kLayoutH;
+            // The label wraps at its rect's width, measured its own way: give it the whole
+            // layout width from the panel's edge (first probe: "x y z" wrapped inside cols * 8).
+            int left = lx, right = kLayoutW, align = 0;
+            if (p.anchor == TOP_RIGHT) left = 0, right = lx + lw, align = 1;
+            if (p.anchor == CENTER) left = 0, right = kLayoutW + 2 * p.dx, align = 2;
+            const bool drawn = p.native.Set(text, kNativeFont, kNativeScale) && p.native.Draw(left, ly, right, ly + lh, align);
+            p.x = lx * vw / kLayoutW, p.y = me.top, p.w = lw * vw / kLayoutW, p.h = me.bottom - me.top;
+            p.rendered = drawn, p.dirty = false;
+            if (drawn && !p.reported) {
+                p.reported = true;
+                log::Info("textdraw: %s: %dx%d at %d,%d (view %dx%d), native", p.name, p.w, p.h, p.x, p.y, vw, vh);
+            }
+            if (drawn) p.drawnFrame = g_frame;
+            else --g_nPlaced;  // not on screen (no level): it takes no room
+            continue;
+        }
         if (p.dirty && (!p.rendered || g_frame - p.lastRender >= static_cast<unsigned long>(p.minFrames))) {
             if (!Render(p)) {
                 Fail(p, "GDI could not render it");
@@ -161,13 +247,9 @@ void DrawPanels() {
         }
         if (!p.rendered) continue;
         const int w = p.canvas.Width(), h = p.canvas.Height();
-        int x = p.dx, y = p.dy;
-        if (p.anchor == TOP_RIGHT) x = vw - p.dx - w;
-        if (p.anchor == BOTTOM_LEFT) y = vh - p.dy - h;
-        if (p.anchor == CENTER) x = (vw - w) / 2 + p.dx, y = vh / 2 + p.dy;
-        if (x < 0) x = 0;
-        if (y < 0) y = 0;
-        p.x = x, p.y = y;
+        int x, y;
+        Place(p, vw, vh, w, h, &x, &y);
+        p.x = x, p.y = y, p.w = w, p.h = h;
         // Translucent when the frame has a world; otherwise the opaque decal (menus).
         // Text-only panels have no fallback: without a world they are not drawn.
         bool translucent = p.alphaReady && p.surf.Draw(x, y);
@@ -194,8 +276,9 @@ void CmdInfo(int, const char* const*) {
     for (int i = 0; i < g_nPanels; ++i) {
         const Panel& p = g_panels[i];
         console::Print("  %s: %s, %d line(s), %dx%d at %d,%d, %s", p.name, p.visible ? "shown" : "hidden", p.n,
-                       p.canvas.Width(), p.canvas.Height(), p.x, p.y,
-                       !p.rendered ? "not drawn yet" : p.translucent ? "translucent" : "opaque");
+                       p.w, p.h, p.x, p.y,
+                       !p.rendered ? "not drawn yet" : p.style == STYLE_NATIVE && gfx::NativeTextReady() ? "native" :
+                       p.translucent ? "translucent" : "opaque");
     }
 }
 
@@ -212,7 +295,7 @@ int Create(const char* name, Anchor anchor, int dx, int dy, int minFrames, uint8
     p.defAttr = defaultAttr;
     p.visible = true;
     const int id = g_nPanels++;
-    SetPalette(id, kDefaultFg, 2, nullptr);
+    SetPalette(id, kDefaultFg, 6, nullptr);
     return id;
 }
 
@@ -250,6 +333,19 @@ void SetLines(int panel, const char* const* lines, int n) {
     if (n > kMaxLines) n = kMaxLines;
     for (int i = 0; i < n; ++i) lstrcpynA(buf[i], lines[i], kLineLen);
     Set(panel, buf, nullptr, n);
+}
+
+void SetTitled(int panel, const char* title, const char* const* lines, int n, int nHints) {
+    static char text[kMaxLines][kLineLen];
+    static uint8_t attr[kMaxLines][kLineLen];
+    if (n > kMaxLines - 1) n = kMaxLines - 1;
+    lstrcpynA(text[0], title, kLineLen);
+    __builtin_memset(attr[0], C_TITLE | A_BOLD, kLineLen);
+    for (int i = 0; i < n; ++i) {
+        lstrcpynA(text[i + 1], lines[i], kLineLen);
+        __builtin_memset(attr[i + 1], i >= n - nHints ? C_DIM : C_TEXT, kLineLen);
+    }
+    Set(panel, text, attr, n + 1);
 }
 
 void HideWhilePaused(int panel, bool on) {

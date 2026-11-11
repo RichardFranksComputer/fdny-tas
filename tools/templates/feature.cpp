@@ -52,7 +52,9 @@ bool Init() {
     cmd::SetLabel("fd_<name>", "<Short name>");  // `toggle` then confirms on screen: "<Short name> on"
     cmd::RegisterCommand("fd_<name>_do", "<help line>", CmdDoThing);
     cmd::SetPracticeOnly("fd_<name>");  // only if it shows information the game doesn't, or moves the player
-    g_panel = textdraw::Create("<name>", textdraw::TOP_LEFT, 8, 160, 1, textdraw::C_TEXT);
+    // A corner and the standard margin: textdraw keeps it clear of the other panels there (D66).
+    // STYLE_NATIVE for a short readout in the game's font; the default for a table or a tool's panel.
+    g_panel = textdraw::Create("<name>", textdraw::TOP_LEFT, textdraw::kEdge, textdraw::kUnderTimer, 1, textdraw::C_TEXT);
     textdraw::Show(g_panel, false);
     hooks::OnFrameEnd(FrameEnd);
 #ifdef FDCORE_DEBUG

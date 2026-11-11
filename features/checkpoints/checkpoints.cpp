@@ -19,6 +19,7 @@
 #include "spectator.h"
 #include "state.h"
 #include "textdraw.h"
+#include "theme.h"
 
 namespace fdcore::checkpoints {
 namespace {
@@ -356,7 +357,7 @@ void Draw() {
     static gfx::WorldLine lines[kMax*6];
     for (int i = 0; i < g_draft.set.count; ++i) {
         const auto& box = g_draft.set.points[i];
-        BoxOutline(box.min,box.max,i == g_draft.selected ? 0xffdd44 : 0x44ddcc,points[i],colors[i],lines+i*6);
+        BoxOutline(box.min,box.max,i == g_draft.selected ? theme::kAccent : theme::kText,points[i],colors[i],lines+i*6);
     }
     gfx::SubmitWorldLines(lines,g_draft.set.count*6,gfx::LAYER_OVERLAY);
     if (Selected()) {
@@ -397,7 +398,7 @@ void Draw() {
                 gfx::SubmitWorldLines(outline,2,gfx::LAYER_OVERLAY);
             } else {
                 auto& handle = handles[hoverAxis*2+(hoverFace > 0 ? 1 : 0)];
-                handle.rgb = 0xffdd44;
+                handle.rgb = theme::kAccent;
                 BoxOutline(handle.min,handle.max,0xffffff,grip,white,outline);
                 gfx::SubmitWorldLines(outline,6,gfx::LAYER_OVERLAY);
             }
@@ -406,7 +407,7 @@ void Draw() {
     }
 
     char title[textdraw::kLineLen], selected[textdraw::kLineLen];
-    wsprintfA(title, "CHECKPOINT EDITOR | %s | %d/32 | %s", g_draft.set.map, g_draft.set.count, g_dirty ? "UNSAVED" : "saved");
+    wsprintfA(title, "CHECKPOINT EDITOR  %s  %d/32  %s", g_draft.set.map, g_draft.set.count, g_dirty ? "unsaved" : "saved");
     if (Selected()) {
         const auto& p = g_draft.set.points[g_draft.selected];
         char label[55]; lstrcpynA(label, p.label, sizeof(label));
@@ -415,18 +416,17 @@ void Draw() {
     // The keys as they are bound now (binds mode "editor"), then the mouse.
     static char hint[5][textdraw::kLineLen];
     const int nHint = binds::HintLines("editor", hint, 5);
-    const char* rows[9] = {title, selected};
+    const char* rows[8] = {selected, g_message};
     int n = 2;
     for (int i = 0; i < nHint; ++i) rows[n++] = hint[i];
     rows[n++] = "Drag a box or an arrow: move (X red, Y green, Z blue) | drag a face cube: resize";
-    rows[n++] = g_message;
-    textdraw::SetLines(g_panel, rows, n);
+    textdraw::SetTitled(g_panel, title, rows, n, nHint + 1);
 }
 void Reticle() {
     if (!Active() || !binds::KeysLive()) return;
     const int x = static_cast<int>(g_cursorX), y = static_cast<int>(g_cursorY);
     gfx::SolidRect(x-5,y-1,11,3,0); gfx::SolidRect(x-1,y-5,3,11,0);
-    gfx::SolidRect(x-4,y,9,1,0xffdd44); gfx::SolidRect(x,y-4,1,9,0xffdd44);
+    gfx::SolidRect(x-4,y,9,1,theme::kAccent); gfx::SolidRect(x,y-4,1,9,theme::kAccent);
 }
 void Frame() {
     if (!Active()) {
@@ -474,7 +474,7 @@ void InitEditor() {
     g_kResize = binds::ActionHeld("editor", "resize", "shift", "held: the move keys resize instead");
     g_kFine = binds::ActionHeld("editor", "fine", "ctrl", "held: the move keys step 1 unit");
     binds::SetPointerCapture(CapturePointer);
-    g_panel = textdraw::Create("checkpoints", textdraw::TOP_LEFT, 8, 80, 6, textdraw::C_TEXT, textdraw::STYLE_OPAQUE);
+    g_panel = textdraw::Create("checkpoints", textdraw::TOP_LEFT, textdraw::kEdge, textdraw::kUnderTimer, 6, textdraw::C_TEXT);
     textdraw::Show(g_panel, false);
     hooks::OnFrameEnd(Frame); gfx::OnLayer(gfx::LAYER_HUD, Reticle);
 }

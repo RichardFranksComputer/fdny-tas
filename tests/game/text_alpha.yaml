@@ -3,8 +3,9 @@ name: text_alpha
 # on the same frame region.
 # Suite review (2026-10-24): this used to take the screenshots and assert nothing about
 # them. Now the shots are taken with the world paused (Debug pipe `pause on`: the panels
-# keep drawing, the sky and clock stop), and inside the player HUD panel, 255 vs 96 must
-# differ clearly while 255 vs 255-again stays at the noise floor.
+# keep drawing, the sky and clock stop), and inside the warp HUD's panel, 255 vs 96 must
+# differ clearly while 255 vs 255-again stays at the noise floor. (The player HUD was the
+# panel until D66: it is drawn in the game's own font now, which has no text opacity.)
 pre_files:
   - {src: tests/game/data/game_cfg_player.cfg, dst: FDNYFireFighter.cfg}
   - {src: tests/game/data/fdcore_panels.cfg, dst: FDNYCore.cfg}
@@ -12,7 +13,7 @@ setup: load_training
 record: false
 steps:
   - wait_s: 2
-  - assert_pipe_contains: {cmd: textdraw hud_player, contains: "drawn=1"}   # the panel the box below covers
+  - assert_pipe_contains: {cmd: textdraw glitch, contains: "drawn=1"}   # the panel the box below covers
   - pipe: "pause on"
   - wait_pipe: {cmd: pause, key: active, equals: 1, timeout: 3}
   - wait_s: 1
@@ -25,9 +26,9 @@ steps:
   - wait_s: 2
   - screenshot: fg255_again
   - pipe: "pause off"
-  # the player HUD panel (168x58 at 8,52 in the 640x480 view)
-  - assert_screen_diff: {a: fg255, b: fg96, box: [0.0125, 0.1083, 0.275, 0.2292], min: 2}   # measured 4.56
-  - assert_screen_diff: {a: fg255, b: fg255_again, box: [0.0125, 0.1083, 0.275, 0.2292], max: 0.5}   # measured 0.00
+  # inside the warp HUD's panel (top right, 8 px in: about 330x235 in the 640x480 view)
+  - assert_screen_diff: {a: fg255, b: fg96, box: [0.50, 0.03, 0.97, 0.30], min: 2}
+  - assert_screen_diff: {a: fg255, b: fg255_again, box: [0.50, 0.03, 0.97, 0.30], max: 0.5}
 expect:
   no_crash: true
   log_errors: 0

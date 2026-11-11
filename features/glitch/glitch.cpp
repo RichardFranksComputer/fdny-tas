@@ -490,7 +490,7 @@ bool Init() {
     InitializeCriticalSection(&g_boxLock);
     // Top-right, 12 px margin (the original's corner); re-rendered at most every 3 frames,
     // about the original's 50 ms refresh (REFRESH_MS). The text itself is built every frame.
-    g_panel = textdraw::Create("glitch", textdraw::TOP_RIGHT, 12, 12, 3, palette::T_TEXT);
+    g_panel = textdraw::Create("glitch", textdraw::TOP_RIGHT, textdraw::kEdge, textdraw::kEdge, 3, palette::T_TEXT);
     textdraw::SetPalette(g_panel, palette::kFg, palette::T_COUNT, palette::kBg);
     textdraw::Show(g_panel, false);
     // Player-facing name: the warp HUD (owner 2026-10-22: "collision" / "glitch" / "warp" for one
