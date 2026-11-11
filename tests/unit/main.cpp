@@ -29,6 +29,7 @@ void TestReplayBrowser();
 void TestRecorderJson();
 void TestJuggleDirection();
 void TestCmdAndBinds();
+void TestBindModes();
 
 namespace {
 
@@ -56,6 +57,7 @@ const Test kTests[] = {
     {"recorder_json", TestRecorderJson},
     {"juggle_direction", TestJuggleDirection},
     {"cmd_and_binds", TestCmdAndBinds},
+    {"bind_modes", TestBindModes},  // after cmd_and_binds: it registered bind / unbind
     {"crashlog_reports_fault", TestCrashlogReportsFault},  // last: it leaves the handler installed
 };
 

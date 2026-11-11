@@ -70,32 +70,22 @@ struct Drag {
 };
 Drag g_drag{};
 bool g_hasClipboard, g_dirty, g_savePending, g_backup, g_ownsPause, g_syncing, g_open;
-bool g_previous[256];
-DWORD g_repeat[256], g_saveAt;
+DWORD g_saveAt;
+// The editor's keys: the binds mode "editor" (rebindable; the panel's hints read them, D65).
+int g_kSelect = -1, g_kNext = -1, g_kPlace = -1, g_kCopy = -1, g_kPaste = -1, g_kDuplicate = -1, g_kDelete = -1;
+int g_kUndo = -1, g_kRedo = -1, g_kSave = -1, g_kResize = -1, g_kFine = -1;
+int g_kMove[6] = {-1, -1, -1, -1, -1, -1};  // x-, x+, y-, y+, z-, z+
 const char* g_message = "Saved; restart mission to apply";
 cmd::Cvar g_edit = {"fd_checkpoints_edit", "0", "1 = pause and edit checkpoint boxes in the free camera; autosaves Checkpoints/<mission>.txt; 0 = exit; restart mission to apply", false, false, nullptr, {0}, cmd::T_BOOL};
 cmd::Cvar g_distance = {"fd_checkpoints_distance", "160", "new/pasted checkpoint distance ahead of the camera in units (32-2000)", false, false, nullptr, {0}, cmd::T_FLOAT, 32, 2000};
 cmd::Cvar g_step = {"fd_checkpoints_step", "8", "checkpoint move/resize step in units (1-256); hold Ctrl for 1 unit", false, false, nullptr, {0}, cmd::T_FLOAT, 1, 256};
 
-bool Down(int key) { return (GetAsyncKeyState(key)&0x8000) != 0; }
 bool Active() {
     return !state::WatchOnly() && g_open && cmd::Bool(g_edit) && pause::Active() && state::Current().gameState == 1 && Practice();
 }
 bool Selected() { return g_draft.selected >= 0 && g_draft.selected < g_draft.set.count; }
-bool Capture(int vk) {
-    if (!Active()) return false;
-    if (g_drag.active && (vk == 'W' || vk == 'A' || vk == 'S' || vk == 'D' || vk == 'E' || vk == 'Q')) return true;
-    return vk == VK_LBUTTON || vk == VK_SPACE || vk == VK_INSERT || vk == VK_DELETE || vk == VK_BACK || vk == VK_TAB ||
-        vk == VK_RETURN || vk == VK_HOME || vk == VK_END || (vk >= VK_PRIOR && vk <= VK_DOWN) ||
-        (Down(VK_CONTROL) && (vk == 'C' || vk == 'V' || vk == 'D' || vk == 'S'));
-}
-bool CapturePointer() { return Active() && (g_drag.active || (Down(VK_LBUTTON) && !g_previous[VK_LBUTTON])); }
+bool CapturePointer() { return Active() && (g_drag.active || binds::Pressed(g_kSelect)); }
 void CenterPointer() { int w, h; gfx::ViewSize(&w,&h); g_cursorX = w*.5f; g_cursorY = h*.5f; }
-void ResetKeys() {
-    const int keys[] = {VK_LBUTTON,VK_SPACE,VK_INSERT,VK_DELETE,VK_BACK,VK_TAB,VK_RETURN,VK_HOME,VK_END,
-        VK_LEFT,VK_RIGHT,VK_NEXT,VK_PRIOR,VK_DOWN,VK_UP,'C','V','D','S'};
-    for (int key : keys) g_previous[key] = Down(key), g_repeat[key] = GetTickCount()+300;
-}
 void SetEdit(bool on) {
     g_syncing = true; cmd::SetCvarUngated(&g_edit, on ? "1" : "0"); g_syncing = false;
 }
@@ -114,6 +104,7 @@ void DraftChanged() {
 void EndDrag() {
     if (g_drag.active && g_drag.changed) DraftChanged();
     g_drag.active = false;
+    binds::Solo("editor", false);  // the camera's flight keys again
 }
 bool Save() {
     if (!g_dirty) return true;
@@ -200,7 +191,7 @@ void OnEdit(cmd::Cvar&) {
         if (g_ownsPause) spectator::RequestFreePause(false);
         g_ownsPause = false; SetEdit(false); return;
     }
-    g_open = true; CenterPointer(); ResetKeys();
+    g_open = true; CenterPointer();
     console::Print("checkpoints: editing %s (%d boxes); Space places; drag box/arrows to move, cubes to resize; autosave; restart to apply", s.map, g_draft.set.count);
 }
 void SaveCommand(int, const char* const*) { Save(); }
@@ -244,14 +235,6 @@ void Undo(bool redo) {
     const int index = redo ? g_historyAt++ : --g_historyAt;
     static Snapshot swap;
     swap = g_draft; g_draft = g_history[index]; g_history[index] = swap; DraftChanged();
-}
-bool Press(int key, bool repeat = false) {
-    const bool down = Down(key);
-    const DWORD now = GetTickCount();
-    const bool press = down && (!g_previous[key] || (repeat && static_cast<int32_t>(now-g_repeat[key]) >= 0));
-    if (down && !g_previous[key]) g_repeat[key] = now+300;
-    else if (press) g_repeat[key] = now+100;
-    g_previous[key] = down; return press;
 }
 void Center(const Point& p, float* out) { for (int a = 0; a < 3; ++a) out[a] = (p.min[a]+p.max[a])*.5f; }
 // Handles: arrows outside the positive face move; cubes on either face resize.
@@ -302,11 +285,12 @@ void BeginDrag() {
     const float normal2 = g_drag.normal[0]*g_drag.normal[0]+g_drag.normal[1]*g_drag.normal[1]+g_drag.normal[2]*g_drag.normal[2];
     if (normal2 < .01f || !RayPlane(origin,direction,g_drag.plane,g_drag.normal,g_drag.grab)) return;
     g_drag.active = true;
+    binds::Solo("editor", true);  // a drag holds the camera still: only the editor's keys act
 }
 void Pointer() {
-    if (!binds::KeysLive()) { EndDrag(); ResetKeys(); return; }
-    const bool pressed = Press(VK_LBUTTON);
-    if (!Down(VK_LBUTTON)) { EndDrag(); CenterPointer(); return; }
+    if (!binds::KeysLive()) { EndDrag(); return; }
+    const bool pressed = binds::Pressed(g_kSelect);
+    if (!binds::Held(g_kSelect)) { EndDrag(); CenterPointer(); return; }
     if (!g_drag.active) {
         CenterPointer();
         if (pressed) BeginDrag();
@@ -333,25 +317,23 @@ void Pointer() {
     g_drag.changed = true; g_draft.set.points[g_draft.selected] = next; DraftChanged();
 }
 void Input() {
-    if (!binds::KeysLive()) { EndDrag(); ResetKeys(); return; }
-    const bool ctrl = Down(VK_CONTROL), resize = Down(VK_SHIFT);
+    if (!binds::KeysLive()) { EndDrag(); return; }
+    const bool fine = binds::Held(g_kFine), resize = binds::Held(g_kResize);
     Pointer();
     if (g_drag.active) return;
-    if (Press(VK_TAB) && g_draft.set.count) g_draft.selected = (g_draft.selected+1)%g_draft.set.count;
-    if (Press(VK_SPACE) || Press(VK_INSERT)) Add(false, false);
-    if (Press('C') && ctrl && Selected()) g_clipboard = g_draft.set.points[g_draft.selected], g_hasClipboard = true;
-    if (Press('V') && ctrl) Add(true, false);
-    if (Press('D') && ctrl) Add(false, true);
-    if (Press(VK_DELETE) || Press(VK_BACK)) Delete();
-    if (Press(VK_HOME)) Undo(false);
-    if (Press(VK_END)) Undo(true);
-    const bool save = Press('S') && ctrl;
-    if (Press(VK_RETURN) || save) Save();
-    const int keys[] = {VK_LEFT,VK_RIGHT,VK_NEXT,VK_PRIOR,VK_DOWN,VK_UP};
+    if (binds::Pressed(g_kNext) && g_draft.set.count) g_draft.selected = (g_draft.selected+1)%g_draft.set.count;
+    if (binds::Pressed(g_kPlace)) Add(false, false);
+    if (binds::Pressed(g_kCopy) && Selected()) g_clipboard = g_draft.set.points[g_draft.selected], g_hasClipboard = true;
+    if (binds::Pressed(g_kPaste)) Add(true, false);
+    if (binds::Pressed(g_kDuplicate)) Add(false, true);
+    if (binds::Pressed(g_kDelete)) Delete();
+    if (binds::Pressed(g_kUndo)) Undo(false);
+    if (binds::Pressed(g_kRedo)) Undo(true);
+    if (binds::Pressed(g_kSave)) Save();
     for (int i = 0; i < 6; ++i) {
-        if (!Press(keys[i], true) || !Selected()) continue;
+        if (!binds::Pressed(g_kMove[i]) || !Selected()) continue;
         Point point = g_draft.set.points[g_draft.selected];
-        const float step = ctrl ? 1 : cmd::Float(g_step);
+        const float step = fine ? 1 : cmd::Float(g_step);
         if (!Adjust(&point, i/2, (i%2 ? 1 : -1)*step, resize)) continue;
         Remember(); g_draft.set.points[g_draft.selected] = point; DraftChanged();
     }
@@ -430,13 +412,15 @@ void Draw() {
         char label[55]; lstrcpynA(label, p.label, sizeof(label));
         wsprintfA(selected, "#%d %s", g_draft.selected+1, label);
     } else lstrcpyA(selected, "Click a box to select; empty click deselects");
-    const char* rows[] = {title,selected,
-        "WASD/EQ + mouse: fly | Space: place at crosshair",
-        "Drag box: move | arrows: X red / Y green / Z blue",
-        "Drag face cubes: resize | Ctrl+C/V/D: copy/paste/dup",
-        "Del: delete | Home/End: undo/redo | P: exit",
-        g_message};
-    textdraw::SetLines(g_panel, rows, 7);
+    // The keys as they are bound now (binds mode "editor"), then the mouse.
+    static char hint[5][textdraw::kLineLen];
+    const int nHint = binds::HintLines("editor", hint, 5);
+    const char* rows[9] = {title, selected};
+    int n = 2;
+    for (int i = 0; i < nHint; ++i) rows[n++] = hint[i];
+    rows[n++] = "Drag a box or an arrow: move (X red, Y green, Z blue) | drag a face cube: resize";
+    rows[n++] = g_message;
+    textdraw::SetLines(g_panel, rows, n);
 }
 void Reticle() {
     if (!Active() || !binds::KeysLive()) return;
@@ -470,12 +454,26 @@ void InitEditor() {
     cmd::RegisterCommand("fd_checkpoints_name", "fd_checkpoints_name \"Display text\": rename the selected box in the checkpoint editor", Name);
     cmd::RegisterCommand("fd_checkpoints_save", "retry saving the checkpoint draft; autosaved after edits, restart mission to apply", SaveCommand);
     cmd::SetPracticeOnly("fd_checkpoints_edit"); cmd::SetPracticeOnly("fd_checkpoints_name"); cmd::SetPracticeOnly("fd_checkpoints_save");
-    binds::DescribeKey("space ins mouse1 tab", "checkpoint editor: place (Space or Insert) at pointer / select / select next", "while fd_checkpoints_edit is 1");
-    binds::DescribeKey("leftarrow rightarrow uparrow downarrow pgup pgdn", "checkpoint editor: move on world X/Z/Y axes; Shift resizes; Ctrl uses 1 unit", "while fd_checkpoints_edit is 1");
-    binds::DescribeKey("ctrl+c ctrl+v ctrl+d del backspace", "checkpoint editor: copy / paste at pointer / duplicate / delete", "while fd_checkpoints_edit is 1");
-    binds::DescribeKey("home end enter ctrl+s", "checkpoint editor: undo / redo / save (also autosaves)", "while fd_checkpoints_edit is 1");
-    binds::DescribeKey("mouse1", "checkpoint editor: left-drag boxes/arrows to move, face cubes to resize; normal mouse look resumes on release", "while fd_checkpoints_edit is 1");
-    binds::SetKeyCapture(Capture); binds::SetPointerCapture(CapturePointer);
+    binds::Mode("editor", "while fd_checkpoints_edit is 1", Active, binds::M_NORMAL);
+    g_kPlace = binds::Action("editor", "place", "space ins", "place a box at the pointer");
+    g_kSelect = binds::Action("editor", "select", "mouse1", "select a box; drag it or its arrows to move, a face cube to resize");
+    g_kNext = binds::Action("editor", "next", "tab", "select the next box");
+    g_kDelete = binds::Action("editor", "delete", "del backspace", "delete the selected box");
+    g_kCopy = binds::Action("editor", "copy", "ctrl+c", "copy the selected box");
+    g_kPaste = binds::Action("editor", "paste", "ctrl+v", "paste at the pointer");
+    g_kDuplicate = binds::Action("editor", "duplicate", "ctrl+d", "duplicate the selected box in place");
+    g_kUndo = binds::Action("editor", "undo", "home", "undo");
+    g_kRedo = binds::Action("editor", "redo", "end", "redo");
+    g_kSave = binds::Action("editor", "save", "enter ctrl+s", "save now (edits also autosave)");
+    g_kMove[0] = binds::ActionRepeat("editor", "x_minus", "leftarrow", "move the box along -X (with resize: that side)");
+    g_kMove[1] = binds::ActionRepeat("editor", "x_plus", "rightarrow", "move along +X");
+    g_kMove[2] = binds::ActionRepeat("editor", "y_minus", "pgdn", "move down (-Y)");
+    g_kMove[3] = binds::ActionRepeat("editor", "y_plus", "pgup", "move up (+Y)");
+    g_kMove[4] = binds::ActionRepeat("editor", "z_minus", "downarrow", "move along -Z");
+    g_kMove[5] = binds::ActionRepeat("editor", "z_plus", "uparrow", "move along +Z");
+    g_kResize = binds::ActionHeld("editor", "resize", "shift", "held: the move keys resize instead");
+    g_kFine = binds::ActionHeld("editor", "fine", "ctrl", "held: the move keys step 1 unit");
+    binds::SetPointerCapture(CapturePointer);
     g_panel = textdraw::Create("checkpoints", textdraw::TOP_LEFT, 8, 80, 6, textdraw::C_TEXT, textdraw::STYLE_OPAQUE);
     textdraw::Show(g_panel, false);
     hooks::OnFrameEnd(Frame); gfx::OnLayer(gfx::LAYER_HUD, Reticle);

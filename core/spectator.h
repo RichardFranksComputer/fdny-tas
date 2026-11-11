@@ -6,9 +6,11 @@
 //   mouse always looking; binds stay live and other tools' key/pointer captures are
 //   honoured (the checkpoint editor). freecam's fd_pause.
 // Free flight in both: W/S along the view, A/D strafe, E/Q up/down (one speed in every
-// direction), Shift x4, Ctrl x0.25; keys only while binds::KeysLive. It ends itself when
-// the pause or the level ends.
+// direction), Shift x4, Ctrl x0.25. The keys are two binds modes (D65): "camera" (flight,
+// shared by both) and "viewer" (exclusive: playback, follow, exit), so they are rebindable
+// and listed like every other mode's. It ends itself when the pause or the level ends.
 #pragma once
+#include "binds.h"
 #include "camera.h"
 namespace fdcore::spectator {
 constexpr int kMaxTargets = 8;
@@ -61,22 +63,5 @@ void ReadState(State* state);
 } // namespace fdcore::spectator
 
 namespace fdcore::spectator::input {
-struct Key {
-    bool previous, pending;
-    void Reset(bool down) {
-        previous = down;
-        pending = false;
-    }
-    void Message(bool repeat) {
-        if (!repeat && !previous)
-            pending = true;
-    }
-    void Release() { previous = false; }
-    bool Poll(bool down, bool live) {
-        const bool pressed = live && (pending || (down && !previous));
-        pending = false;
-        previous = down;
-        return pressed;
-    }
-};
+using Key = binds::input::Key;  // the press detector lives with the keys (binds, D65)
 } // namespace fdcore::spectator::input

@@ -1,0 +1,58 @@
+name: keys_modes
+# D65: a feature's own keys are binds actions in a mode. Proved here on the warp HUD's mode:
+# its default key acts only while the HUD is on, `bind <mode> <key> <action>` moves it,
+# FDNYCore.cfg holds the change, and the old key then does nothing. The press detector, the
+# Ctrl chords, repeat and an exclusive mode's messages are unit tests (tests/unit/test_binds.cpp);
+# the editor's and the viewer's keys are pressed by checkpoints and spectator_camera.
+pre_files:
+  - {src: tests/game/data/game_cfg_player.cfg, dst: FDNYFireFighter.cfg}
+  - {src: null, dst: FDNYCore.cfg}
+setup: load_training
+record: false
+steps:
+  - console: "fd_watermark 0"
+  - console: "fd_hud_warp 1"
+  - console: "bind warp"
+  - assert_log: {contains: "console> warp (while the warp HUD is on):"}
+  - focus: {}
+  - wait_s: 1
+  # the default key, while the mode is active
+  - key: {key: b, hold: 0.1}
+  - wait_s: 0.5
+  - assert_pipe_stat: {cmd: glitch_box, key: hidden, equals: 1}
+  - assert_pipe_contains: {cmd: notify, contains: "last=Warp HUD hidden"}
+  - key: {key: b, hold: 0.1}
+  - wait_s: 0.5
+  - assert_pipe_stat: {cmd: glitch_box, key: hidden, equals: 0}
+  # rebound: M hides, B no longer does; only the changes are saved
+  - console: "bind warp m hide"
+  - assert_log: {contains: "console> warp: m = hide"}
+  - console: "unbind warp b"
+  - assert_file: {path: FDNYCore.cfg, contains: "bind warp m hide"}
+  - assert_file: {path: FDNYCore.cfg, contains: "unbind warp b"}
+  - focus: {}
+  - wait_s: 1
+  - key: {key: m, hold: 0.1}
+  - wait_s: 0.5
+  - assert_pipe_stat: {cmd: glitch_box, key: hidden, equals: 1}
+  - key: {key: b, hold: 0.1}
+  - wait_s: 0.5
+  - assert_pipe_stat: {cmd: glitch_box, key: hidden, equals: 1}
+  # the action's command is the same switch
+  - console: "fd_warp_hide"
+  - assert_pipe_stat: {cmd: glitch_box, key: hidden, equals: 0}
+  # back to the keys as shipped: nothing of the mode is left in the config
+  - console: "bind warp default"
+  - assert_log: {contains: "console> warp: default keys"}
+  - assert_file: {path: FDNYCore.cfg, absent: "bind warp"}
+  # the mode is off with the HUD: its key does nothing
+  - console: "fd_hud_warp 0"
+  - focus: {}
+  - wait_s: 1
+  - sample_pipe: {cmd: notify, as: hud_off}
+  - key: {key: m, hold: 0.1}
+  - wait_s: 0.5
+  - assert_pipe_stat: {cmd: notify, key: count, since: hud_off, equals: 0}
+expect:
+  no_crash: true
+  log_errors: 0

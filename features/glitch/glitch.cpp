@@ -397,23 +397,15 @@ void CmdClear(int, const char* const*) {
     notify::Show("Warp HUD history cleared");
 }
 
-// Overlay._hotkeys (the original's F9 show/hide, F10 freeze, F12 clear; letters since
-// D37: B, Z, X) -- edge-triggered, only while the game has the keyboard (binds' rule);
-// the game still gets them. Kept here, not as binds: the clear must stay between this
-// frame's hotkeys and build(), as in the original.
+// The warp HUD's own keys (B, Z, X by default; D37): the binds mode "warp", active while
+// the HUD is on, so they are rebindable (`bind warp <key> hide`) and off with the HUD (D65).
+// Read here, in the frame step: the clear stays between this frame's records and the build.
+int g_keyHide = -1, g_keyFreeze = -1, g_keyClear = -1;
+bool HudOn() { return g_installed; }
 void Hotkeys() {
-    static const int kVk[3] = {'B', 'Z', 'X'};
-    static bool was[3];
-    const bool live = binds::KeysLive();
-    for (int i = 0; i < 3; ++i) {
-        const bool down = (GetAsyncKeyState(kVk[i]) & 0x8000) != 0;
-        if (down && !was[i] && live) {
-            if (i == 0) CmdHide(0, nullptr);
-            else if (i == 1) CmdFreeze(0, nullptr);
-            else CmdClear(0, nullptr);
-        }
-        was[i] = down;
-    }
+    if (binds::Pressed(g_keyHide)) CmdHide(0, nullptr);
+    if (binds::Pressed(g_keyFreeze)) CmdFreeze(0, nullptr);
+    if (binds::Pressed(g_keyClear)) CmdClear(0, nullptr);
 }
 
 void FrameEnd() {
@@ -503,9 +495,9 @@ bool Init() {
     textdraw::Show(g_panel, false);
     // Player-facing name: the warp HUD (owner 2026-10-22: "collision" / "glitch" / "warp" for one
     // thing was confusing). The code and the glitch| log lines keep "glitch".
-    cmd::RegisterCommand("fd_warp_hide", "show / hide the warp HUD's boxes (key B)", CmdHide);
-    cmd::RegisterCommand("fd_warp_freeze", "freeze / unfreeze the warp HUD's boxes; logging continues (key Z)", CmdFreeze);
-    cmd::RegisterCommand("fd_warp_clear", "clear the warp HUD's history and last warp (key X)", CmdClear);
+    cmd::RegisterCommand("fd_warp_hide", "show / hide the warp HUD's boxes", CmdHide);
+    cmd::RegisterCommand("fd_warp_freeze", "freeze / unfreeze the warp HUD's boxes; logging continues", CmdFreeze);
+    cmd::RegisterCommand("fd_warp_clear", "clear the warp HUD's history and last warp", CmdClear);
     cmd::RegisterCvar(&g_fdHudGlitch);
     cmd::SetPracticeOnly("fd_hud_warp");
     cmd::SetPracticeOnly("fd_warp_hide");
@@ -513,10 +505,10 @@ bool Init() {
     cmd::SetPracticeOnly("fd_warp_clear");
     binds::BindDefault("g", "toggle fd_hud_warp");  // D37
     cmd::SetLabel("fd_hud_warp", "Warp HUD");
-    // Hotkeys() reads these itself (the clear's place in the frame, above).
-    binds::DescribeKey("b", "show / hide the warp HUD's boxes (fd_warp_hide)", "while fd_hud_warp is 1");
-    binds::DescribeKey("z", "freeze / unfreeze the warp HUD's boxes (fd_warp_freeze)", "while fd_hud_warp is 1");
-    binds::DescribeKey("x", "clear the warp HUD's history and last warp (fd_warp_clear)", "while fd_hud_warp is 1");
+    binds::Mode("warp", "while the warp HUD is on", HudOn, binds::M_NORMAL);
+    g_keyHide = binds::Action("warp", "hide", "b", "show / hide the boxes (fd_warp_hide)");
+    g_keyFreeze = binds::Action("warp", "freeze", "z", "freeze / unfreeze the boxes (fd_warp_freeze)");
+    g_keyClear = binds::Action("warp", "clear", "x", "clear the history and the last warp (fd_warp_clear)");
     hooks::OnFrameEnd(FrameEnd);
 #ifdef FDCORE_DEBUG
     testpipe::Register("glitch", [](const char*, char* resp, int cap) { Stats(resp, cap); });

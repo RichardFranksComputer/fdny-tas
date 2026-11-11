@@ -1,4 +1,5 @@
 // Tests: tests/game/spectator_camera.yaml tests/game/freecam.yaml tests/unit/test_spectator.cpp
+// User: Flying camera -- the keys of the free camera and of the recordings viewer.
 #include "spectator.h"
 #include <windows.h>
 #include "addr.h"
@@ -22,20 +23,20 @@ unsigned g_keysHeld;
 Target g_targets[kMaxTargets];
 int g_count, g_followed;
 float g_pos[3], g_yaw, g_pitch = -15, g_distance = 240;
-input::Key g_keys[256];
-// A consumed modal press owns its matching release too. Native Escape must
-// not see a held-key repeat after the viewer deliberately opens its menu.
-bool g_suppressUntilRelease[256];
+// The keys (binds modes "camera" and "viewer"; Init registers them).
+int kForward = -1, kBack = -1, kRight = -1, kLeft = -1, kUp = -1, kDown = -1, kFast = -1, kSlow = -1;
+int kXray = -1, kFree = -1, kNext = -1, kPlay = -1, kSeekBack = -1, kSeekForward = -1, kRestart = -1, kExit = -1;
+int kZoomIn = -1, kZoomOut = -1, kLook = -1;
 ActionHandler g_actions;
 LARGE_INTEGER g_frequency, g_last;
 bool g_messages;  // the window-message filter is registered (wheel and key messages)
 volatile LONG g_wheel;
-bool Down(int key) {
-    return (GetAsyncKeyState(key) & 0x8000) != 0;
-}
-// Only the viewer takes the keys and the mouse from binds and other tools.
-bool CaptureKey(int) {
+// Only the viewer takes the mouse from other tools (its keys: the exclusive "viewer" mode).
+bool ViewerActive() {
     return g_active && g_modal;
+}
+bool FlightActive() {
+    return g_active && g_free;
 }
 bool CapturePointer() {
     return g_active && g_modal;
@@ -43,11 +44,6 @@ bool CapturePointer() {
 void Emit(Action action) {
     if (g_actions)
         g_actions(action);
-}
-bool ReservedKey(WPARAM key) {
-    return key == 'X' || key == 'F' || key == 'W' || key == 'A' || key == 'S' || key == 'D' || key == 'E' ||
-           key == 'Q' || key == VK_ESCAPE || key == VK_SPACE || key == VK_TAB || key == VK_LEFT || key == VK_RIGHT ||
-           key == VK_HOME || key == VK_PRIOR || key == VK_NEXT;
 }
 int FirstValid() {
     for (int i = 0; i < g_count; ++i)
@@ -66,44 +62,12 @@ void Pose() {
     math::Build(g_pos, g_yaw, g_pitch, &x);
     camera::SetWorldOverride(&x);
 }
-// The viewer's keys and wheel, from the window messages binds owns; true consumes it.
-// The free camera reads key state only: its messages pass to binds and the game.
-bool Message(unsigned message, uintptr_t w, intptr_t l) {
-    const bool keyDown = message == WM_KEYDOWN || message == WM_SYSKEYDOWN;
-    const bool keyUp = message == WM_KEYUP || message == WM_SYSKEYUP;
-    const bool altTab = w == VK_TAB && Down(VK_MENU);
-    if ((keyDown || keyUp) && w < 256 && g_suppressUntilRelease[w] && !altTab) {
-        if (keyUp) {
-            g_suppressUntilRelease[w] = false;
-            g_keys[w].Release();
-        }
-        return true;
-    }
-    if (message == WM_CHAR) {
-        const uintptr_t upper = w >= 'a' && w <= 'z' ? w - 'a' + 'A' : w;
-        if (upper < 256 && g_suppressUntilRelease[upper])
-            return true;
-    }
+// The viewer's wheel, from the window messages binds owns; true consumes it. Its keys are
+// the exclusive "viewer" mode's: binds consumes those messages itself.
+bool Message(unsigned message, uintptr_t w, intptr_t) {
     if (message == WM_MOUSEWHEEL && g_active && g_modal && binds::KeysLive()) {
         InterlockedExchangeAdd(&g_wheel, static_cast<short>(HIWORD(w)));
         return true;
-    }
-    if (g_active && g_modal && binds::KeysLive()) {
-        // Keep Alt+Tab and the console key available to Windows/the native console.
-        if ((keyDown || keyUp) && ReservedKey(w) && !altTab) {
-            if (keyDown)
-                g_keys[w].Message((l & (1L << 30)) != 0);
-            else
-                g_keys[w].Release();
-            if (w < 256)
-                g_suppressUntilRelease[w] = keyDown;
-            return true;
-        }
-        if (message == WM_CHAR) {
-            const uintptr_t upper = w >= 'a' && w <= 'z' ? w - 'a' + 'A' : w;
-            if (ReservedKey(upper))
-                return true;
-        }
     }
     return false;
 }
@@ -124,14 +88,11 @@ void Frame() {
     g_dt = dt;
     const bool live = binds::KeysLive();
     if (g_modal) {
-        bool pressed[256] = {};
-        for (int key = 1; key < 256; ++key)
-            pressed[key] = g_keys[key].Poll(Down(key), live);
-        if (pressed['X'])
+        if (binds::Pressed(kXray))
             Emit(Action::ToggleXray);
-        if (pressed['F'])
+        if (binds::Pressed(kFree))
             SetFree(!g_free);
-        if (pressed[VK_TAB] && g_count > 1) {
+        if (binds::Pressed(kNext) && g_count > 1) {
             for (int n = 1; n <= g_count; ++n) {
                 int i = (g_followed + n) % g_count;
                 if (g_targets[i].valid) {
@@ -140,15 +101,15 @@ void Frame() {
                 }
             }
         }
-        if (pressed[VK_SPACE])
+        if (binds::Pressed(kPlay))
             Emit(Action::TogglePlay);
-        if (pressed[VK_LEFT])
+        if (binds::Pressed(kSeekBack))
             Emit(Action::SeekBack);
-        if (pressed[VK_RIGHT])
+        if (binds::Pressed(kSeekForward))
             Emit(Action::SeekForward);
-        if (pressed[VK_HOME])
+        if (binds::Pressed(kRestart))
             Emit(Action::Restart);
-        if (pressed[VK_ESCAPE]) {
+        if (binds::Pressed(kExit)) {
             Emit(Action::Exit);
             if (!g_actions && g_active)
                 Stop();
@@ -159,14 +120,14 @@ void Frame() {
         const LONG wheel = InterlockedExchange(&g_wheel, 0);
         if (live && wheel)
             Zoom(static_cast<float>(wheel) / WHEEL_DELTA);
-        if (live && Down(VK_PRIOR))
+        if (binds::Held(kZoomIn))
             Zoom(dt * 5);
-        if (live && Down(VK_NEXT))
+        if (binds::Held(kZoomOut))
             Zoom(-dt * 5);
     }
     // Look: the viewer while right-dragging; the free camera always, unless another tool
     // holds the pointer (the checkpoint editor).
-    if (live && (g_flight.lookAlways || Down(VK_RBUTTON)) && (g_modal || !binds::PointerCaptured())) {
+    if (live && (g_flight.lookAlways || binds::Held(kLook)) && (g_modal || !binds::PointerCaptured())) {
         int32_t mx = 0, my = 0;
         addr::ReadI32(addr::Id::controls_mouse_x, &mx);
         addr::ReadI32(addr::Id::controls_mouse_y, &my);
@@ -176,13 +137,14 @@ void Frame() {
     }
     g_keysHeld = 0;
     if (live && g_free) {
-        // Held keys (not presses); the free camera leaves keys another tool captured.
-        static const struct {
-            int vk;
+        // Held keys (not presses): the "camera" mode. binds leaves out a key a later tool's
+        // action has taken (the checkpoint editor's Ctrl+D is not "strafe right").
+        const struct {
+            int action;
             unsigned bit;
-        } kFlightKeys[] = {{'W', 1}, {'S', 2}, {'D', 4}, {'A', 8}, {'E', 16}, {'Q', 32}, {VK_SHIFT, 64}, {VK_CONTROL, 128}};
-        for (const auto& k : kFlightKeys)
-            if (Down(k.vk) && (g_modal || !binds::KeyCaptured(k.vk)))
+        } flight[] = {{kForward, 1}, {kBack, 2}, {kRight, 4}, {kLeft, 8}, {kUp, 16}, {kDown, 32}, {kFast, 64}, {kSlow, 128}};
+        for (const auto& k : flight)
+            if (binds::Held(k.action))
                 g_keysHeld |= k.bit;
         auto held = [](unsigned bit) { return (g_keysHeld & bit) ? 1.0f : 0.0f; };
         float sy, cy, sp, cp;
@@ -219,10 +181,33 @@ bool Init() {
         return false;
     }
     QueryPerformanceFrequency(&g_frequency);
-    if (!binds::AddKeyCapture(CaptureKey) || !binds::AddPointerCapture(CapturePointer)) {
+    if (!binds::AddPointerCapture(CapturePointer)) {
         log::Warn("spectator: modal input capture unavailable");
         return false;
     }
+    // Flight, in the free camera and the viewer's released camera.
+    binds::Mode("camera", "while the free camera flies (a paused game, or the viewer's released camera)", FlightActive, binds::M_SHARED);
+    kForward = binds::ActionHeld("camera", "forward", "w", "fly forward along the view");
+    kBack = binds::ActionHeld("camera", "back", "s", "fly back");
+    kLeft = binds::ActionHeld("camera", "left", "a", "strafe left");
+    kRight = binds::ActionHeld("camera", "right", "d", "strafe right");
+    kUp = binds::ActionHeld("camera", "up", "e", "straight up");
+    kDown = binds::ActionHeld("camera", "down", "q", "straight down");
+    kFast = binds::ActionHeld("camera", "fast", "shift", "4x speed");
+    kSlow = binds::ActionHeld("camera", "slow", "ctrl", "0.25x speed");
+    // The recordings viewer: it takes the keyboard (ordinary binds and the game get none).
+    binds::Mode("viewer", "in the recordings viewer", ViewerActive, binds::M_EXCLUSIVE);
+    kPlay = binds::Action("viewer", "play", "space", "play / pause");
+    kSeekBack = binds::Action("viewer", "seek_back", "leftarrow", "back 5 seconds");
+    kSeekForward = binds::Action("viewer", "seek_forward", "rightarrow", "forward 5 seconds");
+    kRestart = binds::Action("viewer", "restart", "home", "back to the start");
+    kNext = binds::Action("viewer", "next_run", "tab", "follow the next run");
+    kFree = binds::Action("viewer", "free", "f", "release the camera / follow again");
+    kXray = binds::Action("viewer", "xray", "x", "traces and ghost boxes through walls on / off");
+    kLook = binds::ActionHeld("viewer", "look", "mouse2", "drag: orbit the followed run, or look around with the released camera");
+    kZoomIn = binds::ActionHeld("viewer", "zoom_in", "pgup", "closer (also the mouse wheel)");
+    kZoomOut = binds::ActionHeld("viewer", "zoom_out", "pgdn", "farther (also the mouse wheel)");
+    kExit = binds::Action("viewer", "exit", "escape", "back to the Recordings list");
     g_messages = binds::OnWindowMessage(Message);
     if (!g_messages)
         log::Warn("spectator: no window-message slot; wheel zoom unavailable (PageUp/PageDown still zoom)");
@@ -295,8 +280,6 @@ bool Start() {
             g_yaw = math::Yaw(-x.m[2], -x.m[8]);
         }
     }
-    for (int key = 0; key < 256; ++key)
-        g_keys[key].Reset(Down(key));
     InterlockedExchange(&g_wheel, 0);
     QueryPerformanceCounter(&g_last);
     Pose();
@@ -342,9 +325,7 @@ void Stop() {
     // dispatched. Retain every held viewer key until the native key-up, even
     // when no corresponding key-down has reached our window procedure yet.
     if (g_modal)
-        for (int key = 0; key < 256; ++key)
-            if (ReservedKey(static_cast<WPARAM>(key)) && Down(key))
-                g_suppressUntilRelease[key] = true;
+        binds::SuppressHeld();
     g_active = false;
     g_modal = false;
     g_free = false;

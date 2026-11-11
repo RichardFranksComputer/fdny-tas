@@ -35,7 +35,9 @@ CORE_ORDER = ["cmd.cpp", "binds.cpp", "profile.cpp", "gfx.cpp", "textdraw.cpp", 
 USER = re.compile(r"^// User: (.+?) -- (.+)$", re.M)
 # The registration calls and their argument counts: any call of these that can't be read is
 # an error, never skipped.
-ARITY = {"RegisterCvar": 1, "RegisterCommand": 3, "SetPracticeOnly": 1, "BindDefault": 2, "DescribeKey": 3}
+ARITY = {"RegisterCvar": 1, "RegisterCommand": 3, "SetPracticeOnly": 1, "BindDefault": 2, "DescribeKey": 3,
+         "Mode": 4, "Action": 4, "ActionRepeat": 4, "ActionHeld": 4}
+HOW = {"Action": 0, "ActionRepeat": 1, "ActionHeld": 2}  # binds.cpp's How
 
 
 class ReadError(Exception):
@@ -173,7 +175,8 @@ def read_source():
     files = [os.path.join(CORE, f) for f in sorted(os.listdir(CORE)) if f.endswith(".cpp")] + \
             [os.path.join(FEAT, d, f) for d in sorted(os.listdir(FEAT)) if os.path.isdir(os.path.join(FEAT, d))
              for f in sorted(os.listdir(os.path.join(FEAT, d))) if f.endswith(".cpp")]
-    reg = {"sections": [], "cvars": [], "commands": [], "binds": [], "keys": [], "practice": []}
+    reg = {"sections": [], "cvars": [], "commands": [], "binds": [], "keys": [], "practice": [],
+           "modes": [], "actions": []}
     cvar_defs, cvar_regs, errors = {}, [], []
     for path in files:
         rel = os.path.relpath(path, REPO).replace("\\", "/")
@@ -210,6 +213,9 @@ def read_source():
                 if i > 0 and toks[i - 1][0] == "id" and toks[i - 1][1] in ("void", "bool", "int"):
                     continue  # the function's own definition
                 a = args_at(toks, i + 1)
+                if name in ("Mode", "Action", "ActionRepeat", "ActionHeld") and \
+                        not (i > 2 and toks[i - 1][1] == ":" and toks[i - 2][1] == ":" and toks[i - 3][1] == "binds"):
+                    continue  # only binds::Mode / binds::Action...: the names are common words
                 if a is None or len(a) != ARITY[name]:
                     raise ReadError(f"{where}: {name}(...) with {len(a) if a else 0} argument(s), want {ARITY[name]}")
                 if name == "RegisterCvar":
@@ -224,6 +230,13 @@ def read_source():
                 elif name == "BindDefault":
                     reg["binds"].append({"key": lit(a[0], where, "key"), "line": lit(a[1], where, "line"),
                                          "file": rel, "debug": dbg})
+                elif name == "Mode":
+                    reg["modes"].append({"name": lit(a[0], where, "mode"), "when": lit(a[1], where, "when"),
+                                         "file": rel, "debug": dbg})
+                elif name in HOW:
+                    reg["actions"].append({"mode": lit(a[0], where, "mode"), "id": lit(a[1], where, "action"),
+                                           "keys": lit(a[2], where, "keys"), "help": lit(a[3], where, "help"),
+                                           "how": HOW[name], "file": rel, "debug": dbg})
                 elif name == "DescribeKey":
                     reg["keys"].append({"key": lit(a[0], where, "key"), "action": lit(a[1], where, "action"),
                                         "when": lit(a[2], where, "when"), "file": rel, "debug": dbg})
@@ -240,6 +253,9 @@ def read_source():
             errors.append(f"{where}: RegisterCvar(&{var}) but no `cmd::Cvar {var} = {{\"name\", ...}}` found")
             continue
         reg["cvars"].append(dict(d, file=rel, debug=dbg))
+    for a in reg["actions"]:
+        if a["mode"] not in {m["name"] for m in reg["modes"]}:
+            errors.append(f'{a["file"]}: binds action "{a["id"]}" names the mode "{a["mode"]}", which no binds::Mode registers')
     names = {c["name"] for c in reg["cvars"]} | {c["name"] for c in reg["commands"]}
     for p in reg["practice"]:
         if p not in names:
@@ -322,7 +338,18 @@ def sheet(reg, asi=None):
             does = "on / off: " + re.sub(r"^1 = ", "", does)
         L.append(f"| **{b['key'].upper()}** | {md(does)} | `{md(b['line'])}` | "
                  f"{'yes' if t and t['practice'] else ''} |")
-    L += ["", "**Feature keys**: read by the feature itself while it is on; they can't be rebound.", "",
+    L += ["", "**Mode keys**: they act only in their mode. Rebind with `bind <mode> <key> <action>`, remove",
+          "with `unbind <mode> <key>`; `bind <mode>` lists a mode's actions in the game. A key can be",
+          "`ctrl+<key>`. Held: read while it is down.", ""]
+    for m in (m for m in reg["modes"] if not m["debug"]):
+        L += [f"`{m['name']}`: {md(m['when'])}", "", "| Key | Action | Does |", "|---|---|---|"]
+        for a in (a for a in reg["actions"] if a["mode"] == m["name"] and not a["debug"]):
+            keys = " ".join(f"**{w.upper()}**" for w in a["keys"].split())
+            does = a["help"] + (" (held)" if a["how"] == 2 and "held" not in a["help"] else
+                                " (repeats while held)" if a["how"] == 1 else "")
+            L.append(f"| {keys} | `{a['id']}` | {md(does)} |")
+        L += [""]
+    L += ["**Other keys**: read as they are; they can't be rebound.", "",
           "| Key | Does | When |", "|---|---|---|"]
     for k in (k for k in reg["keys"] if not k["debug"]):
         keys = " ".join(f"**{w.upper()}**" for w in k["key"].split())
@@ -335,7 +362,8 @@ def sheet(reg, asi=None):
         vs = [f"`{c['name']}`" for c in cvars if c["file"] in files]
         cs = [f"`{c['name']}`" for c in cmds if c["file"] in files]
         ks = [b["key"].upper() for b in reg["binds"] if b["file"] in files and not b["debug"]] + \
-             [k["key"].upper() for k in reg["keys"] if k["file"] in files and not k["debug"]]
+             [k["key"].upper() for k in reg["keys"] if k["file"] in files and not k["debug"]] + \
+             [f"mode `{m['name']}`" for m in reg["modes"] if m["file"] in files and not m["debug"]]
         parts = []
         if vs:
             parts.append("variables " + ", ".join(vs))

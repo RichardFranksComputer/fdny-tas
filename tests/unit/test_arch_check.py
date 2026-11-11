@@ -160,6 +160,18 @@ class ArchCheck(unittest.TestCase):
         self.write("features/probe/probe.cpp", FEATURE.format(body="bool k() { return GetAsyncKeyState('Q'); }"))
         self.assertEqual(self.rules(), (1, ["R9"]))
 
+    def test_r9_reading_the_keyboard_is_a_binds_action(self):
+        # Declared for the sheet, but still read directly: a control must be a binds action.
+        self.write("features/probe/probe.cpp", FEATURE.format(
+            body='bool k() { return GetAsyncKeyState(81); }\nvoid d() { binds::DescribeKey("q", "x", "y"); }'))
+        self.assertEqual(self.rules(), (1, ["R9"]))
+
+    def test_r9_observed_key_allowed_with_reason(self):
+        self.write("features/probe/probe.cpp", FEATURE.format(
+            body='bool k() { return GetAsyncKeyState(81); }  // arch-allow: R9 observed, not a control\n'
+                 'void d() { binds::DescribeKey("q", "x", "y"); }'))
+        self.assertEqual(self.rules(), (0, []))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -471,18 +471,20 @@ void ViewerFrame(const state::State& s) {
     }
     if (!profile::Practice()) { EndViewer(true); return; }
     ViewerTargets();
-    static char text[6][textdraw::kLineLen];
+    static char text[7][textdraw::kLineLen];
     spectator::State camera; spectator::ReadState(&camera);
     wsprintfA(text[0], "%s  %s  %ld.%01ld / %ld.%01ld s", g_viewStage, g_playing ? "PLAYING" : "PAUSED",
         static_cast<long>(g_time)/1000, static_cast<long>(g_time)%1000/100,
         static_cast<long>(VisibleDuration())/1000, static_cast<long>(VisibleDuration())%1000/100);
-    wsprintfA(text[1], "%s  Run %d/%d  | F: release / re-hook camera", camera.free ? "FREE CAMERA" : "FOLLOWING", camera.followed+1, g_nRec);
-    lstrcpyA(text[2], "Right-drag: orbit/look | Wheel: zoom | Tab: switch run");
-    lstrcpyA(text[3], "Space: play/pause | Left/Right: seek 5s | Home: restart");
-    lstrcpyA(text[4], "Free: WASD + E/Q | Shift: fast | Ctrl: slow | Esc: Recordings");
-    wsprintfA(text[5], "X: through walls %s (replay traces and boxes)", g_viewXray ? "ON" : "OFF");
-    const char* lines[] = {text[0], text[1], text[2], text[3], text[4], text[5]};
-    textdraw::SetLines(g_viewPanel, lines, 6); textdraw::Show(g_viewPanel, true);
+    wsprintfA(text[1], "%s  Run %d/%d", camera.free ? "FREE CAMERA" : "FOLLOWING", camera.followed+1, g_nRec);
+    // The keys as they are bound now (binds modes "viewer" and "camera").
+    int n = 2;
+    n += binds::HintLines("viewer", text + n, 3);
+    if (camera.free && n < 6) n += binds::HintLines("camera", text + n, 1);
+    wsprintfA(text[n++], "Through walls: %s", g_viewXray ? "ON" : "OFF");
+    const char* lines[7];
+    for (int i = 0; i < n; ++i) lines[i] = text[i];
+    textdraw::SetLines(g_viewPanel, lines, n); textdraw::Show(g_viewPanel, true);
 }
 
 // --- The picker (fd_replay; D51) --------------------------------------------------------
@@ -492,13 +494,14 @@ constexpr int kRows = 9;
 int g_panel = -1;
 bool g_pickerOpen = false, g_pickerPaused = false;
 int g_row[kRows], g_nRows = 0;
-bool g_digitDown[kRows];
+int g_pick[kRows] = {-1, -1, -1, -1, -1, -1, -1, -1, -1};  // binds mode "picker": the row keys
+bool PickerOpen() { return g_pickerOpen; }
 
 void FillPicker() {
     static char lines[kRows + 3][textdraw::kLineLen];
     const char* ptrs[kRows + 3];
     int n = 0;
-    wsprintfA(lines[n++], "Replays on %s: 1-9 show / hide, V plays, fd_replay closes", g_map);
+    wsprintfA(lines[n++], "Replays on %s: the row's number shows / hides it; fd_replay closes", g_map);
     const int best = d::Best(g_files, g_nFiles, g_map), latest = d::Latest(g_files, g_nFiles, g_map);
     for (int r = 0; r < g_nRows; ++r) {
         const d::FileInfo& f = g_files[g_row[r]];
@@ -535,7 +538,6 @@ void OpenPicker() {
     }
     const int best = d::Best(g_files, g_nFiles, g_map);
     if (best >= 0 && !used[best]) g_row[g_nRows == kRows ? kRows - 1 : g_nRows++] = best;
-    for (bool& d : g_digitDown) d = true;  // a key already held doesn't count
     g_pickerPaused = !pause::Active() && pause::Set(true, "replay picker");
     g_pickerOpen = true;
     FillPicker();
@@ -555,10 +557,7 @@ void PickerKeys() {
     if (!g_pickerOpen) return;
     if (!pause::Active() && g_pickerPaused) return ClosePicker();  // the level was left
     for (int r = 0; r < kRows; ++r) {
-        const bool down = (GetAsyncKeyState('1' + r) & 0x8000) != 0;
-        const bool press = down && !g_digitDown[r] && binds::KeysLive();
-        g_digitDown[r] = down;
-        if (!press || r >= g_nRows) continue;
+        if (!binds::Pressed(g_pick[r]) || r >= g_nRows) continue;
         const d::FileInfo& f = g_files[g_row[r]];
         const int i = Loaded(f.name);
         if (i >= 0) Unload(i);
@@ -776,11 +775,8 @@ bool Init() {
     hooks::OnFrameComplete(CompleteViewerExit);
     g_viewReady = spectator::Available();
     if (!browser::Init()) log::Warn("replay: Recordings menu disabled; console playback remains available");
+    // The viewer's keys are the camera service's modes ("viewer", "camera"); the menu page reads its own.
     binds::DescribeKey("esc pgup pgdn", "back / previous page / next page", "in the Recordings menu");
-    binds::DescribeKey("x", "toggle replay traces and ghost boxes through walls (shown in viewer controls)", "in the recordings viewer");
-    binds::DescribeKey("mouse2", "drag to orbit the followed run or look around with the released camera", "in the recordings viewer");
-    binds::DescribeKey("f tab space leftarrow rightarrow home esc pgup pgdn", "viewer: follow/free, switch run, play/pause, seek, restart, exit, zoom", "in the recordings viewer");
-    binds::DescribeKey("w a s d e q shift ctrl", "move the released viewer camera; Shift fast, Ctrl slow", "in the recordings viewer");
     cmd::RegisterCommand("fd_replay_view", "fd_replay_view <stage> <file.jsonl> [second.jsonl]: watch one or two runs in the currently loaded stage with a follow/free camera", CmdView);
     cmd::SetPracticeOnly("fd_replay_view");
     cmd::RegisterCvar(&g_fdReplaySpeed);
@@ -801,7 +797,16 @@ bool Init() {
     cmd::SetPracticeOnly("fd_replay_ghost");
     binds::BindDefault("v", "fd_replay_toggle");  // D37
     cmd::SetLabel("fd_replay_xray", "Replay through walls");
-    binds::DescribeKey("1 2 3 4 5 6 7 8 9", "replay picker: show / hide that run", "while the fd_replay list is open");
+    binds::Mode("picker", "while the fd_replay list is open", PickerOpen, binds::M_NORMAL);
+    g_pick[0] = binds::Action("picker", "run1", "1", "show / hide run 1");
+    g_pick[1] = binds::Action("picker", "run2", "2", "show / hide run 2");
+    g_pick[2] = binds::Action("picker", "run3", "3", "show / hide run 3");
+    g_pick[3] = binds::Action("picker", "run4", "4", "show / hide run 4");
+    g_pick[4] = binds::Action("picker", "run5", "5", "show / hide run 5");
+    g_pick[5] = binds::Action("picker", "run6", "6", "show / hide run 6");
+    g_pick[6] = binds::Action("picker", "run7", "7", "show / hide run 7");
+    g_pick[7] = binds::Action("picker", "run8", "8", "show / hide run 8");
+    g_pick[8] = binds::Action("picker", "run9", "9", "show / hide run 9");
     g_panel = textdraw::Create("replay_picker", textdraw::CENTER, 0, -120, 1, textdraw::C_TEXT);
     textdraw::Show(g_panel, false);
     if (!entities::ObservePlayer(PlayerInit, nullptr)) log::Warn("replay: no player observer; fd_replay_ghost off");

@@ -3,7 +3,7 @@ name: docs_registry
 # This checks that reading against what the Debug build really registered: every variable
 # (default, read-only, saved, practice-only, help), command, default bind and
 # feature key (binds::DescribeKey), both ways. A registration docgen can't see fails here.
-# Also: bindlist shows the feature keys.
+# Also: bindlist names the modes and the keys that are read as they are; bind <mode> lists a mode.
 pre_files:
   - {src: tests/game/data/game_cfg_player.cfg, dst: FDNYFireFighter.cfg}
   - {src: null, dst: FDNYCore.cfg}
@@ -18,8 +18,11 @@ steps:
   - assert_log: {contains: "module window: enabled"}
   - console: "bindlist"
   - wait_s: 0.5
-  - assert_log: {contains: "b: show / hide the warp HUD's boxes (fd_warp_hide) (while fd_hud_warp is 1; not a bind)"}
-  - assert_log: {contains: "w s: free camera: forward / back along the view (while fd_pause is 1; not a bind)"}
+  - assert_log: {contains: "console> modes: camera viewer"}
+  - assert_log: {contains: "esc pgup pgdn: back / previous page / next page (in the Recordings menu; not a bind)"}
+  - console: "bind camera"
+  - assert_log: {contains: "console> camera (while the free camera flies"}
+  - assert_log: {contains: "fly forward along the view"}
 expect:
   no_crash: true
   log_errors: 0

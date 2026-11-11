@@ -133,7 +133,7 @@ unsigned Keys() {
     if (pid != GetCurrentProcessId()) return 0;
     const int keys[] = {'W','A','S','D',VK_UP,VK_LEFT,VK_DOWN,VK_RIGHT,'C',VK_CONTROL,VK_SPACE,VK_SHIFT,VK_LBUTTON,VK_RBUTTON,'1','2','3'};
     unsigned mask = 0;
-    for (unsigned i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) if (GetAsyncKeyState(keys[i]) & 0x8000) mask |= 1u << i;
+    for (unsigned i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) if (GetAsyncKeyState(keys[i]) & 0x8000) mask |= 1u << i;  // arch-allow: R9 observed for the recording, not a control
     return mask;
 }
 void VictimEnd(void* p) {

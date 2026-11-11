@@ -39,16 +39,90 @@ bool KeysLive();
 using MessageFilter = bool (*)(unsigned message, uintptr_t wparam, intptr_t lparam);
 bool OnWindowMessage(MessageFilter filter);
 
-// A modal tool may reserve keys from ordinary binds and free-camera movement.
-// The filter must include its own active-state check. Null releases the capture.
-using KeyCapture = bool (*)(int vk);
-void SetKeyCapture(KeyCapture filter);
+// --- Modes (D65) ---------------------------------------------------------------------------
+// A mode is a set of named actions whose keys act only while it is active: the warp HUD's
+// keys, the checkpoint editor, the recordings viewer, the flying camera. A feature never
+// reads the keyboard itself: it registers its actions with their default keys and asks
+// Pressed / Held each frame. The player rebinds them (`bind <mode> <key> <action>`), only
+// changes are saved, and the reference and the tool's own on-screen hints come from the
+// same table (tools/docgen.py reads the literals; KeyLabel gives the current key).
+//
+// Keys: one or more alternatives, "space ins"; "ctrl+c" needs Ctrl held (a plain "c" in the
+// same mode then doesn't fire with Ctrl). All strings must be static.
+using ModeActive = bool (*)();
+enum ModeKind {
+    M_NORMAL,     // its keys act while it is active, with ordinary binds and other modes
+    M_EXCLUSIVE,  // while active, ordinary binds, the game and other modes get no keys
+                  // (its key messages are consumed); M_SHARED modes stay live with it
+    M_SHARED,     // a helper mode other modes build on (the camera's flight keys)
+};
+// False when the mode table is full (a logged error).
+bool Mode(const char* name, const char* when, ModeActive active, ModeKind kind);
+// An action, by how its key is read. A press or repeat action takes its key from ordinary
+// binds and from modes registered earlier while its mode is active; a held action (a
+// movement key, a modifier) never takes a key from anything. Returns a handle (-1: unknown
+// mode or table full, logged; Pressed / Held on it are false).
+int Action(const char* mode, const char* id, const char* keys, const char* help);        // once per press
+int ActionRepeat(const char* mode, const char* id, const char* keys, const char* help);  // press, then repeats while held
+int ActionHeld(const char* mode, const char* id, const char* keys, const char* help);    // read with Held
+// This frame (since the last frame begin), while the mode is active and keys are live.
+bool Pressed(int action);
+bool Held(int action);
+// The action's current key for a hint line: "Space", "Ctrl+C", "PgUp"; "unbound" if none.
+const char* KeyLabel(int action);
+// A mode's keys as hint lines for its own panel, from the keys bound now:
+// "Space: place | Mouse1: select | Tab: next" (the action's id, _ as a space), wrapped at
+// 76 columns into at most maxLines lines of kHintLen. Returns the lines written.
+constexpr int kHintLen = 160;
+int HintLines(const char* mode, char (*out)[kHintLen], int maxLines);
+// While on, only this mode's actions (and ordinary binds) are live: a tool in the middle of
+// a drag freezes the modes under it.
+void Solo(const char* mode, bool on);
+// A mode that ends on a key press (Escape) calls this as it ends: every key of the active
+// modes still held stays consumed until it is released, so the game never sees the rest of
+// that press.
+void SuppressHeld();
+// True when ordinary binds must not act on vk now: an exclusive mode is active, or an
+// active mode's press action is on it.
 bool KeyCaptured(int vk);
-// Additional independent modal tools retain their active-state filters.
-bool AddKeyCapture(KeyCapture filter);
+// The registry, for the Debug registry dump (tests/game/docs_registry.yaml).
+int ModeCount();
+bool ModeAt(int i, const char** name, const char** when, ModeKind* kind);
+int ActionCount();
+bool ActionAt(int i, const char** mode, const char** id, const char** keys, const char** help, int* how);
+#ifdef FDCORE_UNIT
+// Unit tests: the keyboard, "keys are live", and one frame's poll.
+void SetKeyStateForUnitTest(bool (*down)(int vk));
+void SetLiveForUnitTest(bool live);
+void PollForUnitTest();
+bool MessageForUnitTest(unsigned message, uintptr_t wparam, intptr_t lparam);
+#endif
 // A modal pointer tool takes mouse motion from free-camera look.
 void SetPointerCapture(bool (*filter)());
 bool PointerCaptured();
 bool AddPointerCapture(bool (*filter)());
 
 } // namespace fdcore::binds
+
+// One key's press detection, from polling and (for an exclusive mode) its window messages:
+// a tap shorter than a frame still counts once, a held or repeated key never twice.
+namespace fdcore::binds::input {
+struct Key {
+    bool previous, pending;
+    void Reset(bool down) {
+        previous = down;
+        pending = false;
+    }
+    void Message(bool repeat) {
+        if (!repeat && !previous)
+            pending = true;
+    }
+    void Release() { previous = false; }
+    bool Poll(bool down, bool live) {
+        const bool pressed = live && (pending || (down && !previous));
+        pending = false;
+        previous = down;
+        return pressed;
+    }
+};
+} // namespace fdcore::binds::input
