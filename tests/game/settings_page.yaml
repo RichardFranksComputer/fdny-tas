@@ -1,0 +1,81 @@
+name: settings_page
+# D67: FDNYCore's settings as a page of the game's own Options widgets, opened from a row on
+# the game's Options screen, with real clicks. An Off / On row changes its variable (and the
+# config), a choice row sets a text variable (the profile), a practice-only row is refused
+# under `run` and snaps back, the pages turn, Back returns to Options. The rows come from the
+# registry (labels and types): the mapping of values is settings.cpp's, the widgets menu.cpp's.
+own_session: true
+pre_files:
+  - {src: tests/game/data/game_cfg_player.cfg, dst: FDNYFireFighter.cfg}
+  - {src: null, dst: FDNYCore.cfg}
+  - {src: null, dst: autoexec.cfg}
+steps:
+  - assert_log: {contains: "settings: ready"}
+  - wait_s: 4
+  - click: [320, 240]       # splash: any LMB
+  - wait_s: 3
+  - gclick: [410, 457]      # main: "options"
+  - wait_s: 3
+  - assert_log: {contains: "added to the game's Options screen"}
+  - assert_pipe_stat: {cmd: form, key: entry, equals: 1}
+  - assert_pipe_stat: {cmd: form, key: built, equals: 0}   # built when first opened
+  - gclick: [510, 456]      # options: the FDNYCore row
+  - wait_pipe: {cmd: form, key: open, equals: 1, timeout: 5}
+  - assert_log: {contains: "menu: form built"}
+  - assert_pipe_stat: {cmd: form, key: rows, min: 8}
+  - assert_pipe_stat: {cmd: form, key: page, equals: 0}
+  - screenshot: page1
+  # Watermark (row 4, an Off / On row): its left arrow turns it off, and the config has it
+  - gclick: [318, 237]
+  - wait_s: 1
+  - assert_pipe_contains: {cmd: form, contains: "last=Watermark: Off"}
+  - assert_file: {path: FDNYCore.cfg, contains: 'fd_watermark "0"'}
+  - gclick: [552, 237]
+  - wait_s: 1
+  - assert_pipe_contains: {cmd: form, contains: "last=Watermark: On"}
+  - assert_file: {path: FDNYCore.cfg, absent: "fd_watermark"}
+  # Profile (row 3, a choice row over a text variable): practice -> run
+  - gclick: [552, 197]
+  - wait_s: 1
+  - assert_pipe_contains: {cmd: form, contains: "last=Profile: run"}
+  - assert_log: {contains: "profile: run"}
+  # Player HUD (row 8) is practice-only: refused under run, the row stays Off
+  - gclick: [552, 397]
+  - wait_s: 1
+  - assert_pipe_contains: {cmd: form, contains: "last=Player HUD: Off"}
+  - assert_log: {contains: "profile: refused fd_hud_player"}
+  - gclick: [318, 197]      # back to practice
+  - wait_s: 1
+  - assert_pipe_contains: {cmd: form, contains: "last=Profile: practice"}
+  - gclick: [552, 397]
+  - wait_s: 1
+  - assert_pipe_contains: {cmd: form, contains: "last=Player HUD: On"}
+  # A slider (row 1, Panel text size 7-16): a click at the right end of its track
+  - gclick: [556, 117]
+  - wait_s: 1
+  - assert_pipe_contains: {cmd: form, contains: "last=Panel text size: 16"}
+  # the pages turn, and Back returns to the game's Options screen
+  - gclick: [575, 456]
+  - wait_pipe: {cmd: form, key: page, equals: 1, timeout: 3}
+  - screenshot: page2
+  - gclick: [465, 456]
+  - wait_pipe: {cmd: form, key: page, equals: 0, timeout: 3}
+  - gclick: [97, 457]
+  - wait_pipe: {cmd: form, key: open, equals: 0, timeout: 3}
+  - screenshot: options
+  # The same Options screen is reached from the briefing, which is the screen Escape shows in
+  # a level (docs/game-research.md): the row is there too.
+  - gclick: [97, 457]       # options: back to the main menu
+  - wait_s: 2
+  - gclick: [97, 457]       # main: "game"
+  - wait_s: 3
+  - gclick: [195, 165]      # career: Hotrod Stein (Training) -> its briefing
+  - wait_s: 3
+  - gclick: [235, 457]      # briefing: "options"
+  - wait_s: 3
+  - gclick: [510, 456]      # options: the FDNYCore row
+  - wait_pipe: {cmd: form, key: open, equals: 1, timeout: 5}
+  - screenshot: from_briefing
+expect:
+  no_crash: true
+  log_errors: 0

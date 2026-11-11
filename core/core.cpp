@@ -16,6 +16,7 @@
 #include "log.h"
 #include "modules.h"
 #include "notify.h"
+#include "settings.h"
 #include "patches.h"
 #include "pause.h"
 #include "spectator.h"
@@ -137,6 +138,7 @@ DWORD WINAPI InitThread(LPVOID) {
         fdcore::profile::Init();   // gates read cmd::IsPracticeOnly at use time
     }
     fdcore::modules::StartAll(services);
+    if (services) fdcore::settings::Init();  // after the modules: it reads their variables and labels
 #ifdef FDCORE_DEBUG
     fdcore::testpipe::Start();
 #endif

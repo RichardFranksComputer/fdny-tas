@@ -8,6 +8,9 @@ releases: `CHANGES.md` in the repository.
 and every build). Downloads are the GitHub releases (Releases, on the right of the repository
 page); each carries the quick reference of its own build in its zip, with its SHA-256.
 
+**In the game:** most settings are also on the game's own Options screen: Options, then
+FDNYCore (from the main menu, or after Escape in a level). Everything is in the console.
+
 ## Keys
 
 Keys act only while the game has focus and the console is closed.

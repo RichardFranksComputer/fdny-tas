@@ -56,7 +56,9 @@ them, and don't work around them; if a rule blocks a good design, stop and ask t
     (the reference reads them, D41); give every variable its type and range (`cmd::T_BOOL`,
     `T_INT` / `T_FLOAT` with min and max) and read it with `cmd::Bool` / `Int` / `Float`;
     numbers to and from text go through `core/num.h` (D63); an on/off variable gets a
-    `cmd::SetLabel`, and a command a key runs confirms with `notify::Show` (D64); a feature's own keys (anything beyond one default bind) are a
+    `cmd::SetLabel`, and a command a key runs confirms with `notify::Show` (D64); a labelled
+    variable is also a row of the settings page (D67), with `cmd::SetOptions` to name a
+    number's values; a feature's own keys (anything beyond one default bind) are a
     `binds::Mode` with `binds::Action` / `ActionRepeat` / `ActionHeld`, read with
     `binds::Pressed` / `Held`, and its panel's hints come from `binds::HintLines` (D65); never
     `GetAsyncKeyState`;
