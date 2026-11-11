@@ -98,7 +98,7 @@ const Id kNeeds[] = {Id::genesis_camera_set_attributes};
 bool Init() {
     cmd::RegisterCvar(&g_fdFov);
     cmd::RegisterCvar(&g_fdFovFactor);
-    cmd::RegisterCommand("fd_fovinfo", "show the game's FOV and the camera's current FOV", CmdFovInfo);
+    cmd::RegisterCommand("fd_fov_info", "show the game's FOV and the camera's current FOV", CmdFovInfo);
     camera::SetFovFilter(Wanted);
     camera::OnSet(AfterSet);
     log::Info("fov: ready (filter on the camera service)");

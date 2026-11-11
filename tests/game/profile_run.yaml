@@ -17,21 +17,21 @@ record: true
 steps:
   # practice (default): the practice setting is on and listed
   - assert_pipe_contains: {cmd: watermark, contains: "practice"}
-  - assert_pipe_contains: {cmd: watermark, contains: "hud_player 1"}
+  - assert_pipe_contains: {cmd: watermark, contains: "| hud 1"}
   - assert_pipe_contains: {cmd: watermark, contains: "asi: FDNYCoreZ"}
   - screenshot: watermark_practice
   # switch to run: practice-only settings go back to default
   - console: "fd_profile run"
   - assert_log: {contains: "profile: run"}
-  - console: "fd_hud_player"
-  - assert_log: {contains: 'console> fd_hud_player is "0"'}
+  - console: "fd_hud"
+  - assert_log: {contains: 'console> fd_hud is "0"'}
   - assert_pipe_contains: {cmd: watermark, contains: "RUN"}
-  - assert_pipe_contains: {cmd: watermark, absent: "hud_player"}
+  - assert_pipe_contains: {cmd: watermark, absent: "| hud "}
   # refused in run: variables (console message, value unchanged) and commands
-  - console: "fd_hud_player 1"
-  - assert_log: {contains: "console> fd_hud_player is practice-only (fd_profile is run)"}
-  - console: "fd_hud_warp 1"
-  - assert_log: {contains: "console> fd_hud_warp is practice-only (fd_profile is run)"}
+  - console: "fd_hud 1"
+  - assert_log: {contains: "console> fd_hud is practice-only (fd_profile is run)"}
+  - console: "fd_warp 1"
+  - assert_log: {contains: "console> fd_warp is practice-only (fd_profile is run)"}
   - assert_pipe_stat: {cmd: glitch, key: installed, equals: 0}
   - console: "fd_watermark 0"
   - assert_log: {contains: "console> fd_watermark is practice-only (fd_profile is run)"}
@@ -45,14 +45,14 @@ steps:
   - restart: {wait_s: 6}
   - run_setup: load_training
   - assert_pipe_contains: {cmd: watermark, contains: "RUN"}
-  - assert_pipe_contains: {cmd: watermark, absent: "hud_player"}
+  - assert_pipe_contains: {cmd: watermark, absent: "| hud "}
   - assert_pipe_contains: {cmd: watermark, contains: "fov 95"}
   # back to practice: the remembered value returns
   - console: "fd_profile practice"
   - assert_log: {contains: "profile: practice"}
-  - console: "fd_hud_player"
-  - assert_log: {contains: 'console> fd_hud_player is "1"'}
-  - assert_pipe_contains: {cmd: watermark, contains: "hud_player 1"}
+  - console: "fd_hud"
+  - assert_log: {contains: 'console> fd_hud is "1"'}
+  - assert_pipe_contains: {cmd: watermark, contains: "| hud 1"}
   - console: "fd_watermark 0"
   - assert_pipe_contains: {cmd: watermark, contains: "practice"}
 expect:

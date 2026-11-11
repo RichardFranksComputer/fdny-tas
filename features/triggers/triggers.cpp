@@ -59,11 +59,11 @@ CRITICAL_SECTION g_lock;  // the pipe thread reads the counts
 
 using cmd::Bool;
 cmd::Cvar g_fdTriggers = {"fd_triggers", "0",
-                          "1 = draw trigger boxes: blue rescue zone, red closed exit, green open exit (key T); 0 = off", false,
+                          "1 = draw trigger boxes: blue rescue zone, red closed exit, green open exit; 0 = off", false,
                           true, nullptr, {0}, cmd::T_BOOL};
 cmd::Cvar g_fdTriggersAll = {"fd_triggers_all", "0", "1 = also draw every other trigger, grey (zones, hints, doors); 0 = only rescue zones and exits",
                              false, true, nullptr, {0}, cmd::T_BOOL};
-cmd::Cvar g_fdTriggersXray = {"fd_triggers_xray", "0", "1 = trigger boxes show through walls; 0 = walls hide them (T's second press sets it)", false, true, nullptr,
+cmd::Cvar g_fdTriggersXray = {"fd_triggers_xray", "0", "1 = trigger boxes show through walls; 0 = walls hide them (the cycle's second step sets it)", false, true, nullptr,
                               {0}, cmd::T_BOOL};
 
 template <typename T>
@@ -264,12 +264,12 @@ bool Init() {
     cmd::RegisterCvar(&g_fdTriggers);
     cmd::RegisterCvar(&g_fdTriggersAll);
     cmd::RegisterCvar(&g_fdTriggersXray);
-    cmd::RegisterCommand("fd_triggers_toggle", "cycle the trigger boxes: off -> on -> on + x-ray -> off (key T)", CmdToggle);
+    cmd::RegisterCommand("fd_triggers_cycle", "cycle the trigger boxes: off -> on -> on + x-ray -> off", CmdToggle);
     cmd::RegisterCommand("fd_triggers_list", "list the loaded map's triggers: class, open/shut, name, box", CmdList);
     cmd::SetPracticeOnly("fd_triggers");
-    cmd::SetPracticeOnly("fd_triggers_toggle");
+    cmd::SetPracticeOnly("fd_triggers_cycle");
     cmd::SetPracticeOnly("fd_triggers_list");
-    binds::BindDefault("t", "fd_triggers_toggle");
+    binds::BindDefault("t", "fd_triggers_cycle");
     binds::BindDefault("y", "toggle fd_triggers_all");  // D37; x-ray is T's second press
     cmd::SetLabel("fd_triggers", "Trigger boxes");
     cmd::SetLabel("fd_triggers_all", "All triggers");

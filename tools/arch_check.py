@@ -273,6 +273,27 @@ def main():
                 fail("R12 console-voice", f, raw.count("\n", 0, m.start()) + 1,
                      f'console line "{s[:40]}" should start with the feature\'s tag ("name: ...") or "usage: "')
 
+    # R13: one grammar for names (D68): fd_<noun>[_<what>], lower case, words joined by "_".
+    # On / off is a variable, toggled with the `toggle` builtin: no fd_*_toggle command. A
+    # feature's names all start with one of at most two nouns (fd_spawns*, fd_rescuebot).
+    for g in sorted({group(f) for f in feat_files}):
+        names = []
+        for f in (x for x in feat_files if group(x) == g):
+            raw = open(f, encoding="utf-8-sig").read()
+            names += [(f, raw.count("\n", 0, m.start()) + 1, m.group(1)) for m in REGISTERED.finditer(raw)]
+        nouns = set()
+        for f, ln, n in names:
+            if n.startswith("fd_dbg_"):
+                continue  # Debug test hooks
+            if not re.fullmatch(r"fd_[a-z0-9]+(_[a-z0-9]+)*", n):
+                fail("R13 name-grammar", f, ln, f'"{n}": names are fd_<noun>[_<what>], lower case')
+            if n.endswith("_toggle"):
+                fail("R13 name-grammar", f, ln, f'"{n}": on / off is a variable, toggled with `toggle <variable>`')
+            nouns.add(n.split("_")[1])
+        if len(nouns) > 2:
+            fail("R13 name-grammar", FEAT, 0, f'feature "{g}" registers names under {len(nouns)} nouns '
+                 f'({", ".join(sorted(nouns))}): one feature, one noun (two at most)')
+
     # Not here, enforced by the compiler instead (build.ps1 flags, -Werror):
     #   R6 Debug-only testpipe::Register: declared only in Debug, a stray call breaks Release.
     #   R7 no static constructors / exit-time destructors (no CRT runs them):

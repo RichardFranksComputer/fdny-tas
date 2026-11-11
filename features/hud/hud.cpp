@@ -21,12 +21,12 @@ namespace {
 using addr::Id;
 int g_panel = -1;  // in-frame text panel (textdraw)
 
-volatile long g_on = 0;  // fd_hud_player
+volatile long g_on = 0;  // fd_hud
 void OnToggle(cmd::Cvar& v) {
     InterlockedExchange(&g_on, cmd::Bool(v));
     textdraw::Show(g_panel, g_on != 0);
 }
-cmd::Cvar g_fdHudPlayer = {"fd_hud_player", "0",
+cmd::Cvar g_fdHudPlayer = {"fd_hud", "0",
                            "1 = show player info in-game: position, velocity, XY speed, stance (standing / crouched / bugged); 0 = off",
                            false, true, OnToggle, {0}, cmd::T_BOOL};
 
@@ -107,14 +107,14 @@ bool Init() {
     textdraw::Show(g_panel, false);
     InitializeCriticalSection(&g_lock);
     cmd::RegisterCvar(&g_fdHudPlayer);
-    cmd::SetPracticeOnly("fd_hud_player");
-    binds::BindDefault("h", "toggle fd_hud_player");  // D37
-    cmd::SetLabel("fd_hud_player", "Player HUD");
+    cmd::SetPracticeOnly("fd_hud");
+    binds::BindDefault("h", "toggle fd_hud");  // D37
+    cmd::SetLabel("fd_hud", "Player HUD");
     hooks::OnFrameEnd(Draw);
 #ifdef FDCORE_DEBUG
     testpipe::Register("hud", [](const char*, char* resp, int cap) { LastDrawn(resp, cap); });
 #endif
-    log::Info("hud: ready (fd_hud_player)");
+    log::Info("hud: ready (fd_hud)");
     return true;
 }
 

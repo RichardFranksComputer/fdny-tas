@@ -28,7 +28,7 @@ steps:
   - screenshot: training_off
   - key: {key: t, hold: 0.1}
   - wait_s: 1
-  - assert_log: {contains: "bind: t -> fd_triggers_toggle"}
+  - assert_log: {contains: "bind: t -> fd_triggers_cycle"}
   - assert_pipe_stat: {cmd: triggers, key: boxes, equals: 5}
   - assert_pipe_stat: {cmd: triggers, key: polys, min: 1}
   - screenshot: training_on

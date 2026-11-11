@@ -20,16 +20,16 @@ your changes are saved (FDNYCore.cfg). **Practice**: refused while `fd_profile` 
 
 | Key | Does | Runs | Practice |
 |---|---|---|---|
-| **H** | on / off: show player info in-game: position, velocity, XY speed, stance (standing / crouched / bugged); 0 = off | `toggle fd_hud_player` | yes |
-| **G** | on / off: warp HUD: what you touch and whether it can warp you (installs hooks); 0 = off (removes them) | `toggle fd_hud_warp` | yes |
+| **H** | on / off: show player info in-game: position, velocity, XY speed, stance (standing / crouched / bugged); 0 = off | `toggle fd_hud` | yes |
+| **G** | on / off: warp HUD: what you touch and whether it can warp you (installs hooks); 0 = off (removes them) | `toggle fd_warp` | yes |
 | **K** | save the player's position + view (practice; this map only) | `fd_tp_save` | yes |
 | **L** | teleport to the fd_tp_save location (same map only) | `fd_tp_load` | yes |
-| **T** | cycle the trigger boxes: off -> on -> on + x-ray -> off (key T) | `fd_triggers_toggle` | yes |
+| **T** | cycle the trigger boxes: off -> on -> on + x-ray -> off | `fd_triggers_cycle` | yes |
 | **Y** | on / off: also draw every other trigger, grey (zones, hints, doors); 0 = only rescue zones and exits | `toggle fd_triggers_all` |  |
 | **J** | on / off: fire-juggling arrow: where a carried survivor lands if you pass out now; 0 = off | `toggle fd_juggle` | yes |
-| **P** | pause / resume with the free camera (fd_pause; default key P) | `fd_pause_toggle` | yes |
-| **V** | play / pause this map's recordings (with none loaded, loads its best finished and latest run first); from the end, start again (key V) | `fd_replay_toggle` | yes |
-| **N** | on / off: checkpoint names and elapsed level time (N toggles); 0 = off | `toggle fd_checkpoints` | yes |
+| **P** | on / off: freeze the game and fly a free camera (0 = resume, view back to the player) | `toggle fd_pause` | yes |
+| **V** | play / pause this map's recordings (with none loaded, loads its best finished and latest run first); from the end, start again | `fd_replay_play` | yes |
+| **N** | on / off: checkpoint names and elapsed level time; 0 = off | `toggle fd_checkpoints` | yes |
 
 **Mode keys**: they act only in their mode. Rebind with `bind <mode> <key> <action>`, remove
 with `unbind <mode> <key>`; `bind <mode>` lists a mode's actions in the game. A key can be
@@ -95,7 +95,7 @@ with `unbind <mode> <key>`; `bind <mode>` lists a mode's actions in the game. A 
 | **Z** | `freeze` | freeze / unfreeze the boxes (fd_warp_freeze) |
 | **X** | `clear` | clear the history and the last warp (fd_warp_clear) |
 
-`picker`: while the fd_replay list is open
+`picker`: while the fd_replay_pick list is open
 
 | Key | Action | Does |
 |---|---|---|
@@ -114,30 +114,30 @@ with `unbind <mode> <key>`; `bind <mode>` lists a mode's actions in the game. A 
 | Key | Does | When |
 |---|---|---|
 | **O** | free the mouse cursor from the game window (held) | while fd_window_cursor is 1 |
-| **MOUSE** | free camera: look (fd_freecam_sens) | while fd_pause is 1 |
+| **MOUSE** | free camera: look (fd_pause_sens) | while fd_pause is 1 |
 | **W** **A** **S** **D** **UPARROW** **LEFTARROW** **DOWNARROW** **RIGHTARROW** **C** **CTRL** **SPACE** **SHIFT** **MOUSE1** **MOUSE2** **1** **2** **3** | sample raw virtual keys into JSONL (no input changes) | while fd_record is 1 and the game has focus |
 | **ESC** **PGUP** **PGDN** | back / previous page / next page | in the Recordings menu |
 
 ## Features
 
-- **Console**: FDNYCore's commands and variables, typed in the game's console (` key); changed settings are saved to FDNYCore.cfg, your own lines go in autoexec.cfg. (variables `fd_version`, `fd_hooks_frame`, `fd_log_commands`; commands `exec`, `echo`, `toggle`, `cvarlist`, `cmdlist`, `fd_writeconfig`)
+- **Console**: FDNYCore's commands and variables, typed in the game's console (` key); changed settings are saved to FDNYCore.cfg, your own lines go in autoexec.cfg. (variables `fd_version`, `fd_hooks_frame`, `fd_log_commands`; commands `exec`, `echo`, `toggle`, `cvarlist`, `cmdlist`, `fd_config_save`)
 - **Keys**: bind any key to a console line (bind / unbind / bindlist); keys act only inside a level while the game has focus and the console is closed; menu typing never toggles gameplay bindings. (commands `bind`, `unbind`, `unbindall`, `bindlist`)
 - **Profiles**: practice (everything allowed) or run (practice-only settings refused, watermark always on). (variables `fd_profile`, `fd_watermark`)
-- **On-screen text**: size and opacity of every FDNYCore text panel. (variables `fd_text_size`, `fd_text_alpha`, `fd_text_fg_alpha`; commands `fd_textdraw`)
+- **On-screen text**: size and opacity of every FDNYCore text panel. (variables `fd_text_size`, `fd_text_alpha`, `fd_text_fg_alpha`; commands `fd_text_info`)
 - **Startup**: optional startup changes. (variables `fd_skip_intro`)
 - **Flying camera**: the keys of the free camera and of the recordings viewer. (keys mode `camera`, mode `viewer`)
-- **Field of view**: the camera FOV: the classic FOV fix by default, or a fixed angle, Hor+ on wide screens. (variables `fd_fov`, `fd_fov_factor`; commands `fd_fovinfo`)
+- **Field of view**: the camera FOV: the classic FOV fix by default, or a fixed angle, Hor+ on wide screens. (variables `fd_fov`, `fd_fov_factor`; commands `fd_fov_info`)
 - **Window**: keeps the mouse cursor in the game window only while the game is focused (the alt-tab fix). (variables `fd_window_cursor`; keys O)
-- **Speedrun options**: fixed victim spawns and the RescueBot switch (shown on the watermark). (variables `fd_static_spawns`, `fd_rescuebot`; commands `fd_spawns`)
-- **Player HUD**: position, velocity, XY speed and stance on screen. (variables `fd_hud_player`; keys H)
-- **Warp HUD**: shows what the player touches and whether it can warp them (the stale-impact warp), with a history of boxes. (variables `fd_hud_warp`; commands `fd_warp_hide`, `fd_warp_freeze`, `fd_warp_clear`; keys G, mode `warp`)
+- **Speedrun options**: fixed victim spawns and the RescueBot switch (shown on the watermark). (variables `fd_spawns`, `fd_rescuebot`; commands `fd_spawns_pin`)
+- **Player HUD**: position, velocity, XY speed and stance on screen. (variables `fd_hud`; keys H)
+- **Warp HUD**: shows what the player touches and whether it can warp them (the stale-impact warp), with a history of boxes. (variables `fd_warp`; commands `fd_warp_hide`, `fd_warp_freeze`, `fd_warp_clear`; keys G, mode `warp`)
 - **Teleporter**: save a position and view, and teleport back to it (same map). (commands `fd_tp_save`, `fd_tp_load`; keys K, L)
-- **Trigger boxes**: draws the map's rescue zones and exits (and optionally every trigger) as boxes. (variables `fd_triggers`, `fd_triggers_all`, `fd_triggers_xray`; commands `fd_triggers_toggle`, `fd_triggers_list`; keys T, Y)
+- **Trigger boxes**: draws the map's rescue zones and exits (and optionally every trigger) as boxes. (variables `fd_triggers`, `fd_triggers_all`, `fd_triggers_xray`; commands `fd_triggers_cycle`, `fd_triggers_list`; keys T, Y)
 - **Fire juggling**: an arrow showing where a carried survivor lands if you pass out now. (variables `fd_juggle`; keys J)
-- **Pause and free camera**: freeze the game and fly a camera around; the view returns to the player on resume. (variables `fd_pause`, `fd_freecam_speed`, `fd_freecam_sens`; commands `fd_pause_toggle`; keys P, MOUSE)
+- **Pause and free camera**: freeze the game and fly a camera around; the view returns to the player on resume. (variables `fd_pause`, `fd_pause_speed`, `fd_pause_sens`; keys P, MOUSE)
 - **Recorder**: automatically save player and victim trajectories as fdny-trajectory-v1 JSONL files in Recordings beside FDNYCore.asi. (variables `fd_record`, `fd_record_victims`, `fd_record_directory`; keys W A S D UPARROW LEFTARROW DOWNARROW RIGHTARROW C CTRL SPACE SHIFT MOUSE1 MOUSE2 1 2 3)
-- **Replay**: Recordings on the briefing browses, favorites, renames and compares runs with a follow/free camera; V plays this map's best and latest, fd_replay picks runs, fd_replay_ghost races each spawn. (variables `fd_replay_speed`, `fd_replay_xray`, `fd_replay_ghost`; commands `fd_replay_view`, `fd_replay_load`, `fd_replay_clear`, `fd_replay_toggle`, `fd_replay_list`, `fd_replay`; keys V, ESC PGUP PGDN, mode `picker`)
-- **Practice checkpoints**: place and edit native checkpoint boxes, save per mission and show elapsed level time on contact. (variables `fd_checkpoints_edit`, `fd_checkpoints_distance`, `fd_checkpoints_step`, `fd_checkpoints`; commands `fd_checkpoints_name`, `fd_checkpoints_save`, `fd_checkpoints_status`; keys N, mode `editor`)
+- **Replay**: Recordings on the briefing browses, favorites, renames and compares runs with a follow/free camera; V plays this map's best and latest, fd_replay_pick picks runs, fd_replay_ghost races each spawn. (variables `fd_replay_speed`, `fd_replay_xray`, `fd_replay_ghost`; commands `fd_replay_view`, `fd_replay_load`, `fd_replay_clear`, `fd_replay_play`, `fd_replay_list`, `fd_replay_pick`; keys V, ESC PGUP PGDN, mode `picker`)
+- **Practice checkpoints**: place and edit native checkpoint boxes, save per mission and show elapsed level time on contact. (variables `fd_checkpoints_edit`, `fd_checkpoints_distance`, `fd_checkpoints_step`, `fd_checkpoints`; commands `fd_checkpoints_name`, `fd_checkpoints_save`, `fd_checkpoints_info`; keys N, mode `editor`)
 
 ## Variables
 
@@ -158,17 +158,17 @@ when changed. **Practice**: refused while `fd_profile` is `run`.
 | `fd_fov` | `0` | horizontal FOV in degrees at 4:3 (up to 170), Hor+ for wider screens; 0 = classic FOV fix (1.43 * aspect/(4/3) * fd_fov_factor); -1 = game default | yes |  | Field of view |
 | `fd_fov_factor` | `1.4` | FOV multiplier used when fd_fov is 0 (classic FOV fix), 0.1-5: 1.4 = 90 degrees at 4:3 | yes |  | Field of view |
 | `fd_window_cursor` | `1` | 1 = keep the cursor in the game window only while it is focused (hold O to free it); 0 = game default (warp to 200,200 every frame, even when alt-tabbed) | yes |  | Window |
-| `fd_static_spawns` | `0` | 1 = victims spawn at fixed spots (fd_spawns; default spot 0 for every victim), 0 = the game's random pick | yes |  | Speedrun options |
+| `fd_spawns` | `0` | 1 = victims spawn at fixed spots (fd_spawns_pin; default spot 0 for every victim), 0 = the game's random pick | yes |  | Speedrun options |
 | `fd_rescuebot` | `1` | 0 = the AI RescueBot never claims victims and its chatter is muted (all difficulties); 1 = as the game ships (applies fully from the next level load) | yes |  | Speedrun options |
-| `fd_hud_player` | `0` | 1 = show player info in-game: position, velocity, XY speed, stance (standing / crouched / bugged); 0 = off | yes | yes | Player HUD |
-| `fd_hud_warp` | `0` | 1 = warp HUD: what you touch and whether it can warp you (installs hooks); 0 = off (removes them) | yes | yes | Warp HUD |
-| `fd_triggers` | `0` | 1 = draw trigger boxes: blue rescue zone, red closed exit, green open exit (key T); 0 = off | yes | yes | Trigger boxes |
+| `fd_hud` | `0` | 1 = show player info in-game: position, velocity, XY speed, stance (standing / crouched / bugged); 0 = off | yes | yes | Player HUD |
+| `fd_warp` | `0` | 1 = warp HUD: what you touch and whether it can warp you (installs hooks); 0 = off (removes them) | yes | yes | Warp HUD |
+| `fd_triggers` | `0` | 1 = draw trigger boxes: blue rescue zone, red closed exit, green open exit; 0 = off | yes | yes | Trigger boxes |
 | `fd_triggers_all` | `0` | 1 = also draw every other trigger, grey (zones, hints, doors); 0 = only rescue zones and exits | yes |  | Trigger boxes |
-| `fd_triggers_xray` | `0` | 1 = trigger boxes show through walls; 0 = walls hide them (T's second press sets it) | yes |  | Trigger boxes |
+| `fd_triggers_xray` | `0` | 1 = trigger boxes show through walls; 0 = walls hide them (the cycle's second step sets it) | yes |  | Trigger boxes |
 | `fd_juggle` | `0` | 1 = fire-juggling arrow: where a carried survivor lands if you pass out now; 0 = off | yes | yes | Fire juggling |
 | `fd_pause` | `0` | 1 = freeze the game and fly a free camera (0 = resume, view back to the player) |  | yes | Pause and free camera |
-| `fd_freecam_speed` | `400` | free camera speed in units/s, 1-10000 (400 = the run speed); Shift x4, Ctrl x0.25 | yes |  | Pause and free camera |
-| `fd_freecam_sens` | `0.075` | free camera mouse look in degrees per mouse count, 0.001-10; higher = faster | yes |  | Pause and free camera |
+| `fd_pause_speed` | `400` | free camera speed in units/s, 1-10000 (400 = the run speed); Shift x4, Ctrl x0.25 | yes |  | Pause and free camera |
+| `fd_pause_sens` | `0.075` | free camera mouse look in degrees per mouse count, 0.001-10; higher = faster | yes |  | Pause and free camera |
 | `fd_record` | `0` | 1 = automatically record each stage attempt to JSONL; 0 = off | yes |  | Recorder |
 | `fd_record_victims` | `1` | 1 = include victim tracks in new recordings; 0 = player only | yes |  | Recorder |
 | `fd_record_directory` | `Recordings` | output directory, absolute or relative to FDNYCore.asi; changes start a new recording | yes |  | Recorder |
@@ -178,7 +178,7 @@ when changed. **Practice**: refused while `fd_profile` is `run`.
 | `fd_checkpoints_edit` | `0` | 1 = pause and edit checkpoint boxes in the free camera; autosaves Checkpoints/<mission>.txt; 0 = exit; restart mission to apply |  | yes | Practice checkpoints |
 | `fd_checkpoints_distance` | `160` | new/pasted checkpoint distance ahead of the camera in units (32-2000) |  |  | Practice checkpoints |
 | `fd_checkpoints_step` | `8` | checkpoint move/resize step in units (1-256); hold Ctrl for 1 unit |  |  | Practice checkpoints |
-| `fd_checkpoints` | `0` | 1 = checkpoint names and elapsed level time (N toggles); 0 = off | yes | yes | Practice checkpoints |
+| `fd_checkpoints` | `0` | 1 = checkpoint names and elapsed level time; 0 = off | yes | yes | Practice checkpoints |
 
 ## Commands
 
@@ -189,28 +189,27 @@ when changed. **Practice**: refused while `fd_profile` is `run`.
 | `toggle` | toggle <variable>: switch a 0/1 variable (for key binds) |  | Console |
 | `cvarlist` | list every FDNYCore variable with its value and help |  | Console |
 | `cmdlist` | list every FDNYCore command with its help |  | Console |
-| `fd_writeconfig` | write FDNYCore.cfg now (it is also written on every change) |  | Console |
+| `fd_config_save` | write FDNYCore.cfg now (it is also written on every change) |  | Console |
 | `bind` | bind <key> "<command>": run a console line when the key is pressed; bind <key> shows it. bind <mode> <key> <action>: a mode's key (bind <mode> lists its actions, bind <mode> default restores them; keys also as ctrl+c). Keys: a-z, 0-9, f1-f12, mouse1-mouse5, space, tab, enter, escape, shift, ctrl, alt, uparrow (and the other arrows), kp_0-kp_9, ins, del, home, end, pgup, pgdn |  | Keys |
 | `unbind` | unbind <key>: remove the key's bind (a default key stays unbound); unbind <mode> <key>: remove a mode's key |  | Keys |
 | `unbindall` | remove every ordinary bind, the default keys too (mode keys stay) |  | Keys |
 | `bindlist` | list the binds, the keys that are read as they are, and the modes (bind <mode> lists a mode's keys) |  | Keys |
-| `fd_textdraw` | list the on-screen text panels: shown, size, position, translucent/opaque |  | On-screen text |
-| `fd_fovinfo` | show the game's FOV and the camera's current FOV |  | Field of view |
-| `fd_spawns` | fd_spawns <map> [spot ...]: pin victim spawn spots, one per victim in spawn order (0 = editor origin, 1..N = alt spots, -1 = random; 'default' resets; the map alone shows them; used while fd_static_spawns is 1) |  | Speedrun options |
+| `fd_text_info` | list the on-screen text panels: shown, size, position, translucent/opaque |  | On-screen text |
+| `fd_fov_info` | show the game's FOV and the camera's current FOV |  | Field of view |
+| `fd_spawns_pin` | fd_spawns_pin <map> [spot ...]: pin victim spawn spots, one per victim in spawn order (0 = editor origin, 1..N = alt spots, -1 = random; 'default' resets; the map alone shows them; used while fd_spawns is 1) |  | Speedrun options |
 | `fd_warp_hide` | show / hide the warp HUD's boxes | yes | Warp HUD |
 | `fd_warp_freeze` | freeze / unfreeze the warp HUD's boxes; logging continues | yes | Warp HUD |
 | `fd_warp_clear` | clear the warp HUD's history and last warp | yes | Warp HUD |
 | `fd_tp_save` | save the player's position + view (practice; this map only) | yes | Teleporter |
 | `fd_tp_load` | teleport to the fd_tp_save location (same map only) | yes | Teleporter |
-| `fd_triggers_toggle` | cycle the trigger boxes: off -> on -> on + x-ray -> off (key T) | yes | Trigger boxes |
+| `fd_triggers_cycle` | cycle the trigger boxes: off -> on -> on + x-ray -> off | yes | Trigger boxes |
 | `fd_triggers_list` | list the loaded map's triggers: class, open/shut, name, box | yes | Trigger boxes |
-| `fd_pause_toggle` | pause / resume with the free camera (fd_pause; default key P) | yes | Pause and free camera |
 | `fd_replay_view` | fd_replay_view <stage> <file.jsonl> [second.jsonl]: watch one or two runs in the currently loaded stage with a follow/free camera | yes | Replay |
 | `fd_replay_load` | fd_replay_load <file.jsonl>: load a recording (the recordings folder, or a full path); several on one map are drawn together | yes | Replay |
 | `fd_replay_clear` | unload every recording |  | Replay |
-| `fd_replay_toggle` | play / pause this map's recordings (with none loaded, loads its best finished and latest run first); from the end, start again (key V) | yes | Replay |
+| `fd_replay_play` | play / pause this map's recordings (with none loaded, loads its best finished and latest run first); from the end, start again | yes | Replay |
 | `fd_replay_list` | list the .jsonl recordings in the recordings folder |  | Replay |
-| `fd_replay` | fd_replay: pick this map's runs from a list (pauses); fd_replay <text>: load the first recording whose name contains text | yes | Replay |
+| `fd_replay_pick` | fd_replay_pick: pick this map's runs from a list (pauses); fd_replay_pick <text>: load the first recording whose name contains text | yes | Replay |
 | `fd_checkpoints_name` | fd_checkpoints_name "Display text": rename the selected box in the checkpoint editor | yes | Practice checkpoints |
 | `fd_checkpoints_save` | retry saving the checkpoint draft; autosaved after edits, restart mission to apply | yes | Practice checkpoints |
-| `fd_checkpoints_status` | show timestamp enable state and number of loaded native checkpoints | yes | Practice checkpoints |
+| `fd_checkpoints_info` | show timestamp enable state and number of loaded native checkpoints | yes | Practice checkpoints |

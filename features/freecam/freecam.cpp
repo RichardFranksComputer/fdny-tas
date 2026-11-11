@@ -8,8 +8,8 @@
 // The camera is the core `spectator` service's free mode (spectator::StartFree; one camera
 // implementation with the recordings viewer): it starts at the game's last view and flies
 // with W/S along the view (pitch included), A/D strafe, E/Q straight up/down at
-// fd_freecam_speed (400 u/s, the run speed; one speed in every direction), Shift x4, Ctrl
-// x0.25; the mouse looks at fd_freecam_sens degrees per count (0.075; owner: 0.15 was too
+// fd_pause_speed (400 u/s, the run speed; one speed in every direction), Shift x4, Ctrl
+// x0.25; the mouse looks at fd_pause_sens degrees per count (0.075; owner: 0.15 was too
 // fast), pitch within +-89. It is not modal: binds stay live (P resumes) and keys or the
 // pointer another tool captures (the checkpoint editor) are left to it. Keys act only
 // while binds::KeysLive (game focused, console closed). No collision. This module owns the
@@ -55,9 +55,9 @@ void OnPause(cmd::Cvar& v);
 void OnFlight(cmd::Cvar&);
 cmd::Cvar g_fdPause = {"fd_pause", "0", "1 = freeze the game and fly a free camera (0 = resume, view back to the player)",
                        false, false, OnPause, {0}, cmd::T_BOOL};
-cmd::Cvar g_fdSpeed = {"fd_freecam_speed", "400", "free camera speed in units/s, 1-10000 (400 = the run speed); Shift x4, Ctrl x0.25", false, true,
+cmd::Cvar g_fdSpeed = {"fd_pause_speed", "400", "free camera speed in units/s, 1-10000 (400 = the run speed); Shift x4, Ctrl x0.25", false, true,
                        OnFlight, {0}, cmd::T_FLOAT, 1, 10000};
-cmd::Cvar g_fdSens = {"fd_freecam_sens", "0.075", "free camera mouse look in degrees per mouse count, 0.001-10; higher = faster", false, true,
+cmd::Cvar g_fdSens = {"fd_pause_sens", "0.075", "free camera mouse look in degrees per mouse count, 0.001-10; higher = faster", false, true,
                       OnFlight, {0}, cmd::T_FLOAT, 0.001f, 10};
 
 spectator::Flight Flight() { return {cmd::Float(g_fdSpeed), cmd::Float(g_fdSens), true}; }
@@ -117,8 +117,6 @@ void OnPause(cmd::Cvar& v) {
         pause::Set(false, "fd_pause 0");
     }
 }
-
-void CmdToggle(int, const char* const*) { cmd::SetCvar(&g_fdPause, cmd::Bool(g_fdPause) ? "0" : "1"); }
 
 // Another tool asking for the paused free camera (spectator::RequestFreePause; the checkpoint
 // editor): the same path as the variable, so the profile gate and the refusals apply.
@@ -223,14 +221,12 @@ bool Init() {
     cmd::RegisterCvar(&g_fdPause);
     cmd::RegisterCvar(&g_fdSpeed);
     cmd::RegisterCvar(&g_fdSens);
-    cmd::SetLabel("fd_freecam_sens", "Camera look speed");
-    cmd::RegisterCommand("fd_pause_toggle", "pause / resume with the free camera (fd_pause; default key P)", CmdToggle);
+    cmd::SetLabel("fd_pause_sens", "Camera look speed");
     cmd::SetPracticeOnly("fd_pause");
-    cmd::SetPracticeOnly("fd_pause_toggle");
-    binds::BindDefault("p", "fd_pause_toggle");
+    binds::BindDefault("p", "toggle fd_pause");  // on/off variables are toggled the one way (D68)
     spectator::SetFreePauseHost(FreePause);
     // The flight keys are the camera service's "camera" mode (rebindable, D65); the mouse isn't a key.
-    binds::DescribeKey("mouse", "free camera: look (fd_freecam_sens)", "while fd_pause is 1");
+    binds::DescribeKey("mouse", "free camera: look (fd_pause_sens)", "while fd_pause is 1");
     hooks::OnFrameBegin(FrameBegin);
 #ifdef FDCORE_DEBUG
     testpipe::Register("freecam", [](const char* args, char* resp, int cap) {

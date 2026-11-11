@@ -56,7 +56,7 @@ struct Panel {
     bool rendered;      // the canvas holds the current text
     bool alphaReady;    // surf holds it
     bool decalStale;    // decal doesn't (translucent panels upload it only for the fallback)
-    bool translucent;   // how it was drawn last frame (fd_textdraw, logged on change)
+    bool translucent;   // how it was drawn last frame (fd_text_info, logged on change)
     int x, y;           // last draw position
     bool reported, failed;
     unsigned long drawnFrame;  // last frame it was drawn (Debug pipe `textdraw <name>`)
@@ -362,7 +362,7 @@ bool Init() {
     cmd::RegisterCvar(&g_fdTextFgAlpha);
     cmd::SetLabel("fd_text_size", "Panel text size");
     cmd::SetLabel("fd_text_alpha", "Panel opacity");
-    cmd::RegisterCommand("fd_textdraw", "list the on-screen text panels: shown, size, position, translucent/opaque",
+    cmd::RegisterCommand("fd_text_info", "list the on-screen text panels: shown, size, position, translucent/opaque",
                          CmdInfo);
     gfx::OnLayer(gfx::LAYER_HUD, Draw);  // last, over everything (D40)
 #ifdef FDCORE_DEBUG

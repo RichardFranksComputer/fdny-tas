@@ -479,7 +479,7 @@ void OnToggle(cmd::Cvar& v) {
         Uninstall();
     }
 }
-cmd::Cvar g_fdHudGlitch = {"fd_hud_warp", "0",
+cmd::Cvar g_fdHudGlitch = {"fd_warp", "0",
                            "1 = warp HUD: what you touch and whether it can warp you (installs hooks); 0 = off (removes them)",
                            false, true,
                            OnToggle, {0}, cmd::T_BOOL};
@@ -499,12 +499,12 @@ bool Init() {
     cmd::RegisterCommand("fd_warp_freeze", "freeze / unfreeze the warp HUD's boxes; logging continues", CmdFreeze);
     cmd::RegisterCommand("fd_warp_clear", "clear the warp HUD's history and last warp", CmdClear);
     cmd::RegisterCvar(&g_fdHudGlitch);
-    cmd::SetPracticeOnly("fd_hud_warp");
+    cmd::SetPracticeOnly("fd_warp");
     cmd::SetPracticeOnly("fd_warp_hide");
     cmd::SetPracticeOnly("fd_warp_freeze");
     cmd::SetPracticeOnly("fd_warp_clear");
-    binds::BindDefault("g", "toggle fd_hud_warp");  // D37
-    cmd::SetLabel("fd_hud_warp", "Warp HUD");
+    binds::BindDefault("g", "toggle fd_warp");  // D37
+    cmd::SetLabel("fd_warp", "Warp HUD");
     binds::Mode("warp", "while the warp HUD is on", HudOn, binds::M_NORMAL);
     g_keyHide = binds::Action("warp", "hide", "b", "show / hide the boxes (fd_warp_hide)");
     g_keyFreeze = binds::Action("warp", "freeze", "z", "freeze / unfreeze the boxes (fd_warp_freeze)");
@@ -514,7 +514,7 @@ bool Init() {
     testpipe::Register("glitch", [](const char*, char* resp, int cap) { Stats(resp, cap); });
     testpipe::Register("glitch_box", [](const char*, char* resp, int cap) { BoxState(resp, cap); });
 #endif
-    log::Info("glitch: ready (fd_hud_warp: the warp HUD)");
+    log::Info("glitch: ready (fd_warp: the warp HUD)");
     return true;
 }
 

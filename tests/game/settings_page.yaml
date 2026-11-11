@@ -43,7 +43,7 @@ steps:
   - gclick: [552, 397]
   - wait_s: 1
   - assert_pipe_contains: {cmd: form, contains: "last=Player HUD: Off"}
-  - assert_log: {contains: "profile: refused fd_hud_player"}
+  - assert_log: {contains: "profile: refused fd_hud"}
   - gclick: [318, 197]      # back to practice
   - wait_s: 1
   - assert_pipe_contains: {cmd: form, contains: "last=Profile: practice"}

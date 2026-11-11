@@ -31,10 +31,10 @@ using addr::Id;
 bool g_hooked = false;
 
 // --- variables -----------------------------------------------------------------
-volatile long g_static = 0;  // fd_static_spawns
+volatile long g_static = 0;  // fd_spawns
 void OnStatic(cmd::Cvar& v) { InterlockedExchange(&g_static, cmd::Bool(v)); }
-cmd::Cvar g_fdStaticSpawns = {"fd_static_spawns", "0",
-                              "1 = victims spawn at fixed spots (fd_spawns; default spot 0 for every victim), "
+cmd::Cvar g_fdStaticSpawns = {"fd_spawns", "0",
+                              "1 = victims spawn at fixed spots (fd_spawns_pin; default spot 0 for every victim), "
                               "0 = the game's random pick",
                               false, true, OnStatic, {0}, cmd::T_BOOL};
 void ApplyRescueBot(cmd::Cvar& v);
@@ -43,7 +43,7 @@ cmd::Cvar g_fdRescueBot = {"fd_rescuebot", "1",
                            "1 = as the game ships (applies fully from the next level load)",
                            false, true, ApplyRescueBot, {0}, cmd::T_BOOL};
 
-// --- spawn pins: fd_spawns <map> <i> <i> ... (-1 = random); default all 0 --------
+// --- spawn pins: fd_spawns_pin <map> <i> <i> ... (-1 = random); default all 0 --------
 constexpr int kMaxMaps = 32, kMaxVictims = 24;
 struct Pins {
     char map[24];
@@ -72,7 +72,7 @@ int ParseInt(const char* s, bool* ok) {
 void PrintPins(const char* map) {
     Pins* p = FindPins(map);
     if (!p) {
-        console::Print("spawns: %s: default (every victim at spot 0 while fd_static_spawns is 1)", map);
+        console::Print("spawns: %s: default (every victim at spot 0 while fd_spawns is 1)", map);
         return;
     }
     char line[256];
@@ -83,7 +83,7 @@ void PrintPins(const char* map) {
 
 void CmdSpawns(int argc, const char* const* argv) {
     if (argc < 2) {
-        console::Print("usage: fd_spawns <map> [spot spot ...]   (one per victim in spawn order: 0 = editor origin, "
+        console::Print("usage: fd_spawns_pin <map> [spot spot ...]   (one per victim in spawn order: 0 = editor origin, "
                        "1..N = alt spots, -1 = random; 'default' to reset)");
         for (int i = 0; i < g_nPins; ++i) PrintPins(g_pins[i].map);
         return;
@@ -132,7 +132,7 @@ void CmdSpawns(int argc, const char* const* argv) {
 int WritePins(char* out, int cap) {
     int o = 0;
     for (int i = 0; i < g_nPins && o + 200 < cap; ++i) {
-        o += wsprintfA(out + o, "fd_spawns %s", g_pins[i].map);
+        o += wsprintfA(out + o, "fd_spawns_pin %s", g_pins[i].map);
         for (int k = 0; k < g_pins[i].n; ++k) o += wsprintfA(out + o, " %d", g_pins[i].spot[k]);
         o += wsprintfA(out + o, "\r\n");
     }
@@ -220,12 +220,12 @@ bool Init() {
     for (Id id : kSpawnNeeds) spawnsOk = spawnsOk && addr::Usable(id);
     if (spawnsOk) {
         cmd::RegisterCvar(&g_fdStaticSpawns);
-        cmd::RegisterCommand("fd_spawns", "fd_spawns <map> [spot ...]: pin victim spawn spots, one per victim in spawn order "
+        cmd::RegisterCommand("fd_spawns_pin", "fd_spawns_pin <map> [spot ...]: pin victim spawn spots, one per victim in spawn order "
                              "(0 = editor origin, 1..N = alt spots, -1 = random; 'default' resets; the map alone "
-                             "shows them; used while fd_static_spawns is 1)",
+                             "shows them; used while fd_spawns is 1)",
                              CmdSpawns);
         cmd::RegisterConfigWriter(WritePins);
-        cmd::SetLabel("fd_static_spawns", "Fixed victim spawns");
+        cmd::SetLabel("fd_spawns", "Fixed victim spawns");
     }
     if (addr::Usable(Id::patch_rescuebot_trystart) && addr::Usable(Id::patch_rescuebot_ctor_enable) &&
         addr::Usable(Id::rescuebot_enabled))

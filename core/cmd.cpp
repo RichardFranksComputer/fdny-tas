@@ -418,7 +418,7 @@ void RegisterBuiltins() {
     lstrcpynA(g_fdVersion.value, console::CoreVersion(), sizeof(g_fdVersion.value));
     RegisterCvar(&g_fdHooksFrame);
     RegisterCvar(&g_fdLogCommands);
-    RegisterCommand("fd_writeconfig", "write FDNYCore.cfg now (it is also written on every change)", CmdWriteConfig);
+    RegisterCommand("fd_config_save", "write FDNYCore.cfg now (it is also written on every change)", CmdWriteConfig);
 #ifdef FDCORE_DEBUG
     RegisterCommand("fd_dbg_registry", "(Debug test hook) write FDNYCore_registry.txt: every variable, command, "
                                        "default bind and described key",

@@ -49,7 +49,7 @@ steps:
   - assert_screen_diff: {a: base, b: box_off, max: 2}
   - console: "fd_pause 0"
   # the order holds with text panels on (HUD last)
-  - console: "fd_hud_player 1"
+  - console: "fd_hud 1"
   - wait_s: 1
   - assert_pipe_contains: {cmd: layers, contains: "order=world,overlay,hud "}
 expect:
