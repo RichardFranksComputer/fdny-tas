@@ -1,4 +1,4 @@
-"""arch_check (docs/architecture.md, R1-R10) on a copy of the source: clean, it passes; with one
+"""arch_check (docs/architecture.md, R1-R11) on a copy of the source: clean, it passes; with one
 seeded violation per rule, it reports exactly that rule (D47). Without this, a rule that
 silently stopped matching would only show as a passing build.
 """
@@ -86,6 +86,21 @@ class ArchCheck(unittest.TestCase):
         self.write("features/probe/probe.cpp", FEATURE.format(body="bool g;\nbool Init() {\n    if (!g) return false;"
                                                                    "  // arch-allow: R10 logged by the early step\n"
                                                                    "    return true;\n}"))
+        self.assertEqual(self.rules(), (0, []))
+
+    def test_r11_feature_names_other_features_setting(self):
+        self.write("features/probe/probe.cpp", FEATURE.format(body='void f() { cmd::FindCvar("fd_hud_warp"); }'))
+        self.assertEqual(self.rules(), (1, ["R11"]))
+
+    def test_r11_own_and_core_settings_are_fine(self):
+        self.write("features/probe/probe.cpp", FEATURE.format(
+            body='cmd::Cvar g_x = {"fd_probe", "0", "x", false, false, nullptr, {0}};\n'
+                 'void f() { cmd::FindCvar("fd_probe"); cmd::FindCvar("fd_profile"); }'))
+        self.assertEqual(self.rules(), (0, []))
+
+    def test_r11_allowed_with_reason(self):
+        self.write("features/probe/probe.cpp", FEATURE.format(
+            body='void f() { cmd::FindCvar("fd_hud_warp"); }  // arch-allow: R11 fixture'))
         self.assertEqual(self.rules(), (0, []))
 
     def test_r2_feature_includes_other_feature(self):

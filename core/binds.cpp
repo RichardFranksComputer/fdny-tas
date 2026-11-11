@@ -287,6 +287,7 @@ bool BindDefault(const char* key, const char* line) {
 
 void DescribeKey(const char* key, const char* action, const char* when) {
     if (g_nDescribed < kMaxDescribed) g_described[g_nDescribed++] = {key, action, when};
+    else log::Error("binds: described-key table full: %s not listed", key);
 }
 
 int DefaultCount() { return g_nDefaults; }

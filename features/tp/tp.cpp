@@ -11,6 +11,7 @@
 #include "hooks.h"
 #include "log.h"
 #include "modules.h"
+#include "num.h"
 #include "state.h"
 
 namespace fdcore::tp {
@@ -43,15 +44,9 @@ bool InLevel(const char* who) {
     return true;
 }
 
-void Fmt1(char* out, float v) {  // "-123.4" (wsprintf has no %f)
-    long m = static_cast<long>(v * 10.0f + (v >= 0 ? 0.5f : -0.5f));
-    long a = m < 0 ? -m : m;
-    wsprintfA(out, "%s%ld.%ld", m < 0 ? "-" : "", a / 10, a % 10);
-}
-
 void Describe(char* out, const float* p) {
     char x[24], y[24], z[24];
-    Fmt1(x, p[0]), Fmt1(y, p[1]), Fmt1(z, p[2]);
+    num::Fixed(x, p[0], 1), num::Fixed(y, p[1], 1), num::Fixed(z, p[2], 1);
     wsprintfA(out, "%s %s %s", x, y, z);
 }
 

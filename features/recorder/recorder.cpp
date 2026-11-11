@@ -35,11 +35,11 @@ Victim g_victims[kVictimCap];
 unsigned g_nVictims;
 
 void Changed(cmd::Cvar&) { g_changed = true; }
-cmd::Cvar g_enable = {"fd_record", "0", "1 = automatically record each stage attempt to JSONL; 0 = off", false, true, Changed, {0}};
-cmd::Cvar g_victimEnable = {"fd_record_victims", "1", "1 = include victim tracks in new recordings; 0 = player only", false, true, Changed, {0}};
+cmd::Cvar g_enable = {"fd_record", "0", "1 = automatically record each stage attempt to JSONL; 0 = off", false, true, Changed, {0}, cmd::T_BOOL};
+cmd::Cvar g_victimEnable = {"fd_record_victims", "1", "1 = include victim tracks in new recordings; 0 = player only", false, true, Changed, {0}, cmd::T_BOOL};
 cmd::Cvar g_directory = {"fd_record_directory", "Recordings", "output directory, absolute or relative to FDNYCore.asi; changes start a new recording", false, true, Changed, {0}};
 
-bool On(const cmd::Cvar& v) { return v.value[0] != '0'; }
+using cmd::Bool;
 
 Json g_json;  // recorder_json.h
 
@@ -85,7 +85,7 @@ void Start(void* player) {
     g_watchedPlayer = state::WatchOnly();  // a level loaded to be watched: nothing to record
     memset(g_victims, 0, sizeof(g_victims)); g_nVictims = 0;
     g_failed = false; g_changed = false;
-    if (!On(g_enable) || g_watchedPlayer) return;
+    if (!Bool(g_enable) || g_watchedPlayer) return;
     if (!addr::ReadStr(Id::game_map_name, g_map, sizeof(g_map)) || !g_map[0]) lstrcpyA(g_map, "unknown_stage");
     // Use the same safe, lower-case map identifiers as the standalone recorder.
     char* name = g_map;
@@ -107,7 +107,7 @@ void Start(void* player) {
     g_file = CreateFileA(g_path, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (g_file == INVALID_HANDLE_VALUE) { Fail("cannot create a new recording file"); return; }
     g_player = player; g_samples = 0; g_runTick = g_lastFlush = GetTickCount();
-    g_trackVictims = g_victimAvailable && On(g_victimEnable);
+    g_trackVictims = g_victimAvailable && Bool(g_victimEnable);
     char timestamp[40]; wsprintfA(timestamp, "%04u-%02u-%02uT%02u:%02u:%02u.%03uZ", utc.wYear, utc.wMonth,
         utc.wDay, utc.wHour, utc.wMinute, utc.wSecond, utc.wMilliseconds);
     g_json.Begin(); g_json.Text("type", "start"); g_json.Text("schema", "fdny-trajectory-v1");
@@ -180,7 +180,7 @@ void VictimUpdate(void* p) { ObserveVictim(p, false); }
 void Sample(void* player) {
     if (g_watchedPlayer || state::WatchOnly()) return;
     if (g_changed) { End("configuration_changed"); g_failed = false; g_changed = false; }
-    if (!On(g_enable) || g_failed) return;
+    if (!Bool(g_enable) || g_failed) return;
     if (g_player != player) Start(player);
     if (g_file == INVALID_HANDLE_VALUE) return;
     float pos[3], vel[3], forward[3], pitch, dt, lo[3], hi[3];

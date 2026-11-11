@@ -26,10 +26,10 @@ constexpr uint8_t kHighlightAlpha = 230;  // background slots 1-3 stay nearly op
 void OnAlpha(cmd::Cvar&);
 cmd::Cvar g_fdTextAlpha = {"fd_text_alpha", "160",
                            "panel background opacity 0-255 (translucent panels; 255 = solid)", false, true, OnAlpha,
-                           {0}};
+                           {0}, cmd::T_INT, 0, 255};
 cmd::Cvar g_fdTextFgAlpha = {"fd_text_fg_alpha", "255",
                              "text opacity 0-255 on translucent panels (255 = solid text; same cost either way)",
-                             false, true, OnAlpha, {0}};
+                             false, true, OnAlpha, {0}, cmd::T_INT, 0, 255};
 
 struct Panel {
     char name[24];
@@ -69,11 +69,7 @@ void DirtyAll() {
 }
 void OnAlpha(cmd::Cvar&) { DirtyAll(); }
 
-int Byte(const cmd::Cvar& c) {
-    int v = 0;
-    for (const char* s = c.value; *s >= '0' && *s <= '9'; ++s) v = v * 10 + (*s - '0');
-    return v > 255 ? 255 : v;
-}
+int Byte(const cmd::Cvar& c) { return cmd::Int(c); }
 int Alpha() { return Byte(g_fdTextAlpha); }
 
 // Runs of equal tag, opaque cells on the exact column grid.
@@ -206,7 +202,10 @@ void CmdInfo(int, const char* const*) {
 } // namespace
 
 int Create(const char* name, Anchor anchor, int dx, int dy, int minFrames, uint8_t defaultAttr, Style style) {
-    if (g_nPanels >= kMaxPanels) return -1;
+    if (g_nPanels >= kMaxPanels) {
+        log::Error("textdraw: panel table full: %s not created", name);
+        return -1;
+    }
     Panel& p = g_panels[g_nPanels];
     lstrcpynA(p.name, name, sizeof(p.name));
     p.anchor = anchor, p.style = style, p.dx = dx, p.dy = dy, p.minFrames = minFrames < 1 ? 1 : minFrames;

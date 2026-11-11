@@ -10,6 +10,7 @@
 #include "hooks.h"
 #include "log.h"
 #include "modules.h"
+#include "num.h"
 #include "state.h"
 #include "testpipe.h"
 #include "textdraw.h"
@@ -22,12 +23,12 @@ int g_panel = -1;  // in-frame text panel (textdraw)
 
 volatile long g_on = 0;  // fd_hud_player
 void OnToggle(cmd::Cvar& v) {
-    InterlockedExchange(&g_on, v.value[0] != '0');
+    InterlockedExchange(&g_on, cmd::Bool(v));
     textdraw::Show(g_panel, g_on != 0);
 }
 cmd::Cvar g_fdHudPlayer = {"fd_hud_player", "0",
                            "1 = show player info in-game: position, velocity, XY speed, stance (standing / crouched / bugged); 0 = off",
-                           false, true, OnToggle, {0}};
+                           false, true, OnToggle, {0}, cmd::T_BOOL};
 
 constexpr int kLines = 6, kLineLen = 96;
 char g_lines[kLines][kLineLen];
@@ -35,13 +36,6 @@ int g_nLines = 0;
 uint32_t g_drawnFrame = 0;
 state::State g_drawnFrom;  // the snapshot the last HUD was drawn from
 CRITICAL_SECTION g_lock;  // the pipe thread reads what the game thread drew
-
-// "-123.4" (wsprintf has no %f)
-int F1(char* out, float v) {
-    long m = static_cast<long>(v * 10.0f + (v >= 0 ? 0.5f : -0.5f));
-    long a = m < 0 ? -m : m;
-    return wsprintfA(out, "%s%ld.%ld", m < 0 ? "-" : "", a / 10, a % 10);
-}
 
 // Owner 2026-10-23: only "standing", "crouched" or "bugged" (crouchbug). Crouched = state 4;
 // crouchbug = any other state with the crouched collision box (the warp HUD's rule,
@@ -62,7 +56,7 @@ int Pad(char* out, const char* text, int width) {
 }
 int Col(char* out, float v, int width) {
     char num[24];
-    F1(num, v);
+    num::Fixed(num, v, 1);
     return Pad(out, num, width);
 }
 

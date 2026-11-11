@@ -40,6 +40,13 @@ bool Start();       // the viewer: a loaded level only; preserves a pause that w
 // false without a camera pose yet.
 bool StartFree(const Flight& flight);
 void SetFlight(const Flight& flight);  // the free camera's settings, live
+// The paused free camera as a tool others build on (an editor). Its owner, the module with
+// the pause setting, registers how it is entered and left; another module asks here, so
+// neither names the other. False when there is no owner or it refuses (not in a level,
+// `fd_profile run`, a watched level).
+using FreePauseFn = bool (*)(bool on);
+void SetFreePauseHost(FreePauseFn host);
+bool RequestFreePause(bool on);
 void Stop();
 bool Active();
 bool Modal();  // the viewer is running (not the free camera)

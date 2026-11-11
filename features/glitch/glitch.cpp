@@ -468,7 +468,7 @@ void FrameEnd() {
     ++g_drawFrames;
 }
 void OnToggle(cmd::Cvar& v) {
-    if (v.value[0] != '0') {
+    if (cmd::Bool(v)) {
         // Turning the HUD on always shows it (owner 2026-10-22: a hide from B outlived G off/on,
         // so G alone looked dead).
         g_hidden = g_frozen = false;
@@ -480,7 +480,7 @@ void OnToggle(cmd::Cvar& v) {
 cmd::Cvar g_fdHudGlitch = {"fd_hud_warp", "0",
                            "1 = warp HUD: what you touch and whether it can warp you (installs hooks); 0 = off (removes them)",
                            false, true,
-                           OnToggle, {0}};
+                           OnToggle, {0}, cmd::T_BOOL};
 
 } // namespace
 

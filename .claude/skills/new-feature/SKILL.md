@@ -6,7 +6,7 @@ description: Add or substantially change an FDNYCore feature (a mod feature, ove
 # Adding an FDNYCore feature
 
 Follow these steps in order. The rules are in `docs/architecture.md` (arch_check enforces
-R1-R5 and R8-R10, the compiler R6-R7), how to build, test and release in `CONTRIBUTING.md`
+R1-R5 and R8-R11, the compiler R6-R7), how to build, test and release in `CONTRIBUTING.md`
 (both loaded through `CLAUDE.md`), and the reasons in `docs/decisions.md`. Don't re-derive
 them, and don't work around them; if a rule blocks a good design, stop and ask the owner
 (a rule changes only with a `docs/decisions.md` entry).
@@ -51,7 +51,9 @@ them, and don't work around them; if a rule blocks a good design, stop and ask t
     `// User: <Title> -- <one sentence>` line (the reference's entry, R9) and the header
     paragraph;
   - register variables, commands, practice-only names and default keys with string literals
-    (the reference reads them, D41); a key the feature reads itself (`GetAsyncKeyState`, not
+    (the reference reads them, D41); give every variable its type and range (`cmd::T_BOOL`,
+    `T_INT` / `T_FLOAT` with min and max) and read it with `cmd::Bool` / `Int` / `Float`;
+    numbers to and from text go through `core/num.h` (D63); a key the feature reads itself (`GetAsyncKeyState`, not
     a bind) gets a `binds::DescribeKey(key, action, when)`;
   - one `FDCORE_MODULE`, listing the required Ids;
   - pick a start `order` after the existing modules (the `FDCORE_MODULE` lines in

@@ -23,7 +23,9 @@
 #include "hooks.h"
 #include "log.h"
 #include "modules.h"
+#include "num.h"
 #include "pause.h"
+#include "profile.h"
 #include "replay_data.h"
 #include "replay_browser.h"
 #include "state.h"
@@ -94,23 +96,11 @@ uint32_t g_shapeRgb[kMaxRec][26];
 int g_visible = 0, g_ticks = 0;
 char g_map[16] = "";
 
-// sqrt without the CRT (SSE, like glitch_bsp's Sqrt).
-float Sqrtf(float v) { return _mm_cvtss_f32(_mm_sqrt_ss(_mm_set_ss(v))); }
+using cmd::Bool;
+cmd::Cvar g_fdReplaySpeed = {"fd_replay_speed", "1", "playback speed: 0.25 / 0.5 / 1 / 2 / 4 (any value from 0.01 to 64)", false, true, nullptr, {0}, cmd::T_FLOAT, 0.01f, 64};
+cmd::Cvar g_fdReplayXray = {"fd_replay_xray", "0", "1 = the replay shows through walls (the trace dimmed there); 0 = walls hide it", false, true, nullptr, {0}, cmd::T_BOOL};
 
-bool On(const cmd::Cvar& v) { return v.value[0] != '0'; }
-cmd::Cvar g_fdReplaySpeed = {"fd_replay_speed", "1", "playback speed: 0.25 / 0.5 / 1 / 2 / 4 (any value > 0)", false, true, nullptr, {0}};
-cmd::Cvar g_fdReplayXray = {"fd_replay_xray", "0", "1 = the replay shows through walls (the trace dimmed there); 0 = walls hide it", false, true, nullptr, {0}};
-
-float Speed() {
-    float v = 0, scale = 1;
-    bool frac = false;
-    for (const char* s = g_fdReplaySpeed.value; *s; ++s) {
-        if (*s == '.') frac = true;
-        else if (*s >= '0' && *s <= '9') v = v * 10 + (*s - '0'), scale *= frac ? 10 : 1;
-    }
-    v /= scale;
-    return v > 0 && v <= 64 ? v : 1;
-}
+float Speed() { return cmd::Float(g_fdReplaySpeed); }
 
 bool SameMap(const char* a, const char* b) { return lstrcmpiA(a, b) == 0; }
 
@@ -344,9 +334,7 @@ bool PrepareViewImpl(const char* stage, const char* first, const char* second) {
     g_viewXray = false;
     g_viewExitRequested = g_viewExitToMenu = false;
     if (!g_viewReady) return ViewError("Replay viewer is not available in this build.");
-    const cmd::Cvar* profile = cmd::FindCvar("fd_profile");
-    if (profile && lstrcmpiA(profile->value, "run") == 0)
-        return ViewError("Switch fd_profile to practice before viewing recordings.");
+    if (!profile::Practice()) return ViewError("Switch fd_profile to practice before viewing recordings.");
     if (!stage || !stage[0] || lstrlenA(stage) >= static_cast<int>(sizeof(g_viewStage)))
         return ViewError("Invalid recording stage.");
     for (const char* p = stage; *p; ++p)
@@ -480,8 +468,7 @@ void ViewerFrame(const state::State& s) {
     if (s.gameState != 1 || !spectator::Active() || !SameMap(s.map, g_viewStage)) {
         EndViewer(s.gameState == 0); return;
     }
-    const cmd::Cvar* profile = cmd::FindCvar("fd_profile");
-    if (profile && lstrcmpiA(profile->value, "run") == 0) { EndViewer(true); return; }
+    if (!profile::Practice()) { EndViewer(true); return; }
     ViewerTargets();
     static char text[6][textdraw::kLineLen];
     spectator::State camera; spectator::ReadState(&camera);
@@ -625,7 +612,7 @@ void CmdReplay(int argc, const char* const* argv) {
 // starts with you, in time with the recording's clock.
 cmd::Cvar g_fdReplayGhost = {"fd_replay_ghost", "0",
                              "1 = each time you spawn, your best finished run on the map starts with you (your latest if none "
-                             "is finished); 2 = your latest run; 0 = off", false, true, nullptr, {0}};
+                             "is finished); 2 = your latest run; 0 = off", false, true, nullptr, {0}, cmd::T_INT, 0, 2};
 DWORD g_spawnTick = 0;
 bool g_ghostPending = false;
 
@@ -703,7 +690,7 @@ void AddShape(DrawList& L, int slot, const d::Sample& f, uint32_t rgb) {
     float o[3], tip[3];
     for (int i = 0; i < 3; ++i) o[i] = (lo[i] + hi[i]) * 0.5f, tip[i] = o[i] + dir[i] * kArrowLen;
     float side[3] = {-dir[2], 0, dir[0]};  // horizontal, across the arrow
-    const float sl = Sqrtf(side[0] * side[0] + side[2] * side[2]);
+    const float sl = num::Sqrt(side[0] * side[0] + side[2] * side[2]);
     if (sl < 1e-4f) side[0] = 1, side[2] = 0;
     else side[0] /= sl, side[2] /= sl;
     float (*a)[3] = p + 18;
@@ -736,7 +723,7 @@ void FrameEnd() {
         g_time += static_cast<float>(dt) * Speed();
         if (g_time >= dur) g_time = dur, g_playing = false;
     }
-    const bool xray = g_viewActive ? g_viewXray : On(g_fdReplayXray);
+    const bool xray = g_viewActive ? g_viewXray : Bool(g_fdReplayXray);
     DrawList& shapes = g_draw[xray ? 1 : 0];  // the box and arrow: full strength over walls with x-ray
     int slot = 0;
     for (int i = 0; i < g_nRec; ++i) {
@@ -839,7 +826,8 @@ bool PrepareView(const char* stage, const char* first, const char* second) {
 }
 const char* ViewError() { return g_viewError; }
 bool RecordingDirectory(char* out, int cap) {
-    const auto* dir = cmd::FindCvar("fd_record_directory");
+    // The recorder's folder setting, read by name: one folder for both (D51).
+    const auto* dir = cmd::FindCvar("fd_record_directory");  // arch-allow: R11 the recorder's folder is the replay's (D51)
     return console::GamePath(dir && dir->value[0] ? dir->value : "Recordings", out, cap);
 }
 } // namespace fdcore::replay

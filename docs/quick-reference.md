@@ -92,7 +92,7 @@ when changed. **Practice**: refused while `fd_profile` is `run`.
 | `fd_text_fg_alpha` | `255` | text opacity 0-255 on translucent panels (255 = solid text; same cost either way) | yes |  | On-screen text |
 | `fd_skip_intro` | `0` | 1 = skip the Activision/Mekada intro movies at startup; 0 = play them (takes effect next launch) | yes |  | Startup |
 | `fd_fov` | `0` | horizontal FOV in degrees at 4:3 (up to 170), Hor+ for wider screens; 0 = classic FOV fix (1.43 * aspect/(4/3) * fd_fov_factor); -1 = game default | yes |  | Field of view |
-| `fd_fov_factor` | `1.4` | FOV multiplier used when fd_fov is 0 (classic FOV fix): 1.4 = 90 degrees at 4:3 | yes |  | Field of view |
+| `fd_fov_factor` | `1.4` | FOV multiplier used when fd_fov is 0 (classic FOV fix), 0.1-5: 1.4 = 90 degrees at 4:3 | yes |  | Field of view |
 | `fd_window_cursor` | `1` | 1 = keep the cursor in the game window only while it is focused (hold O to free it); 0 = game default (warp to 200,200 every frame, even when alt-tabbed) | yes |  | Window |
 | `fd_static_spawns` | `0` | 1 = victims spawn at fixed spots (fd_spawns; default spot 0 for every victim), 0 = the game's random pick | yes |  | Speedrun options |
 | `fd_rescuebot` | `1` | 0 = the AI RescueBot never claims victims and its chatter is muted (all difficulties); 1 = as the game ships (applies fully from the next level load) | yes |  | Speedrun options |
@@ -103,12 +103,12 @@ when changed. **Practice**: refused while `fd_profile` is `run`.
 | `fd_triggers_xray` | `0` | 1 = trigger boxes show through walls; 0 = walls hide them (T's second press sets it) | yes |  | Trigger boxes |
 | `fd_juggle` | `0` | 1 = fire-juggling arrow: where a carried survivor lands if you pass out now; 0 = off | yes | yes | Fire juggling |
 | `fd_pause` | `0` | 1 = freeze the game and fly a free camera (0 = resume, view back to the player) |  | yes | Pause and free camera |
-| `fd_freecam_speed` | `400` | free camera speed in units/s (400 = the run speed); Shift x4, Ctrl x0.25 | yes |  | Pause and free camera |
-| `fd_freecam_sens` | `0.075` | free camera mouse look in degrees per mouse count; higher = faster | yes |  | Pause and free camera |
+| `fd_freecam_speed` | `400` | free camera speed in units/s, 1-10000 (400 = the run speed); Shift x4, Ctrl x0.25 | yes |  | Pause and free camera |
+| `fd_freecam_sens` | `0.075` | free camera mouse look in degrees per mouse count, 0.001-10; higher = faster | yes |  | Pause and free camera |
 | `fd_record` | `0` | 1 = automatically record each stage attempt to JSONL; 0 = off | yes |  | Recorder |
 | `fd_record_victims` | `1` | 1 = include victim tracks in new recordings; 0 = player only | yes |  | Recorder |
 | `fd_record_directory` | `Recordings` | output directory, absolute or relative to FDNYCore.asi; changes start a new recording | yes |  | Recorder |
-| `fd_replay_speed` | `1` | playback speed: 0.25 / 0.5 / 1 / 2 / 4 (any value > 0) | yes | yes | Replay |
+| `fd_replay_speed` | `1` | playback speed: 0.25 / 0.5 / 1 / 2 / 4 (any value from 0.01 to 64) | yes | yes | Replay |
 | `fd_replay_xray` | `0` | 1 = the replay shows through walls (the trace dimmed there); 0 = walls hide it | yes | yes | Replay |
 | `fd_replay_ghost` | `0` | 1 = each time you spawn, your best finished run on the map starts with you (your latest if none is finished); 2 = your latest run; 0 = off | yes | yes | Replay |
 | `fd_checkpoints_edit` | `0` | 1 = pause and edit checkpoint boxes in the free camera; autosaves Checkpoints/<mission>.txt; 0 = exit; restart mission to apply |  | yes | Practice checkpoints |

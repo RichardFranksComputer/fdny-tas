@@ -8,6 +8,12 @@ constexpr int kMaxArgs = 16;
 
 using CommandFn = void (*)(int argc, const char* const* argv);
 
+// What a variable holds. A typed variable refuses a value of the wrong kind or outside
+// min..max when it is set (the console prints what it takes; the old value stays), so a
+// feature reads it with Bool / Int / Float and never parses or clamps itself. T_TEXT (the
+// default, for names and paths) takes anything.
+enum Type : unsigned char { T_TEXT, T_BOOL, T_INT, T_FLOAT };
+
 struct Cvar {
     const char* name;
     const char* defaultValue;
@@ -16,13 +22,20 @@ struct Cvar {
     bool archive;               // persisted in FDNYCore.cfg when not at default
     void (*onChange)(Cvar& v);  // may be null
     char value[128];
+    Type type = T_TEXT;         // after value: `{0}, cmd::T_BOOL` or `{0}, cmd::T_FLOAT, 32, 2000`
+    float min = 0, max = 0;     // T_INT / T_FLOAT: the range, inclusive
 };
 
 void RegisterCommand(const char* name, const char* help, CommandFn fn);
 // The Cvar must outlive the core (static storage). Value starts at its default.
 void RegisterCvar(Cvar* v);
 Cvar* FindCvar(const char* name);
-bool SetCvar(Cvar* v, const char* value);  // false if read-only or refused by the gate
+// False if read-only, not a value of its type and range, or refused by the gate.
+bool SetCvar(Cvar* v, const char* value);
+// A typed variable's value (its default if the text somehow isn't one).
+bool Bool(const Cvar& v);
+int Int(const Cvar& v);
+float Float(const Cvar& v);
 
 // Profiles (item 12): gates that may refuse a variable value or a command;
 // they print their own reason. Null = everything allowed.

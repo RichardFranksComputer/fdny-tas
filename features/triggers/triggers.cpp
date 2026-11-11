@@ -55,14 +55,14 @@ int g_nBoxes = 0;
 int g_counts[3] = {}, g_openExits = 0;
 CRITICAL_SECTION g_lock;  // the pipe thread reads the counts
 
-bool On(const cmd::Cvar& v) { return v.value[0] != '0'; }
+using cmd::Bool;
 cmd::Cvar g_fdTriggers = {"fd_triggers", "0",
                           "1 = draw trigger boxes: blue rescue zone, red closed exit, green open exit (key T); 0 = off", false,
-                          true, nullptr, {0}};
+                          true, nullptr, {0}, cmd::T_BOOL};
 cmd::Cvar g_fdTriggersAll = {"fd_triggers_all", "0", "1 = also draw every other trigger, grey (zones, hints, doors); 0 = only rescue zones and exits",
-                             false, true, nullptr, {0}};
+                             false, true, nullptr, {0}, cmd::T_BOOL};
 cmd::Cvar g_fdTriggersXray = {"fd_triggers_xray", "0", "1 = trigger boxes show through walls; 0 = walls hide them (T's second press sets it)", false, true, nullptr,
-                              {0}};
+                              {0}, cmd::T_BOOL};
 
 template <typename T>
 bool At(uintptr_t base, Id field, T* out) {
@@ -209,11 +209,11 @@ void FrameEnd() {
     }
     g_openExits = open;
     g_nBoxes = 0;
-    if (!On(g_fdTriggers) || !gfx::WorldBoxesReady()) {
+    if (!Bool(g_fdTriggers) || !gfx::WorldBoxesReady()) {
         // nothing submitted: nothing drawn (submissions last one frame)
         return;
     }
-    const bool all = On(g_fdTriggersAll);
+    const bool all = Bool(g_fdTriggersAll);
     for (int i = 0; i < g_n; ++i) {
         const Trigger& t = g_trig[i];
         if (t.kind == K_OTHER && !all) continue;
@@ -223,21 +223,21 @@ void FrameEnd() {
         b.rgb = t.kind == K_RESCUE ? kBlue : t.kind == K_EXIT ? (t.open ? kGreen : kRed) : kGrey;
         b.alpha = kAlpha, b.alphaInside = kAlphaInside;
     }
-    gfx::SubmitWorldBoxes(g_boxes, g_nBoxes, On(g_fdTriggersXray) ? gfx::LAYER_OVERLAY : gfx::LAYER_WORLD);
+    gfx::SubmitWorldBoxes(g_boxes, g_nBoxes, Bool(g_fdTriggersXray) ? gfx::LAYER_OVERLAY : gfx::LAYER_WORLD);
 }
 
 // Key T cycles (owner 2026-10-22): off -> boxes -> boxes + x-ray -> off.
 void CmdToggle(int, const char* const*) {
-    if (!On(g_fdTriggers)) {
+    if (!Bool(g_fdTriggers)) {
         if (!cmd::SetCvar(&g_fdTriggers, "1")) return;  // refused (profile run): the gate printed why
         cmd::SetCvar(&g_fdTriggersXray, "0");
-    } else if (!On(g_fdTriggersXray)) {
+    } else if (!Bool(g_fdTriggersXray)) {
         cmd::SetCvar(&g_fdTriggersXray, "1");
     } else {
         cmd::SetCvar(&g_fdTriggers, "0");
         cmd::SetCvar(&g_fdTriggersXray, "0");
     }
-    console::Print("trigger boxes: %s", !On(g_fdTriggers) ? "off" : On(g_fdTriggersXray) ? "on, x-ray" : "on");
+    console::Print("trigger boxes: %s", !Bool(g_fdTriggers) ? "off" : Bool(g_fdTriggersXray) ? "on, x-ray" : "on");
 }
 
 // "-123" (wsprintf has no %f; whole units are enough for a listing)

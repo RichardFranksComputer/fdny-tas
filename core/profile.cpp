@@ -108,7 +108,7 @@ cmd::Cvar g_fdProfile = {"fd_profile", "practice",
                          false, false, OnProfile, {0}};
 cmd::Cvar g_fdWatermark = {"fd_watermark", "1", "1 = show the watermark (bottom-left: version, profile, non-default "
                            "settings, other plugins); 0 = hide it (practice only: always on in run)",
-                           false, true, nullptr, {0}};
+                           false, true, nullptr, {0}, cmd::T_BOOL};
 
 // fd_profile_saved <var> <value>: a practice value remembered while in run.
 void CmdSaved(int argc, const char* const* argv) {
@@ -166,7 +166,7 @@ void Build(char* out, int cap) {
 }
 
 void Draw() {
-    const bool on = g_run || g_fdWatermark.value[0] != '0';
+    const bool on = g_run || cmd::Bool(g_fdWatermark);
     textdraw::Show(g_panel, on);
     if (!on) return;
     static char text[512];
@@ -213,6 +213,8 @@ bool Init() {
     log::Info("profile: ready (fd_profile, fd_watermark); other asi: %s", g_mods[0] ? g_mods : "none");
     return true;
 }
+
+bool Practice() { return !g_run; }
 
 int LastWatermark(char* out, int cap) {
     EnterCriticalSection(&g_lock);

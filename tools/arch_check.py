@@ -235,6 +235,25 @@ def main():
                     fail("R10 init-refusal-reason", f, ln, "Init() refuses without logging why: "
                          "log::Warn(\"<name>: ...\") before return false")
 
+    # R11: a feature never reaches another feature through its settings: no cmd::FindCvar or
+    # cmd::Dispatch with a name another feature registers (the include rule R2 doesn't see a
+    # string). Shared behaviour goes through a core service. A documented exception carries
+    # "// arch-allow: R11 <why>".
+    owner = {}
+    for f in feat_files:
+        for n in REGISTERED.findall(open(f, encoding="utf-8-sig").read()):
+            owner.setdefault(n, group(f))
+    for f in feat_files:
+        raw_lines = open(f, encoding="utf-8-sig").read().splitlines()
+        code_lines = strip_comments("\n".join(raw_lines)).splitlines()
+        for i, l in enumerate(code_lines, 1):
+            if not re.search(r"\b(FindCvar|Dispatch)\s*\(", l) or re.search(r"arch-allow: R11 \S", raw_lines[i - 1]):
+                continue
+            for n in re.findall(r'"(fd_\w+)', raw_lines[i - 1]):
+                if n in owner and owner[n] != group(f):
+                    fail("R11 feature-names-feature", f, i, f'"{n}" is the {owner[n]} feature\'s setting: '
+                         "ask a core service instead")
+
     # Not here, enforced by the compiler instead (build.ps1 flags, -Werror):
     #   R6 Debug-only testpipe::Register: declared only in Debug, a stray call breaks Release.
     #   R7 no static constructors / exit-time destructors (no CRT runs them):
