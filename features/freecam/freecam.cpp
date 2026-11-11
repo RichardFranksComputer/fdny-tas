@@ -228,12 +228,7 @@ bool Init() {
     cmd::SetPracticeOnly("fd_pause_toggle");
     binds::BindDefault("p", "fd_pause_toggle");
     spectator::SetFreePauseHost(FreePause);
-    // Read each paused frame in the camera step (not binds: held, not pressed).
-    binds::DescribeKey("w s", "free camera: forward / back along the view", "while fd_pause is 1");
-    binds::DescribeKey("a d", "free camera: strafe left / right", "while fd_pause is 1");
-    binds::DescribeKey("e q", "free camera: straight up / down", "while fd_pause is 1");
-    binds::DescribeKey("shift", "free camera: 4x speed (held)", "while fd_pause is 1");
-    binds::DescribeKey("ctrl", "free camera: 0.25x speed (held)", "while fd_pause is 1");
+    // The flight keys are the camera service's "camera" mode (rebindable, D65); the mouse isn't a key.
     binds::DescribeKey("mouse", "free camera: look (fd_freecam_sens)", "while fd_pause is 1");
     hooks::OnFrameBegin(FrameBegin);
 #ifdef FDCORE_DEBUG

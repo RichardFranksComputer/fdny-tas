@@ -45,7 +45,7 @@ void __stdcall CursorWarp() {
     }
     // alttabfix parity: any nonzero GetAsyncKeyState('O') (held, or pressed
     // since the last poll) leaves the cursor alone this frame.
-    if (GetForegroundWindow() != g_hwnd || GetAsyncKeyState('O')) return;
+    if (GetForegroundWindow() != g_hwnd || GetAsyncKeyState('O')) return;  // arch-allow: R9 read inside the game's own cursor call, any press since the last one counts
     RECT rc;
     if (!GetWindowRect(g_hwnd, &rc)) return;
     SetCursorPos((rc.left + rc.right) >> 1, (rc.top + rc.bottom) >> 1);

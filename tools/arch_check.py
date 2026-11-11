@@ -211,8 +211,16 @@ def main():
     for g, regs in sorted(modules.items()):
         if len(regs) == 1 and not re.search(r"^// User: .+ -- .+$", regs[0][1], re.M):
             fail("R9 sheet-from-source", regs[0][0], 1, 'missing "// User: <Title> -- <one sentence>" line')
+    # A feature's keys are binds actions (binds::Mode / Action, D65): rebindable, listed, with
+    # one press detector. Reading the keyboard directly is for keys that are observed, not
+    # controls: "// arch-allow: R9 <why>" on the line, and a binds::DescribeKey for the sheet.
     for f in feat_files:
-        code = strip_comments(open(f, encoding="utf-8-sig").read())
+        raw_lines = open(f, encoding="utf-8-sig").read().splitlines()
+        code = strip_comments("\n".join(raw_lines))
+        for i, l in enumerate(code.splitlines(), 1):
+            if re.search(r"\bGetAsyncKeyState\s*\(", l) and not re.search(r"arch-allow: R9 \S", raw_lines[i - 1]):
+                fail("R9 sheet-from-source", f, i, "reads the keyboard itself: register a binds::Action in a "
+                     "binds::Mode and ask binds::Pressed / Held")
         if re.search(r"\bGetAsyncKeyState\s*\(", code) and not re.search(r"\bDescribeKey\s*\(", code):
             fail("R9 sheet-from-source", f, 1, "reads keys itself (GetAsyncKeyState) but declares none with "
                  "binds::DescribeKey: the reference would miss them")

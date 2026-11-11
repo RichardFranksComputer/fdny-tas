@@ -28,32 +28,92 @@ your changes are saved (FDNYCore.cfg). **Practice**: refused while `fd_profile` 
 | **V** | play / pause this map's recordings (with none loaded, loads its best finished and latest run first); from the end, start again (key V) | `fd_replay_toggle` | yes |
 | **N** | on / off: checkpoint names and elapsed level time (N toggles); 0 = off | `toggle fd_checkpoints` | yes |
 
-**Feature keys**: read by the feature itself while it is on; they can't be rebound.
+**Mode keys**: they act only in their mode. Rebind with `bind <mode> <key> <action>`, remove
+with `unbind <mode> <key>`; `bind <mode>` lists a mode's actions in the game. A key can be
+`ctrl+<key>`. Held: read while it is down.
+
+`camera`: while the free camera flies (a paused game, or the viewer's released camera)
+
+| Key | Action | Does |
+|---|---|---|
+| **W** | `forward` | fly forward along the view (held) |
+| **S** | `back` | fly back (held) |
+| **A** | `left` | strafe left (held) |
+| **D** | `right` | strafe right (held) |
+| **E** | `up` | straight up (held) |
+| **Q** | `down` | straight down (held) |
+| **SHIFT** | `fast` | 4x speed (held) |
+| **CTRL** | `slow` | 0.25x speed (held) |
+
+`viewer`: in the recordings viewer
+
+| Key | Action | Does |
+|---|---|---|
+| **SPACE** | `play` | play / pause |
+| **LEFTARROW** | `seek_back` | back 5 seconds |
+| **RIGHTARROW** | `seek_forward` | forward 5 seconds |
+| **HOME** | `restart` | back to the start |
+| **TAB** | `next_run` | follow the next run |
+| **F** | `free` | release the camera / follow again |
+| **X** | `xray` | traces and ghost boxes through walls on / off |
+| **MOUSE2** | `look` | drag: orbit the followed run, or look around with the released camera (held) |
+| **PGUP** | `zoom_in` | closer (also the mouse wheel) (held) |
+| **PGDN** | `zoom_out` | farther (also the mouse wheel) (held) |
+| **ESCAPE** | `exit` | back to the Recordings list |
+
+`editor`: while fd_checkpoints_edit is 1
+
+| Key | Action | Does |
+|---|---|---|
+| **SPACE** **INS** | `place` | place a box at the pointer |
+| **MOUSE1** | `select` | select a box; drag it or its arrows to move, a face cube to resize |
+| **TAB** | `next` | select the next box |
+| **DEL** **BACKSPACE** | `delete` | delete the selected box |
+| **CTRL+C** | `copy` | copy the selected box |
+| **CTRL+V** | `paste` | paste at the pointer |
+| **CTRL+D** | `duplicate` | duplicate the selected box in place |
+| **HOME** | `undo` | undo |
+| **END** | `redo` | redo |
+| **ENTER** **CTRL+S** | `save` | save now (edits also autosave) |
+| **LEFTARROW** | `x_minus` | move the box along -X (with resize: that side) (repeats while held) |
+| **RIGHTARROW** | `x_plus` | move along +X (repeats while held) |
+| **PGDN** | `y_minus` | move down (-Y) (repeats while held) |
+| **PGUP** | `y_plus` | move up (+Y) (repeats while held) |
+| **DOWNARROW** | `z_minus` | move along -Z (repeats while held) |
+| **UPARROW** | `z_plus` | move along +Z (repeats while held) |
+| **SHIFT** | `resize` | held: the move keys resize instead |
+| **CTRL** | `fine` | held: the move keys step 1 unit |
+
+`warp`: while the warp HUD is on
+
+| Key | Action | Does |
+|---|---|---|
+| **B** | `hide` | show / hide the boxes (fd_warp_hide) |
+| **Z** | `freeze` | freeze / unfreeze the boxes (fd_warp_freeze) |
+| **X** | `clear` | clear the history and the last warp (fd_warp_clear) |
+
+`picker`: while the fd_replay list is open
+
+| Key | Action | Does |
+|---|---|---|
+| **1** | `run1` | show / hide run 1 |
+| **2** | `run2` | show / hide run 2 |
+| **3** | `run3` | show / hide run 3 |
+| **4** | `run4` | show / hide run 4 |
+| **5** | `run5` | show / hide run 5 |
+| **6** | `run6` | show / hide run 6 |
+| **7** | `run7` | show / hide run 7 |
+| **8** | `run8` | show / hide run 8 |
+| **9** | `run9` | show / hide run 9 |
+
+**Other keys**: read as they are; they can't be rebound.
 
 | Key | Does | When |
 |---|---|---|
 | **O** | free the mouse cursor from the game window (held) | while fd_window_cursor is 1 |
-| **B** | show / hide the warp HUD's boxes (fd_warp_hide) | while fd_hud_warp is 1 |
-| **Z** | freeze / unfreeze the warp HUD's boxes (fd_warp_freeze) | while fd_hud_warp is 1 |
-| **X** | clear the warp HUD's history and last warp (fd_warp_clear) | while fd_hud_warp is 1 |
-| **W** **S** | free camera: forward / back along the view | while fd_pause is 1 |
-| **A** **D** | free camera: strafe left / right | while fd_pause is 1 |
-| **E** **Q** | free camera: straight up / down | while fd_pause is 1 |
-| **SHIFT** | free camera: 4x speed (held) | while fd_pause is 1 |
-| **CTRL** | free camera: 0.25x speed (held) | while fd_pause is 1 |
 | **MOUSE** | free camera: look (fd_freecam_sens) | while fd_pause is 1 |
 | **W** **A** **S** **D** **UPARROW** **LEFTARROW** **DOWNARROW** **RIGHTARROW** **C** **CTRL** **SPACE** **SHIFT** **MOUSE1** **MOUSE2** **1** **2** **3** | sample raw virtual keys into JSONL (no input changes) | while fd_record is 1 and the game has focus |
 | **ESC** **PGUP** **PGDN** | back / previous page / next page | in the Recordings menu |
-| **X** | toggle replay traces and ghost boxes through walls (shown in viewer controls) | in the recordings viewer |
-| **MOUSE2** | drag to orbit the followed run or look around with the released camera | in the recordings viewer |
-| **F** **TAB** **SPACE** **LEFTARROW** **RIGHTARROW** **HOME** **ESC** **PGUP** **PGDN** | viewer: follow/free, switch run, play/pause, seek, restart, exit, zoom | in the recordings viewer |
-| **W** **A** **S** **D** **E** **Q** **SHIFT** **CTRL** | move the released viewer camera; Shift fast, Ctrl slow | in the recordings viewer |
-| **1** **2** **3** **4** **5** **6** **7** **8** **9** | replay picker: show / hide that run | while the fd_replay list is open |
-| **SPACE** **INS** **MOUSE1** **TAB** | checkpoint editor: place (Space or Insert) at pointer / select / select next | while fd_checkpoints_edit is 1 |
-| **LEFTARROW** **RIGHTARROW** **UPARROW** **DOWNARROW** **PGUP** **PGDN** | checkpoint editor: move on world X/Z/Y axes; Shift resizes; Ctrl uses 1 unit | while fd_checkpoints_edit is 1 |
-| **CTRL+C** **CTRL+V** **CTRL+D** **DEL** **BACKSPACE** | checkpoint editor: copy / paste at pointer / duplicate / delete | while fd_checkpoints_edit is 1 |
-| **HOME** **END** **ENTER** **CTRL+S** | checkpoint editor: undo / redo / save (also autosaves) | while fd_checkpoints_edit is 1 |
-| **MOUSE1** | checkpoint editor: left-drag boxes/arrows to move, face cubes to resize; normal mouse look resumes on release | while fd_checkpoints_edit is 1 |
 
 ## Features
 
@@ -62,18 +122,19 @@ your changes are saved (FDNYCore.cfg). **Practice**: refused while `fd_profile` 
 - **Profiles**: practice (everything allowed) or run (practice-only settings refused, watermark always on). (variables `fd_profile`, `fd_watermark`)
 - **On-screen text**: size and opacity of every FDNYCore text panel. (variables `fd_text_size`, `fd_text_alpha`, `fd_text_fg_alpha`; commands `fd_textdraw`)
 - **Startup**: optional startup changes. (variables `fd_skip_intro`)
+- **Flying camera**: the keys of the free camera and of the recordings viewer. (keys mode `camera`, mode `viewer`)
 - **Field of view**: the camera FOV: the classic FOV fix by default, or a fixed angle, Hor+ on wide screens. (variables `fd_fov`, `fd_fov_factor`; commands `fd_fovinfo`)
 - **Window**: keeps the mouse cursor in the game window only while the game is focused (the alt-tab fix). (variables `fd_window_cursor`; keys O)
 - **Speedrun options**: fixed victim spawns and the RescueBot switch (shown on the watermark). (variables `fd_static_spawns`, `fd_rescuebot`; commands `fd_spawns`)
 - **Player HUD**: position, velocity, XY speed and stance on screen. (variables `fd_hud_player`; keys H)
-- **Warp HUD**: shows what the player touches and whether it can warp them (the stale-impact warp), with a history of boxes. (variables `fd_hud_warp`; commands `fd_warp_hide`, `fd_warp_freeze`, `fd_warp_clear`; keys G, B, Z, X)
+- **Warp HUD**: shows what the player touches and whether it can warp them (the stale-impact warp), with a history of boxes. (variables `fd_hud_warp`; commands `fd_warp_hide`, `fd_warp_freeze`, `fd_warp_clear`; keys G, mode `warp`)
 - **Teleporter**: save a position and view, and teleport back to it (same map). (commands `fd_tp_save`, `fd_tp_load`; keys K, L)
 - **Trigger boxes**: draws the map's rescue zones and exits (and optionally every trigger) as boxes. (variables `fd_triggers`, `fd_triggers_all`, `fd_triggers_xray`; commands `fd_triggers_toggle`, `fd_triggers_list`; keys T, Y)
 - **Fire juggling**: an arrow showing where a carried survivor lands if you pass out now. (variables `fd_juggle`; keys J)
-- **Pause and free camera**: freeze the game and fly a camera around; the view returns to the player on resume. (variables `fd_pause`, `fd_freecam_speed`, `fd_freecam_sens`; commands `fd_pause_toggle`; keys P, W S, A D, E Q, SHIFT, CTRL, MOUSE)
+- **Pause and free camera**: freeze the game and fly a camera around; the view returns to the player on resume. (variables `fd_pause`, `fd_freecam_speed`, `fd_freecam_sens`; commands `fd_pause_toggle`; keys P, MOUSE)
 - **Recorder**: automatically save player and victim trajectories as fdny-trajectory-v1 JSONL files in Recordings beside FDNYCore.asi. (variables `fd_record`, `fd_record_victims`, `fd_record_directory`; keys W A S D UPARROW LEFTARROW DOWNARROW RIGHTARROW C CTRL SPACE SHIFT MOUSE1 MOUSE2 1 2 3)
-- **Replay**: Recordings on the briefing browses, favorites, renames and compares runs with a follow/free camera; V plays this map's best and latest, fd_replay picks runs, fd_replay_ghost races each spawn. (variables `fd_replay_speed`, `fd_replay_xray`, `fd_replay_ghost`; commands `fd_replay_view`, `fd_replay_load`, `fd_replay_clear`, `fd_replay_toggle`, `fd_replay_list`, `fd_replay`; keys V, ESC PGUP PGDN, X, MOUSE2, F TAB SPACE LEFTARROW RIGHTARROW HOME ESC PGUP PGDN, W A S D E Q SHIFT CTRL, 1 2 3 4 5 6 7 8 9)
-- **Practice checkpoints**: place and edit native checkpoint boxes, save per mission and show elapsed level time on contact. (variables `fd_checkpoints_edit`, `fd_checkpoints_distance`, `fd_checkpoints_step`, `fd_checkpoints`; commands `fd_checkpoints_name`, `fd_checkpoints_save`, `fd_checkpoints_status`; keys N, SPACE INS MOUSE1 TAB, LEFTARROW RIGHTARROW UPARROW DOWNARROW PGUP PGDN, CTRL+C CTRL+V CTRL+D DEL BACKSPACE, HOME END ENTER CTRL+S, MOUSE1)
+- **Replay**: Recordings on the briefing browses, favorites, renames and compares runs with a follow/free camera; V plays this map's best and latest, fd_replay picks runs, fd_replay_ghost races each spawn. (variables `fd_replay_speed`, `fd_replay_xray`, `fd_replay_ghost`; commands `fd_replay_view`, `fd_replay_load`, `fd_replay_clear`, `fd_replay_toggle`, `fd_replay_list`, `fd_replay`; keys V, ESC PGUP PGDN, mode `picker`)
+- **Practice checkpoints**: place and edit native checkpoint boxes, save per mission and show elapsed level time on contact. (variables `fd_checkpoints_edit`, `fd_checkpoints_distance`, `fd_checkpoints_step`, `fd_checkpoints`; commands `fd_checkpoints_name`, `fd_checkpoints_save`, `fd_checkpoints_status`; keys N, mode `editor`)
 
 ## Variables
 
@@ -126,16 +187,16 @@ when changed. **Practice**: refused while `fd_profile` is `run`.
 | `cvarlist` | list every FDNYCore variable with its value and help |  | Console |
 | `cmdlist` | list every FDNYCore command with its help |  | Console |
 | `fd_writeconfig` | write FDNYCore.cfg now (it is also written on every change) |  | Console |
-| `bind` | bind <key> "<command>": run a console line when the key is pressed; bind <key> shows it. Keys: a-z, 0-9, f1-f12, mouse1-mouse5, space, tab, enter, shift, ctrl, alt, uparrow (and the other arrows), kp_0-kp_9, ins, del, home, end, pgup, pgdn |  | Keys |
-| `unbind` | unbind <key>: remove the key's bind (a default key stays unbound) |  | Keys |
-| `unbindall` | remove every bind, the default keys too |  | Keys |
-| `bindlist` | list the binds, then the keys features read themselves |  | Keys |
+| `bind` | bind <key> "<command>": run a console line when the key is pressed; bind <key> shows it. bind <mode> <key> <action>: a mode's key (bind <mode> lists its actions, bind <mode> default restores them; keys also as ctrl+c). Keys: a-z, 0-9, f1-f12, mouse1-mouse5, space, tab, enter, escape, shift, ctrl, alt, uparrow (and the other arrows), kp_0-kp_9, ins, del, home, end, pgup, pgdn |  | Keys |
+| `unbind` | unbind <key>: remove the key's bind (a default key stays unbound); unbind <mode> <key>: remove a mode's key |  | Keys |
+| `unbindall` | remove every ordinary bind, the default keys too (mode keys stay) |  | Keys |
+| `bindlist` | list the binds, the keys that are read as they are, and the modes (bind <mode> lists a mode's keys) |  | Keys |
 | `fd_textdraw` | list the on-screen text panels: shown, size, position, translucent/opaque |  | On-screen text |
 | `fd_fovinfo` | show the game's FOV and the camera's current FOV |  | Field of view |
 | `fd_spawns` | fd_spawns <map> [spot ...]: pin victim spawn spots, one per victim in spawn order (0 = editor origin, 1..N = alt spots, -1 = random; 'default' resets; the map alone shows them; used while fd_static_spawns is 1) |  | Speedrun options |
-| `fd_warp_hide` | show / hide the warp HUD's boxes (key B) | yes | Warp HUD |
-| `fd_warp_freeze` | freeze / unfreeze the warp HUD's boxes; logging continues (key Z) | yes | Warp HUD |
-| `fd_warp_clear` | clear the warp HUD's history and last warp (key X) | yes | Warp HUD |
+| `fd_warp_hide` | show / hide the warp HUD's boxes | yes | Warp HUD |
+| `fd_warp_freeze` | freeze / unfreeze the warp HUD's boxes; logging continues | yes | Warp HUD |
+| `fd_warp_clear` | clear the warp HUD's history and last warp | yes | Warp HUD |
 | `fd_tp_save` | save the player's position + view (practice; this map only) | yes | Teleporter |
 | `fd_tp_load` | teleport to the fd_tp_save location (same map only) | yes | Teleporter |
 | `fd_triggers_toggle` | cycle the trigger boxes: off -> on -> on + x-ray -> off (key T) | yes | Trigger boxes |

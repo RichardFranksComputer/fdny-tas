@@ -46,6 +46,7 @@ def reset_lines(repo_dir):
     reg = docgen.read_source()
     lines = ['fd_profile "practice"', "unbindall"]
     lines += [f'bind {b["key"]} "{b["line"]}"' for b in reg["binds"]]
+    lines += [f'bind {m["name"]} default' for m in reg["modes"]]  # mode keys a test rebound
     lines += [f'{c["name"]} "{c["default"]}"' for c in reg["cvars"]
               if not c["read_only"] and c["name"] != "fd_profile"]
     return lines

@@ -470,7 +470,7 @@ class Run:
                     + (f"; disabled in this run: {sorted(m for m, on in mods.items() if not on)}"
                        if not all(mods.values()) else ""))
         off = {f for m, f in src_mods.items() if not mods.get(m, True)}
-        for k in ("cvars", "commands", "binds", "keys"):
+        for k in ("cvars", "commands", "binds", "keys", "modes", "actions"):
             reg[k] = [x for x in reg[k] if x["file"] not in off]
         b = lambda x: "1" if x else "0"
         want = {
@@ -479,6 +479,8 @@ class Run:
             "cmd": {(c["name"], b(c["practice"]), c["help"]) for c in reg["commands"]},
             "bind": {(x["key"], x["line"]) for x in reg["binds"]},
             "key": {(k["key"], k["action"], k["when"]) for k in reg["keys"]},
+            "mode": {(m["name"], m["when"]) for m in reg["modes"]},
+            "action": {(a["mode"], a["id"], a["keys"], a["help"], str(a["how"])) for a in reg["actions"]},
         }
         for kind, expected in want.items():
             got = {tuple(r[1:]) for r in rows if r[0] == kind}
