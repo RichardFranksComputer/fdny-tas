@@ -18,6 +18,10 @@ namespace fdcore::profile {
 
 bool Init();  // after every module has registered its variables
 
+// True in `fd_profile practice` (the default). A practice tool that acts on its own (an
+// editor, a viewer, a timer) asks here; variables and commands are gated by the profile itself.
+bool Practice();
+
 // Debug pipe / tests: the watermark text drawn on the last frame.
 int LastWatermark(char* out, int cap);
 

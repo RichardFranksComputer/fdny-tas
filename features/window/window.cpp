@@ -51,12 +51,12 @@ void __stdcall CursorWarp() {
     SetCursorPos((rc.left + rc.right) >> 1, (rc.top + rc.bottom) >> 1);
 }
 
-void OnMode(cmd::Cvar& v) { InterlockedExchange(&g_mode, v.value[0] == '0' ? 0 : 1); }
+void OnMode(cmd::Cvar& v) { InterlockedExchange(&g_mode, cmd::Bool(v)); }
 cmd::Cvar g_fdWindowCursor = {
     "fd_window_cursor", "1",
     "1 = keep the cursor in the game window only while it is focused (hold O to free it); "
     "0 = game default (warp to 200,200 every frame, even when alt-tabbed)",
-    false, true, OnMode, {0}};
+    false, true, OnMode, {0}, cmd::T_BOOL};
 
 } // namespace
 

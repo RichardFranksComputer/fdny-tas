@@ -15,15 +15,14 @@
 #include "log.h"
 #include "modules.h"
 #include "pause.h"
+#include "profile.h"
+#include "spectator.h"
 #include "state.h"
 #include "textdraw.h"
 
 namespace fdcore::checkpoints {
 namespace {
-bool Practice() {
-    const cmd::Cvar* p = cmd::FindCvar("fd_profile");
-    return p && !lstrcmpiA(p->value, "practice");
-}
+using profile::Practice;
 
 bool FilePath(const char* map, char* path) {
     if (!Mission(map)) return false;
@@ -74,18 +73,15 @@ bool g_hasClipboard, g_dirty, g_savePending, g_backup, g_ownsPause, g_syncing, g
 bool g_previous[256];
 DWORD g_repeat[256], g_saveAt;
 const char* g_message = "Saved; restart mission to apply";
-cmd::Cvar g_edit = {"fd_checkpoints_edit", "0", "1 = pause and edit checkpoint boxes in the free camera; autosaves Checkpoints/<mission>.txt; 0 = exit; restart mission to apply", false, false, nullptr, {0}};
-cmd::Cvar g_distance = {"fd_checkpoints_distance", "160", "new/pasted checkpoint distance ahead of the camera in units (32-2000)", false, false, nullptr, {0}};
-cmd::Cvar g_step = {"fd_checkpoints_step", "8", "checkpoint move/resize step in units (1-256); hold Ctrl for 1 unit", false, false, nullptr, {0}};
+cmd::Cvar g_edit = {"fd_checkpoints_edit", "0", "1 = pause and edit checkpoint boxes in the free camera; autosaves Checkpoints/<mission>.txt; 0 = exit; restart mission to apply", false, false, nullptr, {0}, cmd::T_BOOL};
+cmd::Cvar g_distance = {"fd_checkpoints_distance", "160", "new/pasted checkpoint distance ahead of the camera in units (32-2000)", false, false, nullptr, {0}, cmd::T_FLOAT, 32, 2000};
+cmd::Cvar g_step = {"fd_checkpoints_step", "8", "checkpoint move/resize step in units (1-256); hold Ctrl for 1 unit", false, false, nullptr, {0}, cmd::T_FLOAT, 1, 256};
 
 bool Down(int key) { return (GetAsyncKeyState(key)&0x8000) != 0; }
 bool Active() {
-    return !state::WatchOnly() && g_open && g_edit.value[0] == '1' && pause::Active() && state::Current().gameState == 1 && Practice();
+    return !state::WatchOnly() && g_open && cmd::Bool(g_edit) && pause::Active() && state::Current().gameState == 1 && Practice();
 }
 bool Selected() { return g_draft.selected >= 0 && g_draft.selected < g_draft.set.count; }
-float Setting(const cmd::Cvar& var, float fallback, float min, float max) {
-    float n = 0; return Number(var.value, &n) && n >= min && n <= max ? n : fallback;
-}
 bool Capture(int vk) {
     if (!Active()) return false;
     if (g_drag.active && (vk == 'W' || vk == 'A' || vk == 'S' || vk == 'D' || vk == 'E' || vk == 'Q')) return true;
@@ -164,12 +160,10 @@ failed:
 }
 void OnEdit(cmd::Cvar&) {
     if (g_syncing) return;
-    if (g_edit.value[0] != '1') {
+    if (!cmd::Bool(g_edit)) {
         EndDrag();
         if (!Save()) { SetEdit(true); return; }
-        if (g_ownsPause) {
-            if (auto* var = cmd::FindCvar("fd_pause")) cmd::SetCvar(var, "0");
-        }
+        if (g_ownsPause) spectator::RequestFreePause(false);
         g_ownsPause = g_open = false;
         console::Print("checkpoints: editor closed; restart mission to apply saved boxes"); return;
     }
@@ -200,11 +194,10 @@ void OnEdit(cmd::Cvar&) {
     } else if (!Equal(s.map, g_draft.set.map)) {
         console::Print("checkpoints: save the previous mission's draft first with fd_checkpoints_save"); SetEdit(false); return;
     }
-    auto* var = cmd::FindCvar("fd_pause");
     g_ownsPause = !pause::Active();
-    if (!var || (g_ownsPause && !cmd::SetCvar(var, "1")) || !camera::WorldOverrideActive()) {
+    if ((g_ownsPause && !spectator::RequestFreePause(true)) || !camera::WorldOverrideActive()) {
         console::Print("checkpoints: free camera unavailable");
-        if (g_ownsPause && var) cmd::SetCvar(var, "0");
+        if (g_ownsPause) spectator::RequestFreePause(false);
         g_ownsPause = false; SetEdit(false); return;
     }
     g_open = true; CenterPointer(); ResetKeys();
@@ -226,7 +219,7 @@ void Add(bool paste, bool duplicate) {
     else {
         float origin[3], direction[3];
         if (!gfx::ScreenRay(g_cursorX,g_cursorY,origin,direction)) return;
-        const float distance = Setting(g_distance, 160, 32, 2000);
+        const float distance = cmd::Float(g_distance);
         if (paste) point = g_clipboard;
         else { point.min[0] = point.min[2] = -48; point.max[0] = point.max[2] = 48; point.min[1] = -64; point.max[1] = 64; }
         for (int a = 0; a < 3; ++a) {
@@ -358,7 +351,7 @@ void Input() {
     for (int i = 0; i < 6; ++i) {
         if (!Press(keys[i], true) || !Selected()) continue;
         Point point = g_draft.set.points[g_draft.selected];
-        const float step = ctrl ? 1 : Setting(g_step, 8, 1, 256);
+        const float step = ctrl ? 1 : cmd::Float(g_step);
         if (!Adjust(&point, i/2, (i%2 ? 1 : -1)*step, resize)) continue;
         Remember(); g_draft.set.points[g_draft.selected] = point; DraftChanged();
     }
@@ -454,7 +447,7 @@ void Reticle() {
 void Frame() {
     if (!Active()) {
         EndDrag(); textdraw::Show(g_panel, false);
-        if (g_edit.value[0] == '1') {
+        if (cmd::Bool(g_edit)) {
             // Pause/menu transitions leave the editor; saving uses the draft's map key.
             Save(); SetEdit(false); g_ownsPause = g_open = false;
         }
@@ -496,19 +489,19 @@ bool g_entered;
 void PlayerInitialized(void*) { ++g_playerGeneration; }
 enum Phase { WaitingForPlayer, Ready, Failed, Inactive };
 Phase g_phase = Inactive;
-cmd::Cvar g_fdCheckpoints = {"fd_checkpoints", "0", "1 = checkpoint names and elapsed level time (N toggles); 0 = off", false, true, nullptr, {0}};
+cmd::Cvar g_fdCheckpoints = {"fd_checkpoints", "0", "1 = checkpoint names and elapsed level time (N toggles); 0 = off", false, true, nullptr, {0}, cmd::T_BOOL};
 bool Clock(uint32_t* value) {
     uintptr_t slot = 0;
     return addr::Resolve(addr::Id::clock_elapsed_ms, &slot) && addr::SafeRead(slot, value, sizeof(*value));
 }
 void OnTimestamps(cmd::Cvar&) {
-    console::Print("checkpoints: timestamps %s", g_fdCheckpoints.value[0] == '1' ? "on" : "off");
-    if (g_fdCheckpoints.value[0] != '1') textdraw::ClearGameHint();
+    console::Print("checkpoints: timestamps %s", cmd::Bool(g_fdCheckpoints) ? "on" : "off");
+    if (!cmd::Bool(g_fdCheckpoints)) textdraw::ClearGameHint();
     const auto& s = state::Current();
-    if (g_fdCheckpoints.value[0] == '1' && Practice() && s.gameState == 1 && g_phase == Inactive && LoadFile(s.map, &g_set)) g_phase = WaitingForPlayer;
+    if (cmd::Bool(g_fdCheckpoints) && Practice() && s.gameState == 1 && g_phase == Inactive && LoadFile(s.map, &g_set)) g_phase = WaitingForPlayer;
 }
 void Status(int, const char* const*) {
-    console::Print("checkpoints: timestamps %s; %d native checkpoints loaded for %s", g_fdCheckpoints.value[0] == '1' ? "on" : "off", g_phase == Ready ? g_set.count : 0, state::Current().map);
+    console::Print("checkpoints: timestamps %s; %d native checkpoints loaded for %s", cmd::Bool(g_fdCheckpoints) ? "on" : "off", g_phase == Ready ? g_set.count : 0, state::Current().map);
 }
 void LevelLoad(const char* map) {
     // LevelLoad also fires on menu -> play. Only a new player initialization
@@ -520,11 +513,11 @@ void LevelLoad(const char* map) {
     textdraw::ClearGameHint(false);
     g_set.count = 0; g_phase = Inactive; g_startValid = Clock(&g_start);
     for (int i = 0; i < kMax; ++i) g_armed[i] = g_hit[i] = false;
-    if (g_startValid && g_fdCheckpoints.value[0] == '1' && Practice() && LoadFile(map, &g_set)) g_phase = WaitingForPlayer;
+    if (g_startValid && cmd::Bool(g_fdCheckpoints) && Practice() && LoadFile(map, &g_set)) g_phase = WaitingForPlayer;
 }
 void ContactEvent(int index, bool entering) {
     if (g_phase != Ready || index < 0 || index >= g_set.count) return;
-    const bool enabled = g_fdCheckpoints.value[0] == '1' && Practice() && state::Current().gameState == 1;
+    const bool enabled = cmd::Bool(g_fdCheckpoints) && Practice() && state::Current().gameState == 1;
     if (!Contact(entering, enabled, g_armed[index], g_hit[index])) return;
     uint32_t now = 0; if (!g_startValid || !Clock(&now)) { g_hit[index] = false; return; }
     const auto time = Elapsed(g_start, now);
@@ -537,7 +530,7 @@ void ContactEvent(int index, bool entering) {
 }
 void FrameEnd() {
     const auto& s = state::Current();
-    if (g_phase != WaitingForPlayer || g_fdCheckpoints.value[0] != '1' || !Practice() || s.gameState != 1 || !s.playerValid) return;
+    if (g_phase != WaitingForPlayer || !cmd::Bool(g_fdCheckpoints) || !Practice() || s.gameState != 1 || !s.playerValid) return;
     uintptr_t slot = 0; uint32_t player = 0; float pos[3], lo[3], hi[3];
     if (!addr::Resolve(addr::Id::player_object, &slot) || !addr::SafeRead(slot, &player, 4) || !player ||
         !addr::SafeRead(player+addr::Field(addr::Id::player_f_pos), pos, sizeof(pos)) ||

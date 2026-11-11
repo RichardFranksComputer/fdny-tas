@@ -16,6 +16,7 @@
 #include "console.h"
 #include "log.h"
 #include "modules.h"
+#include "num.h"
 
 namespace fdcore::fov {
 namespace {
@@ -31,42 +32,21 @@ float Tan(float x) {
     return r;
 }
 
-bool ParseFloat(const char* s, float* out) {
-    float sign = 1.0f, v = 0.0f, scale = 0.1f;
-    if (*s == '-') sign = -1.0f, ++s;
-    else if (*s == '+') ++s;
-    bool any = false;
-    while (*s >= '0' && *s <= '9') v = v * 10.0f + static_cast<float>(*s++ - '0'), any = true;
-    if (*s == '.') {
-        ++s;
-        while (*s >= '0' && *s <= '9') v += static_cast<float>(*s++ - '0') * scale, scale *= 0.1f, any = true;
-    }
-    if (!any || *s) return false;
-    *out = sign * v;
-    return true;
-}
-
-// "123.456789" (wsprintf has no %f)
-void FormatFloat(float v, char* out) {
-    long m = static_cast<long>(v * 1000000.0f + (v >= 0 ? 0.5f : -0.5f));
-    long a = m < 0 ? -m : m;
-    wsprintfA(out, "%s%ld.%06ld", m < 0 ? "-" : "", a / 1000000, a % 1000000);
-}
+void FormatFloat(float v, char* out) { num::Fixed(out, v, 6); }  // "123.456789"
 
 // --- variables -----------------------------------------------------------------
 void Reapply(cmd::Cvar&) { camera::Reapply(); }
 cmd::Cvar g_fdFov = {"fd_fov", "0",
                      "horizontal FOV in degrees at 4:3 (up to 170), Hor+ for wider screens; 0 = classic FOV fix "
                      "(1.43 * aspect/(4/3) * fd_fov_factor); -1 = game default",
-                     false, true, Reapply, {0}};
-cmd::Cvar g_fdFovFactor = {"fd_fov_factor", "1.4", "FOV multiplier used when fd_fov is 0 (classic FOV fix): 1.4 = 90 degrees at 4:3",
-                           false, true, Reapply, {0}};
+                     false, true, Reapply, {0}, cmd::T_FLOAT, -1, 170};
+cmd::Cvar g_fdFovFactor = {"fd_fov_factor", "1.4", "FOV multiplier used when fd_fov is 0 (classic FOV fix), 0.1-5: 1.4 = 90 degrees at 4:3",
+                           false, true, Reapply, {0}, cmd::T_FLOAT, 0.1f, 5};
 
 // Fov to store for a camera with this rect, given the game's own Fov (camera filter).
 float Wanted(const int* rect, float gameFov) {
-    float fov = 0.0f, factor = 1.4f;
-    if (!ParseFloat(g_fdFov.value, &fov)) fov = 0.0f;
-    if (!ParseFloat(g_fdFovFactor.value, &factor)) factor = 1.4f;
+    float fov = cmd::Float(g_fdFov);
+    const float factor = cmd::Float(g_fdFovFactor);
     if (fov < 0.0f) return gameFov;
     float w = static_cast<float>(rect[1] - rect[0] + 1), h = static_cast<float>(rect[3] - rect[2] + 1);
     float horPlus = h > 0.0f ? (w / h) / (4.0f / 3.0f) : 1.0f;

@@ -25,9 +25,11 @@ using addr::Id;
 int g_panel = -1;
 
 void OnToggle(cmd::Cvar& v) {
-    textdraw::Show(g_panel, v.value[0] != '0');
+    textdraw::Show(g_panel, cmd::Bool(v));
 }
-cmd::Cvar g_fdEnable = {"fd_<name>", "0", "1 = <what it shows / does>", false, true, OnToggle, {0}};
+// Typed (cmd.h): T_BOOL, or `{0}, cmd::T_INT, min, max` / `cmd::T_FLOAT, min, max`; read with
+// cmd::Bool / Int / Float. The console refuses anything else, so never parse or clamp here.
+cmd::Cvar g_fdEnable = {"fd_<name>", "0", "1 = <what it shows / does>; 0 = off", false, true, OnToggle, {0}, cmd::T_BOOL};
 
 void CmdDoThing(int argc, const char* const* argv) {
     (void)argc, (void)argv;
@@ -36,7 +38,7 @@ void CmdDoThing(int argc, const char* const* argv) {
 
 // Frame end: update state / panel text here; textdraw draws later (OnFrameEndLate).
 void FrameEnd() {
-    if (g_fdEnable.value[0] == '0') return;
+    if (!cmd::Bool(g_fdEnable)) return;
     const char* lines[] = {"<line 1>", "<line 2>"};
     textdraw::SetLines(g_panel, lines, 2);
 }

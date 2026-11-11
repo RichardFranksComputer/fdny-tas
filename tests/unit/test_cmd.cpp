@@ -10,6 +10,7 @@
 
 #include "../../core/binds.h"
 #include "../../core/cmd.h"
+#include "../../core/num.h"
 #include "unit.h"
 
 namespace cmd = fdcore::cmd;
@@ -29,6 +30,9 @@ int Writer(char* out, int cap) { return snprintf(out, cap, "fd_t_written \"by a 
 cmd::Cvar g_a = {"fd_t_a", "0", "archived", false, true, nullptr, {0}};
 cmd::Cvar g_b = {"fd_t_b", "1", "not archived", false, false, nullptr, {0}};
 cmd::Cvar g_p = {"fd_t_p", "0", "gated", false, true, nullptr, {0}};
+cmd::Cvar g_on = {"fd_t_on", "0", "on / off", false, false, nullptr, {0}, cmd::T_BOOL};
+cmd::Cvar g_int = {"fd_t_int", "9", "7-16", false, false, nullptr, {0}, cmd::T_INT, 7, 16};
+cmd::Cvar g_float = {"fd_t_float", "0.075", "0.001-10", false, false, nullptr, {0}, cmd::T_FLOAT, 0.001f, 10};
 
 bool CvarGate(const cmd::Cvar& v, const char*) { return strcmp(v.name, "fd_t_p") != 0; }
 bool CommandGate(const char* name) { return strcmp(name, "fd_t_cmd") != 0; }
@@ -89,6 +93,36 @@ void TestCmdAndBinds() {
     CHECK(cmd::Dispatch("toggle FD_T_A") && strcmp(g_a.value, "1") == 0);
     CHECK(cmd::Dispatch("fd_version 9") && unit::LogContains("console> fd_version is read-only"));
     CHECK(strcmp(cmd::FindCvar("fd_version")->value, "0.0.0-unit") == 0);
+
+    // Typed variables: a value of the wrong kind or out of range is refused with what the
+    // variable takes, and the old value stays; Bool / Int / Float read it.
+    cmd::RegisterCvar(&g_on), cmd::RegisterCvar(&g_int), cmd::RegisterCvar(&g_float);
+    CHECK(cmd::Dispatch("fd_t_on 2") && strcmp(g_on.value, "0") == 0 && unit::LogContains("console> fd_t_on takes 0 or 1"));
+    CHECK(cmd::Dispatch("fd_t_on yes") && cmd::Dispatch("fd_t_on 01") && !cmd::Bool(g_on));
+    CHECK(cmd::Dispatch("fd_t_on 1") && cmd::Bool(g_on) && cmd::Dispatch("toggle fd_t_on") && !cmd::Bool(g_on));
+    CHECK(cmd::Dispatch("fd_t_int 17") && cmd::Int(g_int) == 9 &&
+          unit::LogContains("console> fd_t_int takes a whole number, 7 to 16"));
+    CHECK(cmd::Dispatch("fd_t_int 7.5") && cmd::Dispatch("fd_t_int big") && cmd::Int(g_int) == 9);
+    CHECK(cmd::Dispatch("fd_t_int 16") && cmd::Int(g_int) == 16);
+    CHECK(cmd::Dispatch("fd_t_float 11") && cmd::Float(g_float) == 0.075f &&
+          unit::LogContains("console> fd_t_float takes a number, 0.001 to 10"));
+    CHECK(cmd::Dispatch("fd_t_float -1") && cmd::Dispatch("fd_t_float 1.2.3") && cmd::Float(g_float) == 0.075f);
+    CHECK(cmd::Dispatch("fd_t_float 2.5") && cmd::Float(g_float) == 2.5f);
+    CHECK(!cmd::SetCvarUngated(&g_int, "99") && cmd::Int(g_int) == 16);  // a profile restore can't bypass it
+    CHECK(cmd::Dispatch("fd_t_b anything goes"));                         // untyped: text
+
+    // Numbers as text (num.h): what every panel and console line prints.
+    char n[24];
+    CHECK(fdcore::num::Fixed(n, -123.44f, 1) == 6 && strcmp(n, "-123.4") == 0);
+    CHECK(fdcore::num::Fixed(n, 0.05f, 1) && strcmp(n, "0.1") == 0);
+    CHECK(fdcore::num::Fixed(n, -0.04f, 1) && strcmp(n, "0.0") == 0);
+    CHECK(fdcore::num::Fixed(n, 2.002f, 6) && strncmp(n, "2.00", 4) == 0 && strlen(n) == 8);
+    CHECK(fdcore::num::Fixed(n, 119.6f, 0) && strcmp(n, "120") == 0);
+    CHECK(fdcore::num::Short(n, 0.075f) && strcmp(n, "0.075") == 0);
+    CHECK(fdcore::num::Short(n, 400.0f) && strcmp(n, "400") == 0);
+    float parsed = 0;
+    CHECK(fdcore::num::Parse("-12.5", &parsed) && parsed == -12.5f && fdcore::num::Parse(".5", &parsed));
+    CHECK(!fdcore::num::Parse("", &parsed) && !fdcore::num::Parse("1x", &parsed) && !fdcore::num::Parse("-", &parsed));
 
     // Practice-only declarations and the gates (the profile installs them).
     cmd::SetPracticeOnly("fd_t_p");

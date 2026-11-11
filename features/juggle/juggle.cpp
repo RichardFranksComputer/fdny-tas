@@ -33,6 +33,7 @@
 #include "juggle_math.h"
 #include "log.h"
 #include "modules.h"
+#include "num.h"
 #include "state.h"
 #include "testpipe.h"
 #include "textdraw.h"
@@ -87,10 +88,9 @@ float g_lockSafe[3] = {};  // the spot when the current lock began
 
 bool Same(const float* a, const float* b) { return a[0] == b[0] && a[1] == b[1] && a[2] == b[2]; }
 
-bool On(const cmd::Cvar& v) { return v.value[0] != '0'; }
 cmd::Cvar g_fdJuggle = {"fd_juggle", "0",
                         "1 = fire-juggling arrow: where a carried survivor lands if you pass out now; 0 = off", false, true,
-                        nullptr, {0}};
+                        nullptr, {0}, cmd::T_BOOL};
 
 float Sqrt(float x) {
     float r;
@@ -114,12 +114,11 @@ uintptr_t Player() {
     return player;
 }
 
-long Round(float v) { return static_cast<long>(v + (v >= 0 ? 0.5f : -0.5f)); }
+using num::Round;
 
-// "-123.4" (wsprintf has no %f), into out; returns out.
+// "-123.4", into out; returns out.
 const char* F1(char* out, float v) {
-    const long m = Round(v * 10.0f), a = m < 0 ? -m : m;
-    wsprintfA(out, "%s%ld.%ld", m < 0 ? "-" : "", a / 10, a % 10);
+    num::Fixed(out, v, 1);
     return out;
 }
 
@@ -181,7 +180,7 @@ void FrameEnd() {
 #endif
     const state::State& s = state::Current();
     View v = {};
-    v.on = On(g_fdJuggle);
+    v.on = cmd::Bool(g_fdJuggle);
     v.dir = kDirNone;
     const uintptr_t pl = s.gameState == 1 && s.playerValid ? Player() : 0;
     bool elsewhere = false;
@@ -245,20 +244,7 @@ struct SetPos {
 };
 SetPos g_setPos = {};
 
-bool ParseFloat(const char* s, float* out) {
-    float sign = 1.0f, v = 0.0f, scale = 0.1f;
-    if (*s == '-') sign = -1.0f, ++s;
-    else if (*s == '+') ++s;
-    bool any = false;
-    while (*s >= '0' && *s <= '9') v = v * 10.0f + static_cast<float>(*s++ - '0'), any = true;
-    if (*s == '.') {
-        ++s;
-        while (*s >= '0' && *s <= '9') v += static_cast<float>(*s++ - '0') * scale, scale *= 0.1f, any = true;
-    }
-    if (!any || *s) return false;
-    *out = sign * v;
-    return true;
-}
+bool ParseFloat(const char* s, float* out) { return num::Parse(s, out); }
 
 void CmdSetPos(int argc, const char* const* argv) {
     SetPos p = {};

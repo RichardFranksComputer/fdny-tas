@@ -53,7 +53,7 @@ int PeekSkipIntro(const char* path, int current) {
 
 cmd::Cvar g_fdSkipIntro = {"fd_skip_intro", "0",
                            "1 = skip the Activision/Mekada intro movies at startup; 0 = play them (takes effect next launch)",
-                           false, true, nullptr, {0}};
+                           false, true, nullptr, {0}, cmd::T_BOOL};
 
 } // namespace
 

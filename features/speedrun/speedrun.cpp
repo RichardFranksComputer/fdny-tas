@@ -32,16 +32,16 @@ bool g_hooked = false;
 
 // --- variables -----------------------------------------------------------------
 volatile long g_static = 0;  // fd_static_spawns
-void OnStatic(cmd::Cvar& v) { InterlockedExchange(&g_static, v.value[0] != '0'); }
+void OnStatic(cmd::Cvar& v) { InterlockedExchange(&g_static, cmd::Bool(v)); }
 cmd::Cvar g_fdStaticSpawns = {"fd_static_spawns", "0",
                               "1 = victims spawn at fixed spots (fd_spawns; default spot 0 for every victim), "
                               "0 = the game's random pick",
-                              false, true, OnStatic, {0}};
+                              false, true, OnStatic, {0}, cmd::T_BOOL};
 void ApplyRescueBot(cmd::Cvar& v);
 cmd::Cvar g_fdRescueBot = {"fd_rescuebot", "1",
                            "0 = the AI RescueBot never claims victims and its chatter is muted (all difficulties); "
                            "1 = as the game ships (applies fully from the next level load)",
-                           false, true, ApplyRescueBot, {0}};
+                           false, true, ApplyRescueBot, {0}, cmd::T_BOOL};
 
 // --- spawn pins: fd_spawns <map> <i> <i> ... (-1 = random); default all 0 --------
 constexpr int kMaxMaps = 32, kMaxVictims = 24;
@@ -192,7 +192,7 @@ bool WriteByte(uintptr_t at, uint8_t v) {
 }
 
 void ApplyRescueBot(cmd::Cvar& v) {
-    const bool on = v.value[0] != '0';
+    const bool on = cmd::Bool(v);
     uintptr_t tryStart = addr::ExportAddress(Id::patch_rescuebot_trystart);
     uintptr_t ctorImm = addr::ExportAddress(Id::patch_rescuebot_ctor_enable);
     if (!tryStart || !ctorImm) {

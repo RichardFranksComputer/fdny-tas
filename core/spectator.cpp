@@ -326,6 +326,11 @@ bool StartFree(const Flight& flight) {
     log::Info("spectator: free camera");
     return true;
 }
+namespace {
+FreePauseFn g_freePauseHost;
+}
+void SetFreePauseHost(FreePauseFn host) { g_freePauseHost = host; }
+bool RequestFreePause(bool on) { return g_freePauseHost && g_freePauseHost(on); }
 void SetFlight(const Flight& flight) {
     if (!g_modal)
         g_flight = flight;

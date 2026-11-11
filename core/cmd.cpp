@@ -9,6 +9,7 @@
 #include "hooks.h"
 #include "log.h"
 #include "modules.h"
+#include "num.h"
 
 namespace fdcore::cmd {
 namespace {
@@ -142,7 +143,7 @@ int g_nWriters = 0;
 
 Cvar g_fdVersion = {"fd_version", "", "this build's FDNYCore version", true, false, nullptr, {0}};
 Cvar g_fdLogCommands = {"fd_log_commands", "1", "1 = log every FDNYCore console command to FDNYCore.log; 0 = don't",
-                        false, true, nullptr, {0}};
+                        false, true, nullptr, {0}, T_BOOL};
 
 void CmdWriteConfig(int, const char* const*) {
     if (SaveConfig()) console::Print("wrote %s%s", console::GameDir(), kConfigName);
@@ -158,20 +159,54 @@ void OnHooksFrame(Cvar& v) {
 }
 Cvar g_fdHooksFrame = {"fd_hooks_frame", "1", "1 = per-frame hooks on; 0 = off, which stops every per-frame feature (HUDs, keys, pause): "
                        "for debugging",
-                       false, false, OnHooksFrame, {0}};
+                       false, false, OnHooksFrame, {0}, T_BOOL};
+
+// A registry that is full drops the registration: say so, loudly (a dropped practice-only
+// name would be allowed in `fd_profile run`).
+void Full(const char* table, const char* name) { log::Error("cmd: %s table full: %s not registered", table, name); }
+
+// Is `value` one this variable takes? Prints what it takes when not.
+bool Valid(const Cvar& v, const char* value) {
+    if (v.type == T_TEXT) return true;
+    float n = 0;
+    const bool number = num::Parse(value, &n);
+    if (v.type == T_BOOL) {
+        if (number && (n == 0.0f || n == 1.0f) && !value[1]) return true;
+        console::Print("%s takes 0 or 1", v.name);
+        return false;
+    }
+    bool whole = true;
+    for (const char* s = value; *s; ++s) whole = whole && *s != '.';
+    if (number && n >= v.min && n <= v.max && (v.type == T_FLOAT || whole)) return true;
+    char lo[24], hi[24];
+    num::Short(lo, v.min), num::Short(hi, v.max);
+    if (v.type == T_INT) console::Print("%s takes a whole number, %s to %s", v.name, lo, hi);
+    else console::Print("%s takes a number, %s to %s", v.name, lo, hi);
+    return false;
+}
 
 } // namespace
 
 void RegisterConfigWriter(ConfigWriter fn) {
     if (g_nWriters < kMaxWriters) g_writers[g_nWriters++] = fn;
+    else Full("config writer", "a module's lines");
 }
 
 void RegisterCommand(const char* name, const char* help, CommandFn fn) {
     if (g_nCommands < kMaxCommands) g_commands[g_nCommands++] = {name, help, fn};
+    else Full("command", name);
 }
 
+bool Bool(const Cvar& v) { return v.value[0] != '0'; }
+float Float(const Cvar& v) {
+    float n = 0;
+    if (!num::Parse(v.value, &n)) num::Parse(v.defaultValue, &n);
+    return n;
+}
+int Int(const Cvar& v) { return static_cast<int>(num::Round(Float(v))); }
+
 void RegisterCvar(Cvar* v) {
-    if (g_nCvars >= kMaxCvars) return;
+    if (g_nCvars >= kMaxCvars) return Full("variable", v->name);
     lstrcpynA(v->value, v->defaultValue, sizeof(v->value));
     g_cvars[g_nCvars++] = v;
 }
@@ -187,12 +222,14 @@ CommandGate g_commandGate = nullptr;
 
 void SetGates(CvarGate cvarGate, CommandGate commandGate) { g_cvarGate = cvarGate, g_commandGate = commandGate; }
 namespace {
-constexpr int kMaxPractice = 32;
+constexpr int kMaxPractice = 96;
 const char* g_practice[kMaxPractice];
 int g_nPractice = 0;
 } // namespace
 void SetPracticeOnly(const char* name) {
-    if (g_nPractice < kMaxPractice && !IsPracticeOnly(name)) g_practice[g_nPractice++] = name;
+    if (IsPracticeOnly(name)) return;
+    if (g_nPractice < kMaxPractice) g_practice[g_nPractice++] = name;
+    else Full("practice-only", name);
 }
 bool IsPracticeOnly(const char* name) {
     for (int i = 0; i < g_nPractice; ++i)
@@ -241,13 +278,13 @@ int CvarCount() { return g_nCvars; }
 Cvar* CvarAt(int i) { return i >= 0 && i < g_nCvars ? g_cvars[i] : nullptr; }
 
 bool SetCvar(Cvar* v, const char* value) {
-    if (v->readOnly) return false;
+    if (v->readOnly || !Valid(*v, value)) return false;
     if (g_cvarGate && !g_cvarGate(*v, value)) return false;
     return SetCvarUngated(v, value);
 }
 
 bool SetCvarUngated(Cvar* v, const char* value) {
-    if (v->readOnly) return false;
+    if (v->readOnly || !Valid(*v, value)) return false;
     lstrcpynA(v->value, value, sizeof(v->value));
     if (v->onChange) v->onChange(*v);
     if (v->archive) SaveConfig();

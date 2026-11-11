@@ -1,4 +1,5 @@
 #include "replay_data.h"
+#include "num.h"
 
 #include <windows.h>
 #include <xmmintrin.h>
@@ -85,7 +86,6 @@ bool Is(const Line& l, const char* type) {
 void Fail(char* err, int cap, const char* why, int line) { wsprintfA(err, "line %d: %s", line, why), (void)cap; }
 
 // sqrt without the CRT (SSE, like glitch_bsp's Sqrt).
-float Sqrtf(float v) { return _mm_cvtss_f32(_mm_sqrt_ss(_mm_set_ss(v))); }
 
 // sin / cos for |x| <= pi (pitch), no CRT: reduce to [-pi/2, pi/2], then Taylor to x^9.
 float Sin(float x) {
@@ -205,7 +205,7 @@ Sample FrameAt(const Recording& r, float t) {
     // Facing in the horizontal plane, the short way round: the normalised blend of the two
     // directions (the site's shortest-angle yaw blend, without trigonometry).
     float x = a.fwd[0] + (b.fwd[0] - a.fwd[0]) * k, z = a.fwd[2] + (b.fwd[2] - a.fwd[2]) * k;
-    const float len = Sqrtf(x * x + z * z);
+    const float len = num::Sqrt(x * x + z * z);
     if (len > 1e-4f) s.fwd[0] = x / len, s.fwd[1] = 0, s.fwd[2] = z / len;
     return s;
 }
@@ -213,7 +213,7 @@ Sample FrameAt(const Recording& r, float t) {
 void ArrowDir(const Sample& s, float out[3]) {
     const float p = s.pitch * 3.14159265f / 180.0f, c = Cos(p);
     out[0] = s.fwd[0] * c, out[1] = -Sin(p), out[2] = s.fwd[2] * c;
-    const float len = Sqrtf(out[0] * out[0] + out[1] * out[1] + out[2] * out[2]);
+    const float len = num::Sqrt(out[0] * out[0] + out[1] * out[1] + out[2] * out[2]);
     if (len > 1e-6f)
         for (int i = 0; i < 3; ++i) out[i] /= len;
 }

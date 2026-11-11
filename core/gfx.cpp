@@ -10,6 +10,7 @@
 #include "camera.h"
 #include "hooks.h"
 #include "log.h"
+#include "num.h"
 #include "testpipe.h"
 
 namespace fdcore::gfx {
@@ -139,13 +140,9 @@ int g_fontPx = 0;
 
 void OnTextSize(cmd::Cvar&);
 cmd::Cvar g_fdTextSize = {"fd_text_size", "9", "on-screen text height in pixels, 7-16", false, true,
-                          OnTextSize, {0}};
+                          OnTextSize, {0}, cmd::T_INT, 7, 16};
 
-int TextPx() {
-    int v = 0;
-    for (const char* s = g_fdTextSize.value; *s >= '0' && *s <= '9'; ++s) v = v * 10 + (*s - '0');
-    return v < 7 ? 7 : v > 16 ? 16 : v;
-}
+int TextPx() { return cmd::Int(g_fdTextSize); }
 
 bool Fonts() {
     if (!g_dc && !(g_dc = CreateCompatibleDC(nullptr))) return false;
@@ -675,7 +672,6 @@ void DrawBoxes(const WorldBox* list, int n, bool xray) {
 }
 
 // sqrt without the CRT (SSE, like glitch_bsp's Sqrt).
-float Sqrtf(float v) { return _mm_cvtss_f32(_mm_sqrt_ss(_mm_set_ss(v))); }
 
 // One screen-space vertex with its colour (Clip interpolates every float).
 struct ScrC {
@@ -760,7 +756,7 @@ void DrawChunk(const WorldLine& line, int from, int count, float focal, void* ti
     // lengthened so the strip keeps its width through the turn.
     for (int j = 0; j + 1 < m; ++j) {
         const LinePt &a = g_lp[j], &b = g_lp[j + 1];
-        const float dx = b.s.x - a.s.x, dy = b.s.y - a.s.y, len = Sqrtf(dx * dx + dy * dy);
+        const float dx = b.s.x - a.s.x, dy = b.s.y - a.s.y, len = num::Sqrt(dx * dx + dy * dy);
         const bool ok = a.c.d >= kNear && b.c.d >= kNear && len >= 0.01f;
         g_segDx[j] = ok ? dx / len : 0, g_segDy[j] = ok ? dy / len : 0;
     }
@@ -770,7 +766,7 @@ void DrawChunk(const WorldLine& line, int from, int count, float focal, void* ti
         const float inx = in ? -g_segDy[j - 1] : 0, iny = in ? g_segDx[j - 1] : 0;
         const float outx = out ? -g_segDy[j] : 0, outy = out ? g_segDx[j] : 0;
         float x = inx + outx, y = iny + outy;
-        const float len = Sqrtf(x * x + y * y);
+        const float len = num::Sqrt(x * x + y * y);
         LinePt& p = g_lp[j];
         if (len < 1e-3f) {  // an end, or a full turn back
             p.ox = out ? outx : inx, p.oy = out ? outy : iny;
@@ -803,7 +799,7 @@ void DrawChunk(const WorldLine& line, int from, int count, float focal, void* ti
                 const float t = (kNear - v.c.d) / (h.c.d - v.c.d);
                 const CamV cc = {v.c.x + (h.c.x - v.c.x) * t, v.c.y + (h.c.y - v.c.y) * t, kNear};
                 const ScrC cut = Project(cc, v.s.r + (h.s.r - v.s.r) * t, v.s.g + (h.s.g - v.s.g) * t, v.s.b + (h.s.b - v.s.b) * t, xray);
-                const float dx = cut.x - v.s.x, dy = cut.y - v.s.y, len = Sqrtf(dx * dx + dy * dy);
+                const float dx = cut.x - v.s.x, dy = cut.y - v.s.y, len = num::Sqrt(dx * dx + dy * dy);
                 if (len < 0.01f) continue;
                 const float hv = v.half * scale, hc = (line.widthWorld > 0 ? line.maxPx : line.widthPx) * 0.5f * scale;
                 const float nx = -dy / len, ny = dx / len;

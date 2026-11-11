@@ -51,27 +51,16 @@ bool g_syncing = false;      // fd_pause set by the module itself
 
 float Abs(float v) { return v < 0 ? -v : v; }
 
-float CvarF(const cmd::Cvar& v, float def) {
-    float sign = 1.0f, r = 0.0f, scale = 0.1f;
-    const char* s = v.value;
-    if (*s == '-') sign = -1.0f, ++s;
-    bool any = false;
-    while (*s >= '0' && *s <= '9') r = r * 10.0f + static_cast<float>(*s++ - '0'), any = true;
-    if (*s == '.')
-        for (++s; *s >= '0' && *s <= '9'; scale *= 0.1f) r += static_cast<float>(*s++ - '0') * scale, any = true;
-    return any ? sign * r : def;
-}
-
 void OnPause(cmd::Cvar& v);
 void OnFlight(cmd::Cvar&);
 cmd::Cvar g_fdPause = {"fd_pause", "0", "1 = freeze the game and fly a free camera (0 = resume, view back to the player)",
-                       false, false, OnPause, {0}};
-cmd::Cvar g_fdSpeed = {"fd_freecam_speed", "400", "free camera speed in units/s (400 = the run speed); Shift x4, Ctrl x0.25", false, true,
-                       OnFlight, {0}};
-cmd::Cvar g_fdSens = {"fd_freecam_sens", "0.075", "free camera mouse look in degrees per mouse count; higher = faster", false, true,
-                      OnFlight, {0}};
+                       false, false, OnPause, {0}, cmd::T_BOOL};
+cmd::Cvar g_fdSpeed = {"fd_freecam_speed", "400", "free camera speed in units/s, 1-10000 (400 = the run speed); Shift x4, Ctrl x0.25", false, true,
+                       OnFlight, {0}, cmd::T_FLOAT, 1, 10000};
+cmd::Cvar g_fdSens = {"fd_freecam_sens", "0.075", "free camera mouse look in degrees per mouse count, 0.001-10; higher = faster", false, true,
+                      OnFlight, {0}, cmd::T_FLOAT, 0.001f, 10};
 
-spectator::Flight Flight() { return {CvarF(g_fdSpeed, 400.0f), CvarF(g_fdSens, 0.075f), true}; }
+spectator::Flight Flight() { return {cmd::Float(g_fdSpeed), cmd::Float(g_fdSens), true}; }
 void OnFlight(cmd::Cvar&) {
     if (g_flying) spectator::SetFlight(Flight());
 }
@@ -110,7 +99,7 @@ void SetPauseVar(const char* v) {
 
 void OnPause(cmd::Cvar& v) {
     if (g_syncing) return;
-    const bool on = v.value[0] != '0';
+    const bool on = cmd::Bool(v);
     if (on && state::WatchOnly()) {
         console::Print("fd_pause: not while watching a recording");
         SetPauseVar("0");
@@ -129,7 +118,11 @@ void OnPause(cmd::Cvar& v) {
     }
 }
 
-void CmdToggle(int, const char* const*) { cmd::SetCvar(&g_fdPause, g_fdPause.value[0] == '0' ? "1" : "0"); }
+void CmdToggle(int, const char* const*) { cmd::SetCvar(&g_fdPause, cmd::Bool(g_fdPause) ? "0" : "1"); }
+
+// Another tool asking for the paused free camera (spectator::RequestFreePause; the checkpoint
+// editor): the same path as the variable, so the profile gate and the refusals apply.
+bool FreePause(bool on) { return cmd::SetCvar(&g_fdPause, on ? "1" : "0") && cmd::Bool(g_fdPause) == on; }
 
 // After the spectator's own frame step (it subscribed first, from Init): follow the pause
 // and the camera, and measure the frame's flight for the pipe.
@@ -137,13 +130,13 @@ void FrameBegin() {
     // A watched level: the viewer has the camera (and keeps the pause); let both go.
     if (state::WatchOnly()) {
         if (g_flying) g_flying = false, log::Info("freecam: the recordings viewer took the camera");
-        if (g_fdPause.value[0] != '0') SetPauseVar("0");
+        if (cmd::Bool(g_fdPause)) SetPauseVar("0");
         g_wantResumeDt = false;
         return;
     }
     // The service ends a pause on its own (level change, menu): follow it.
     if (!pause::Active()) {
-        if (g_fdPause.value[0] != '0') StopFlying(), SetPauseVar("0");
+        if (cmd::Bool(g_fdPause)) StopFlying(), SetPauseVar("0");
         if (g_wantResumeDt && !g_flying) {
             // The first running frame after a resume: its delta (clock.dt, set by this frame's Tick).
             float dtGame = -1.0f;
@@ -234,6 +227,7 @@ bool Init() {
     cmd::SetPracticeOnly("fd_pause");
     cmd::SetPracticeOnly("fd_pause_toggle");
     binds::BindDefault("p", "fd_pause_toggle");
+    spectator::SetFreePauseHost(FreePause);
     // Read each paused frame in the camera step (not binds: held, not pressed).
     binds::DescribeKey("w s", "free camera: forward / back along the view", "while fd_pause is 1");
     binds::DescribeKey("a d", "free camera: strafe left / right", "while fd_pause is 1");
