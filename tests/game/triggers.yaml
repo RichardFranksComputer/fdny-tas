@@ -13,7 +13,7 @@ setup: load_training
 record: false
 steps:
   - assert_log: {contains: "module triggers: enabled"}
-  - assert_log: {contains: "gfx: ready (decals, alpha surfaces, solid rects, world boxes)"}
+  - assert_log: {contains: "gfx: ready (decals, alpha surfaces, solid rects, world boxes, native text)"}
   - assert_log: {contains: "triggers: map 'training': 25 trigger(s): 5 rescue, 0 exit (0 open), 20 other"}
   - assert_pipe_stat: {cmd: triggers, key: n, equals: 25}
   - assert_pipe_stat: {cmd: triggers, key: rescue, equals: 5}

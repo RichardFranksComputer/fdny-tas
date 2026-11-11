@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "textdraw.h"
+#include "theme.h"
 
 namespace fdcore::glitch::palette {
 
@@ -19,13 +20,17 @@ static_assert(T_COUNT <= textdraw::kMaxColors, "tags are textdraw colour indices
 constexpr uint8_t BG_WARP = 1 << textdraw::A_BG_SHIFT, BG_FLASH = 2 << textdraw::A_BG_SHIFT,
                   TAG_MASK = textdraw::A_COLOR_MASK;
 
+// The structure in the game's colours (theme.h, D66): grey frame and headers, the menu's
+// orange for the title and warnings, the status line's green for "ok", the timer's red for
+// an alert, white text on black. The source and player-state colours carry data and are the
+// feature's own; where one meant ok / warn / alert it takes the theme's.
 constexpr uint32_t kFg[T_COUNT] = {
-    0x7c8894, 0xd8e0e8, 0x8a96a2, 0xe8e8e8, 0x5c646c, 0xff3b3b, 0x7fd17f, 0xffcc4d, 0xffffff,
+    theme::kDim, theme::kAccent, theme::kSoft, theme::kText, 0x606060, theme::kBad, theme::kGood, theme::kAccent, theme::kText,
     0xffa040, 0xff5a5a, 0x5aaaff, 0x3f7fbf, 0xffd84a, 0xd0d0d0, 0x8a8a8a, 0xb48cff,
-    0x7fd17f, 0x5ad1d1, 0x5aaaff, 0xff5a5a, 0xb48cff, 0xff8c1a, 0x7fd17f, 0xffcc4d,
+    theme::kGood, 0x5ad1d1, 0x5aaaff, theme::kBad, 0xb48cff, 0xff8c1a, theme::kGood, theme::kAccent,
 };
 // Panel, warp, flash, warp+flash (= flash).
-constexpr uint32_t kBg[4] = {0x101418, 0x5a1010, 0xb02020, 0xb02020};
+constexpr uint32_t kBg[4] = {theme::kPanel, 0x5a1010, 0xb02020, 0xb02020};
 
 // Title / alert / warp / flash / Bugged are bold in the original: the textdraw attribute.
 inline uint8_t Attr(uint8_t a) {

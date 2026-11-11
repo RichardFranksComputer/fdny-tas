@@ -101,7 +101,9 @@ void Draw() {
 } // namespace
 
 bool Init() {
-    g_panel = textdraw::Create("hud_player", textdraw::TOP_LEFT, 8, 52, 1, textdraw::C_TEXT);
+    // The game's own font, under its mission timer (D66).
+    g_panel = textdraw::Create("hud_player", textdraw::TOP_LEFT, textdraw::kEdge, textdraw::kUnderTimer, 1, textdraw::C_TEXT,
+                               textdraw::STYLE_NATIVE);
     textdraw::Show(g_panel, false);
     InitializeCriticalSection(&g_lock);
     cmd::RegisterCvar(&g_fdHudPlayer);

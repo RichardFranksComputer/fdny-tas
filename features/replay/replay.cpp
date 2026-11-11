@@ -33,6 +33,7 @@
 #include "spectator.h"
 #include "testpipe.h"
 #include "textdraw.h"
+#include "theme.h"
 
 namespace fdcore::replay {
 namespace {
@@ -47,8 +48,8 @@ constexpr float kSimplifyEps = 0.5f;  // world units: under a pixel from 160 uni
 // The line and ticks, above the recorded origin: halfway to the eye (72 above it; owner 2026-10-26).
 constexpr float kLineLift = 36;
 constexpr float kArrowLen = 100, kHeadLen = 20, kHeadWidth = 10;  // the site's ArrowHelper
-constexpr uint32_t kArrowRgb = 0xFFFF40;  // yellow: reads on sky, walls and the box
-constexpr uint32_t kTickRgb = 0xFFFFFF;
+constexpr uint32_t kArrowRgb = theme::kAccent;  // the theme's orange: reads on sky, walls and the box
+constexpr uint32_t kTickRgb = theme::kText;
 constexpr float kTickHalf = 5;        // tick cube half size, units
 constexpr int kMaxTicks = 60;         // per recording: every second, or sparser for long runs
 // Alpha levels: 4 bits, so 16 (gfx keeps a tile per level in use).
@@ -473,18 +474,19 @@ void ViewerFrame(const state::State& s) {
     ViewerTargets();
     static char text[7][textdraw::kLineLen];
     spectator::State camera; spectator::ReadState(&camera);
-    wsprintfA(text[0], "%s  %s  %ld.%01ld / %ld.%01ld s", g_viewStage, g_playing ? "PLAYING" : "PAUSED",
+    wsprintfA(text[0], "RECORDINGS VIEWER  %s  %s  %ld.%01ld / %ld.%01ld s", g_viewStage, g_playing ? "playing" : "paused",
         static_cast<long>(g_time)/1000, static_cast<long>(g_time)%1000/100,
         static_cast<long>(VisibleDuration())/1000, static_cast<long>(VisibleDuration())%1000/100);
-    wsprintfA(text[1], "%s  Run %d/%d", camera.free ? "FREE CAMERA" : "FOLLOWING", camera.followed+1, g_nRec);
+    wsprintfA(text[1], "%s  run %d of %d  through walls %s", camera.free ? "Free camera" : "Following", camera.followed+1, g_nRec,
+              g_viewXray ? "on" : "off");
     // The keys as they are bound now (binds modes "viewer" and "camera").
     int n = 2;
+    const int first = n;
     n += binds::HintLines("viewer", text + n, 3);
     if (camera.free && n < 6) n += binds::HintLines("camera", text + n, 1);
-    wsprintfA(text[n++], "Through walls: %s", g_viewXray ? "ON" : "OFF");
-    const char* lines[7];
-    for (int i = 0; i < n; ++i) lines[i] = text[i];
-    textdraw::SetLines(g_viewPanel, lines, n); textdraw::Show(g_viewPanel, true);
+    const char* lines[6];
+    for (int i = 1; i < n; ++i) lines[i - 1] = text[i];
+    textdraw::SetTitled(g_viewPanel, text[0], lines, n - 1, n - first); textdraw::Show(g_viewPanel, true);
 }
 
 // --- The picker (fd_replay; D51) --------------------------------------------------------
@@ -498,10 +500,10 @@ int g_pick[kRows] = {-1, -1, -1, -1, -1, -1, -1, -1, -1};  // binds mode "picker
 bool PickerOpen() { return g_pickerOpen; }
 
 void FillPicker() {
-    static char lines[kRows + 3][textdraw::kLineLen];
-    const char* ptrs[kRows + 3];
+    static char lines[kRows + 4][textdraw::kLineLen];
+    const char* ptrs[kRows + 4];
     int n = 0;
-    wsprintfA(lines[n++], "Replays on %s: the row's number shows / hides it; fd_replay closes", g_map);
+    wsprintfA(lines[n++], "REPLAYS  %s", g_map);
     const int best = d::Best(g_files, g_nFiles, g_map), latest = d::Latest(g_files, g_nFiles, g_map);
     for (int r = 0; r < g_nRows; ++r) {
         const d::FileInfo& f = g_files[g_row[r]];
@@ -517,9 +519,10 @@ void FillPicker() {
                   local.wDay, local.wHour, local.wMinute, secs, f.finished ? "finished" : "", g_row[r] == best ? "  best" : "",
                   g_row[r] == latest ? "  latest" : "");
     }
-    if (!g_nRows) lstrcpyA(lines[n++], "(no complete recordings of this map yet: fd_record 1 records your runs)");
-    for (int i = 0; i < n; ++i) ptrs[i] = lines[i];
-    textdraw::SetLines(g_panel, ptrs, n);
+    if (!g_nRows) lstrcpyA(lines[n++], "No complete recordings of this map yet: fd_record 1 records your runs");
+    lstrcpyA(lines[n++], "A row's number shows / hides it | fd_replay closes");
+    for (int i = 1; i < n; ++i) ptrs[i - 1] = lines[i];
+    textdraw::SetTitled(g_panel, lines[0], ptrs, n - 1, 1);
 }
 
 void OpenPicker() {
@@ -769,7 +772,7 @@ void FrameEnd() {
 }
 
 bool Init() {
-    g_viewPanel = textdraw::Create("Replay viewer", textdraw::BOTTOM_LEFT, 8, 24, 3, textdraw::C_TEXT);
+    g_viewPanel = textdraw::Create("replay_viewer", textdraw::BOTTOM_LEFT, textdraw::kEdge, textdraw::kEdge, 3, textdraw::C_TEXT);
     spectator::SetActionHandler(ViewerAction);
     camera::OnBeforeWorldRender(PrimeViewerCamera);
     hooks::OnFrameComplete(CompleteViewerExit);

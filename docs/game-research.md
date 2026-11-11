@@ -1161,6 +1161,60 @@ keeps firing and re-dispatches on the next tick; nothing is lost
 and on a 429 the loop waits for the known reset time rather than
 retrying into the wall.
 
+### 2026-11-11 -- native text labels and the menu's widgets (two read-only subagents; for D66 and the settings page)
+
+**RichTextLabel** (== the DB's `HudAnimQuad` / `HudWidget`, vtable 0x004E399C, 0x104 bytes) is
+self-contained: no owner pointer, no refcount. Ctor 0x0048C120 (ECX only; mallocs +0xC8 and
++0x100 on the game heap), `Init(fontIdx, registerWithRenderMgr, bitmapId)` 0x0048ABB0,
+`SetText(String, rect*, hAlign, vAlign)` 0x0048C780 (consumes the String), `Render`
+0x0048B7C0 (ECX only), non-deleting dtor 0x0048C1D0 (never 0x0048C760 on memory the game
+didn't allocate). Unregistered labels are drawn by calling Render, as the menu screens do.
+Corrections to earlier notes: **the rect is {left, right, top, bottom}**, not a Win32 RECT;
+**hAlign is 0 left, 1 right, 2 centre** (vAlign 0 top, 1 bottom, 2 centre); row+0xEC
+(`menu.f_font`) is the label's ParticleNode (colour ramp and bitmap), the font descriptor is
+label+0xF4.
+
+Fields: +0x04 "dead" byte (RenderFrame frees a registered label when set), +0x10 visible,
++0x14 cached geBitmap* (acquired once when 0), +0xB8..+0xC0 current R G B (reset to 255 each
+Render), +0xD0..+0xDC rect, +0xE0 / +0xE4 alignment, +0xE8 bitmap id, +0xF8 / +0xFC float
+scale. Markup in SetText: a literal backslash-n or 0x0A breaks the line; `^(r,g,b)` (0-255)
+colours the glyphs after it and resets every Render; word wrap at the rect's width.
+`SetTextLayout` 0x0048C2A0 is the same without wrap and markup.
+
+**Fonts** (table 0x005030F0, stride 0x14: charset, cell w, cell h, bitmap id, advance
+reduction): 0 = 8x12, bitmap 0x3FB, the HUD status line and a ListRow's second label; 1 =
+16x24, bitmap 0x3FC, reduce 4, the hint and a ListRow's first label; 2 = 32x43, digits and
+":" only (the warn timer); 3 = 8x14, bitmap 64000 `data\sprites\confont.bmp`, reduce 1, the
+console. Seen in the game (2026-11-11): font 0 draws with its glyph tops cut off on the VM's
+renderer, in the game's own status line too.
+
+**Drawing:** per glyph `geEngine_RenderPoly` (flags 0x36), in a virtual 640x480 mapped per
+vertex (`ScreenMetrics_MapVirtToReal` 0x0048A910); no world needed. `ROCRender::RenderFrame`
+0x00494670: BeginFrame, the renderable list sorted by key (labels 11000), `Console::Render`,
+EndFrame. **Colours** are vertex colours: the hint white; the status line green (0.25, 1,
+0.25) alternating with white; menu rows grey 0.75 turning white when focused, their second
+label grey 0.5 turning orange (1, 0.75, 0).
+
+**The menu.** Screens built by `MenuManager::Init` 0x0042DEC0: 0 Main, 1 SlotList, 2 Title,
+3 Options, 4 List, 5 LevelResults, 6 VideoConfirm, 7 Credits, 8 (unnamed), 9 Splash. A
+screen's vtable has 8 slots: [0] OnActivate(bool), [1] OnButtonActivate(id), [2]
+OnSliderChanged(id, float), [3] Draw, [7] HandleMouse. **Escape in a level shows the Title
+(briefing) screen**, with the nav stack [0, 1, 2]; its button id 2 resumes
+(`MenuManager::TeardownToLoading` 0x0042D1B0). `GameSession::Activate` 0x0042D480 is really
+`MenuManager::Activate`. Widget rects are {left, right, top, bottom} too. Main has four
+`ImageButtonGlow` (ids 0-3, y 440-472, art in background bitmap 10) and one invisible
+hotspot (id 4); its OnButtonActivate 0x00430DF0 ignores other ids. A `ListRow` appended to
+a screen is clickable when row+0x20 is 0 (its ctor doesn't set it). `OptionCycler` (0x4A8
+bytes, ctor 0x00435510 `(owner, String* label, id, rect)`, options at +0x4A0, index +0x4A4,
+no wrap, calls `owner->OnButtonActivate(id)`) and `Slider` (0x6F8 bytes, ctor 0x00437090,
+position +0x6EC, min / max +0x6F0 / +0x6F4, steps of 0.05, calls `owner->vtbl[2](id,
+value)`, no numeric readout) are what the Options screen (ctor 0x00432080) is built from;
+`MenuScreen::AddStandardButton(id)` 0x004366D0 adds its Back button. Not determined: what
+screen 8 is, what bitmap 10 looks like.
+
+One subagent used `disassemble_at` (clear_existing = false) on unlabelled vtable targets;
+the tool reported nothing cleared, but that nothing was written to the database wasn't proved.
+
 ## Blocked tasks
 
 _(none yet)_

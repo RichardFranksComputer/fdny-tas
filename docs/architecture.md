@@ -79,11 +79,15 @@ Every drawing belongs to a gfx layer, run in this fixed order each frame (D40, `
 
 | Need | Use |
 |---|---|
-| A text panel | `textdraw::Create(...)` (HUD layer): `STYLE_TRANSLUCENT` (default; opaque fallback without a world) or `STYLE_OPAQUE` (always visible, e.g. the watermark). Own colours: `textdraw::SetPalette`. |
+| A short readout in the game's own font | `textdraw::Create(..., STYLE_NATIVE)`: the hint's font at three quarters, no background, in a level only (the player HUD, the juggle readout; D66) |
+| A text panel (a table, a tool's panel) | `textdraw::Create(...)` (HUD layer): `STYLE_TRANSLUCENT` (default; opaque fallback without a world) or `STYLE_OPAQUE` (always visible, e.g. the watermark). A tool's panel is set with `textdraw::SetTitled` (title, body, dimmed hints). Colours are the default palette's (`C_TEXT`, `C_TITLE`, `C_DIM`, `C_GOOD`, `C_BAD`, from `core/theme.h`); own colours: `textdraw::SetPalette`. |
+| Where a panel goes | a corner (`TOP_LEFT`, `TOP_RIGHT`, `BOTTOM_LEFT`) with `textdraw::kEdge` / `kUnderTimer`, or `CENTER`. Panels on one corner are placed clear of each other by textdraw; a feature never picks pixels to avoid another feature's panel |
+| A colour | `core/theme.h` (the game's own: white, the menu's greys and orange, the status line's green, the timer's red). A colour that carries data is the feature's own |
 | Boxes in the level | `gfx::SubmitWorldBoxes(boxes, n, LAYER_WORLD or LAYER_OVERLAY)` from `OnFrameEnd`, every frame |
 | Lines in the level | `gfx::SubmitWorldLines(lines, n, layer)`: polylines as mitered strips, colour per point, width in px or world units, optional glow and thin points (the replay; D50) |
 | Your own drawing in a layer | `gfx::OnLayer(layer, fn)` (a new kind of drawing is a gfx block first, R5) |
-| Opaque image / rect | `gfx::Decal`, `gfx::SolidRect` |
+| Opaque image / rect / shape | `gfx::Decal`, `gfx::SolidRect`, `gfx::SolidPoly` (a convex polygon: the juggle arrow) |
+| Text in the game's font, placed by hand | `gfx::NativeText` (what `STYLE_NATIVE` is built on) |
 | Per-pixel alpha | `gfx::AlphaSurface` (256 px 4444 tiles, world-attached; colours are 4 bits per channel) |
 | Screen size | `gfx::ViewSize` (the camera rect, never the window) |
 

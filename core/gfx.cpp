@@ -8,9 +8,11 @@
 #include "addr.h"
 #include "cmd.h"
 #include "camera.h"
+#include "console.h"
 #include "hooks.h"
 #include "log.h"
 #include "num.h"
+#include "state.h"
 #include "testpipe.h"
 
 namespace fdcore::gfx {
@@ -430,6 +432,73 @@ void AlphaSurface::Destroy() {
 }
 
 // --- SolidRect ---------------------------------------------------------------------------------
+// --- NativeText ------------------------------------------------------------------------
+namespace {
+template <class T> T GameFn(Id id) { return reinterpret_cast<T>(addr::ExportAddress(id)); }
+bool g_nativeOk = false;
+// Counts levels: a label's cached font bitmap belongs to the level it was looked up in. The
+// world's address doesn't tell levels apart (D30: bank got Training's), and drawing a label
+// with the previous level's bitmap crashed in D3DDrv (the first suite run of D66: freecam
+// after loading bank, and two tests after a session's Training reload).
+unsigned g_nativeLevel = 1;
+bool g_nativeInLevel = false;
+void NativeLevelLoad(const char*) { ++g_nativeLevel; }
+void NativeFrameEnd() {
+    const bool in = state::Current().gameState == 1;
+    if (in != g_nativeInLevel) g_nativeInLevel = in, ++g_nativeLevel;  // through a menu or a loading screen
+}
+// The fonts' cells (HudFontDesc table, label.init's evidence): advance = cell width - reduce.
+constexpr struct {
+    int w, h, reduce;
+} kNativeCell[4] = {{8, 12, 0}, {16, 24, 4}, {32, 43, 0}, {8, 14, 1}};
+} // namespace
+bool NativeTextReady() { return g_nativeOk; }
+void NativeCell(NativeFont font, int* w, int* h) {
+    const auto& c = kNativeCell[font >= 0 && font < 4 ? font : 0];
+    *w = c.w - c.reduce, *h = c.h;
+}
+bool NativeText::Set(const char* text, NativeFont font, float scale) {
+    if (!g_nativeOk) return false;
+    if (built_ && font == font_ && scale == scale_ && lstrcmpA(text, text_) == 0) return true;
+    if (built_ && font != font_) Destroy();
+    if (!built_) {
+        __builtin_memset(mem_, 0, sizeof(mem_));
+        GameFn<void*(__thiscall*)(void*)>(Id::label_construct)(mem_);
+        GameFn<void(__thiscall*)(void*, int, char, int)>(Id::label_init)(mem_, font, 0, -1);
+        built_ = true, placed_ = false, level_ = 0;
+    }
+    font_ = font, scale_ = scale;
+    lstrcpynA(text_, text, sizeof(text_));
+    dirty_ = true;
+    return true;
+}
+bool NativeText::Draw(int left, int top, int right, int bottom, int hAlign) {
+    // In a level only (not its loading screen): the HUD font bitmaps belong to the level's
+    // resource set.
+    if (!built_ || !World() || !Engine() || !g_nativeInLevel || state::Current().gameState != 1) return false;
+    if (level_ != g_nativeLevel) {  // another level: look the font bitmap up again
+        *reinterpret_cast<void**>(mem_ + addr::Field(Id::label_f_bitmap)) = nullptr;
+        level_ = g_nativeLevel;
+    }
+    const int rect[4] = {left, right, top, bottom};  // the game's order: L, R, T, B
+    if (dirty_ || !placed_ || hAlign != align_ || __builtin_memcmp(rect, rect_, sizeof(rect)) != 0) {
+        float* s = reinterpret_cast<float*>(mem_ + addr::Field(Id::label_f_scale));
+        s[0] = s[1] = scale_;
+        // The String is consumed by the call (a fresh one each time, like the menu rows).
+        GameFn<uintptr_t(__thiscall*)(void*, uint32_t, const int*, int, int)>(Id::menu_text_set)(
+            mem_, console::MakeGameString(text_), rect, hAlign, 0);
+        __builtin_memcpy(rect_, rect, sizeof(rect));
+        align_ = hAlign, dirty_ = false, placed_ = true;
+    }
+    mem_[addr::Field(Id::label_f_visible)] = 1;
+    GameFn<void(__thiscall*)(void*)>(Id::menu_text_draw)(mem_);
+    return true;
+}
+void NativeText::Destroy() {
+    if (built_) GameFn<void(__thiscall*)(void*)>(Id::label_destroy)(mem_);
+    built_ = placed_ = false, text_[0] = 0;
+}
+
 bool SolidRect(int x, int y, int w, int h, uint32_t rgb) {
     if (!g_alphaOk || !BeginDraw()) return false;
     const float x0 = static_cast<float>(x), y0 = static_cast<float>(y), x1 = x0 + w, y1 = y0 + h;
@@ -440,6 +509,15 @@ bool SolidRect(int x, int y, int w, int h, uint32_t rgb) {
                            {x1, y1, 1.0f, 0, 0, r, g, b, 255},
                            {x0, y1, 1.0f, 0, 0, r, g, b, 255}};
     return g_poly(Engine(), v, 4, nullptr, kImmediate) != 0;
+}
+
+bool SolidPoly(const float (*pts)[2], int n, uint32_t rgb) {
+    if (!g_alphaOk || n < 3 || n > 8 || !BeginDraw()) return false;
+    const float r = static_cast<float>((rgb >> 16) & 0xFF), g = static_cast<float>((rgb >> 8) & 0xFF),
+                b = static_cast<float>(rgb & 0xFF);
+    TLVertex v[8];
+    for (int i = 0; i < n; ++i) v[i] = {pts[i][0], pts[i][1], 1.0f, 0, 0, r, g, b, 255};
+    return g_poly(Engine(), v, n, nullptr, kImmediate) != 0;
 }
 
 // --- World boxes ---------------------------------------------------------------------------------
@@ -1002,6 +1080,14 @@ bool Init() {
             g_boxOk = true;
         }
     }
+    // Native text: the game's own label class (D66).
+    g_nativeOk = true;
+    const Id nativeNeeds[] = {Id::label_construct, Id::label_init, Id::label_destroy, Id::menu_text_set, Id::menu_text_draw,
+                              Id::str_from_cstr};
+    for (Id id : nativeNeeds) g_nativeOk = g_nativeOk && addr::Usable(id);
+    hooks::OnLevelLoad(NativeLevelLoad);
+    hooks::OnFrameEnd(NativeFrameEnd);
+    if (!g_nativeOk) log::Warn("gfx: no native text (label functions not verified); those panels use the canvas font");
     hooks::OnFrameEndLate(RunLateLayers);  // the only late-frame subscriber: overlay, then HUD (D40)
 #ifdef FDCORE_DEBUG
     cmd::RegisterCommand("fd_dbg_layer_box", "(Debug test hook) a magenta box in a draw layer: world|overlay|off x0 y0 z0 x1 y1 z1",
@@ -1020,8 +1106,8 @@ bool Init() {
         }
     });
 #endif
-    log::Info("gfx: ready (decals%s%s)", g_alphaOk ? ", alpha surfaces, solid rects" : "",
-              g_boxOk ? ", world boxes" : "");
+    log::Info("gfx: ready (decals%s%s%s)", g_alphaOk ? ", alpha surfaces, solid rects" : "",
+              g_boxOk ? ", world boxes" : "", g_nativeOk ? ", native text" : "");
     return true;
 }
 

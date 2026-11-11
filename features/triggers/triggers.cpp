@@ -25,6 +25,7 @@
 #include "notify.h"
 #include "state.h"
 #include "testpipe.h"
+#include "theme.h"
 
 namespace fdcore::triggers {
 namespace {
@@ -34,7 +35,7 @@ using addr::Id;
 enum Kind { K_OTHER, K_RESCUE, K_EXIT };
 const char* const kKindName[] = {"other", "rescue", "exit"};
 
-constexpr uint32_t kBlue = 0x2050FF, kRed = 0xFF2828, kGreen = 0x28E040, kGrey = 0x9A9A9A;
+constexpr uint32_t kBlue = theme::kInfo, kRed = theme::kBad, kGreen = theme::kGood, kGrey = theme::kDim;
 constexpr uint8_t kAlpha = 128;       // 50% (8/15 in 4444)
 constexpr uint8_t kAlphaInside = 64;  // a box around the camera tints the whole view: fainter
 constexpr int kMax = 256;
