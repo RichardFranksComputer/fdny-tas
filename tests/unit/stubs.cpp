@@ -7,6 +7,7 @@
 #include "../../core/console.h"
 #include "../../core/hooks.h"
 #include "../../core/log.h"
+#include "../../core/notify.h"
 #include "../../core/state.h"
 #include "unit.h"
 
@@ -83,6 +84,17 @@ void Print(const char* fmt, ...) {
 const char* GameDir() { return g_gameDir; }
 const char* CoreVersion() { return "0.0.0-unit"; }
 } // namespace fdcore::console
+
+namespace fdcore::notify {
+void Show(const char* fmt, ...) {
+    char body[1536];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(body, sizeof(body), fmt, ap);
+    va_end(ap);
+    Add("INFO", "notify> ", body);
+}
+} // namespace fdcore::notify
 
 namespace fdcore::hooks {
 bool SetEnabled(const char*, bool) { return true; }

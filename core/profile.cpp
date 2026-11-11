@@ -10,6 +10,7 @@
 #include "console.h"
 #include "hooks.h"
 #include "log.h"
+#include "notify.h"
 #include "testpipe.h"
 #include "textdraw.h"
 
@@ -52,6 +53,7 @@ void Remember(const char* name, const char* value) {
 bool CvarGate(const cmd::Cvar& v, const char* value) {
     if (!g_run || !cmd::IsPracticeOnly(v.name) || lstrcmpA(value, v.defaultValue) == 0) return true;
     console::Print("%s is practice-only (fd_profile is run)", v.name);
+    notify::Show("Practice only: the profile is run");
     log::Info("profile: refused %s \"%s\" in run", v.name, value);
     return false;
 }
@@ -59,6 +61,7 @@ bool CvarGate(const cmd::Cvar& v, const char* value) {
 bool CommandGate(const char* name) {
     if (!g_run || !cmd::IsPracticeOnly(name)) return true;
     console::Print("%s is practice-only (fd_profile is run)", name);
+    notify::Show("Practice only: the profile is run");
     log::Info("profile: refused %s in run", name);
     return false;
 }

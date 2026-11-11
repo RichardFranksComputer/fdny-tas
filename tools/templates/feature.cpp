@@ -49,6 +49,7 @@ const Id kNeeds[] = {Id::game_state};
 
 bool Init() {
     cmd::RegisterCvar(&g_fdEnable);
+    cmd::SetLabel("fd_<name>", "<Short name>");  // `toggle` then confirms on screen: "<Short name> on"
     cmd::RegisterCommand("fd_<name>_do", "<help line>", CmdDoThing);
     cmd::SetPracticeOnly("fd_<name>");  // only if it shows information the game doesn't, or moves the player
     g_panel = textdraw::Create("<name>", textdraw::TOP_LEFT, 8, 160, 1, textdraw::C_TEXT);

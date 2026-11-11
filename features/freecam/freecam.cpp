@@ -101,17 +101,17 @@ void OnPause(cmd::Cvar& v) {
     if (g_syncing) return;
     const bool on = cmd::Bool(v);
     if (on && state::WatchOnly()) {
-        console::Print("fd_pause: not while watching a recording");
+        console::Print("pause: not while watching a recording");
         SetPauseVar("0");
         return;
     }
     if (on) {
         if (!pause::Set(true, "fd_pause")) {
-            console::Print("fd_pause: only inside a level");
+            console::Print("pause: only inside a level");
             SetPauseVar("0");
             return;
         }
-        if (!StartFlying()) console::Print("fd_pause: paused; no camera pose yet, free camera off");
+        if (!StartFlying()) console::Print("pause: paused; no camera pose yet, free camera off");
     } else {
         StopFlying();
         pause::Set(false, "fd_pause 0");

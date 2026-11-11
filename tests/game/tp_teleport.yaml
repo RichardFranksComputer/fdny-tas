@@ -45,7 +45,7 @@ steps:
   - sample_mem: {name: player.pos_x, as: x_bank}
   - sample_mem: {name: player.pos_z, as: z_bank}
   - console: "fd_tp_load"
-  - assert_log: {contains: "fd_tp_load: saved on training, this is bank -- refused"}
+  - assert_log: {contains: "tp: saved on training, this is bank: refused"}
   - wait_s: 1.0
   - assert_same_pos: {x: x_bank, z: z_bank, tolerance: 1}
   - screenshot: 03_refused_on_bank

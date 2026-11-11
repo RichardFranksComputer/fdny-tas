@@ -21,6 +21,7 @@
 #include "hooks.h"
 #include "log.h"
 #include "modules.h"
+#include "notify.h"
 #include "testpipe.h"
 
 namespace fdcore::glitch {
@@ -298,7 +299,7 @@ bool Install() {
     if (g_installed) return true;
     for (Site& s : g_sites) {
         if (!addr::Usable(s.id)) {
-            console::Print("fd_hud_warp: unavailable (%s not verified)", addr::Name(s.id));
+            console::Print("warp: unavailable (%s not verified)", addr::Name(s.id));
             return false;
         }
         s.addr = addr::ExportAddress(s.id);
@@ -381,10 +382,19 @@ CRITICAL_SECTION g_boxLock;  // the pipe thread reads what the game thread draws
 
 void ClearBoxHistory() { analysis::ClearHistory(); }  // X (was F12)
 
-void CmdHide(int, const char* const*) { g_hidden = !g_hidden; }
-void CmdFreeze(int, const char* const*) { g_frozen = !g_frozen; }
+// The three confirm on screen only while the HUD is on: off, they change nothing a player sees.
+void CmdHide(int, const char* const*) {
+    g_hidden = !g_hidden;
+    if (g_installed) notify::Show("Warp HUD %s", g_hidden ? "hidden" : "shown");
+}
+void CmdFreeze(int, const char* const*) {
+    g_frozen = !g_frozen;
+    if (g_installed) notify::Show("Warp HUD %s", g_frozen ? "frozen" : "live");
+}
 void CmdClear(int, const char* const*) {
-    if (g_installed) ClearBoxHistory();
+    if (!g_installed) return;
+    ClearBoxHistory();
+    notify::Show("Warp HUD history cleared");
 }
 
 // Overlay._hotkeys (the original's F9 show/hide, F10 freeze, F12 clear; letters since
@@ -400,7 +410,7 @@ void Hotkeys() {
         if (down && !was[i] && live) {
             if (i == 0) CmdHide(0, nullptr);
             else if (i == 1) CmdFreeze(0, nullptr);
-            else ClearBoxHistory();
+            else CmdClear(0, nullptr);
         }
         was[i] = down;
     }
@@ -472,7 +482,7 @@ void OnToggle(cmd::Cvar& v) {
         // Turning the HUD on always shows it (owner 2026-10-22: a hide from B outlived G off/on,
         // so G alone looked dead).
         g_hidden = g_frozen = false;
-        if (!Install()) console::Print("fd_hud_warp: hooks could not be installed (see FDNYCore.log)");
+        if (!Install()) console::Print("warp: hooks could not be installed (see FDNYCore.log)");
     } else {
         Uninstall();
     }
@@ -502,6 +512,7 @@ bool Init() {
     cmd::SetPracticeOnly("fd_warp_freeze");
     cmd::SetPracticeOnly("fd_warp_clear");
     binds::BindDefault("g", "toggle fd_hud_warp");  // D37
+    cmd::SetLabel("fd_hud_warp", "Warp HUD");
     // Hotkeys() reads these itself (the clear's place in the frame, above).
     binds::DescribeKey("b", "show / hide the warp HUD's boxes (fd_warp_hide)", "while fd_hud_warp is 1");
     binds::DescribeKey("z", "freeze / unfreeze the warp HUD's boxes (fd_warp_freeze)", "while fd_hud_warp is 1");

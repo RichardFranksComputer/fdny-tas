@@ -411,6 +411,7 @@ bool Init() {
     cmd::RegisterCvar(&g_fdJuggle);
     cmd::SetPracticeOnly("fd_juggle");
     binds::BindDefault("j", "toggle fd_juggle");  // D37
+    cmd::SetLabel("fd_juggle", "Juggle arrow");
     g_panel = textdraw::Create("juggle", textdraw::CENTER, 0, 30, 1, textdraw::C_WHITE | textdraw::A_BOLD,
                                textdraw::STYLE_TEXT_ONLY);
     if (g_panel >= 0) textdraw::Show(g_panel, false), textdraw::HideWhilePaused(g_panel, true);  // D35

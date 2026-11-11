@@ -23,6 +23,7 @@
 #include "hooks.h"
 #include "log.h"
 #include "modules.h"
+#include "notify.h"
 #include "num.h"
 #include "pause.h"
 #include "profile.h"
@@ -223,7 +224,7 @@ bool Load(const char* name) {
 }
 
 void CmdLoad(int argc, const char* const* argv) {
-    if (ViewerRunning()) return console::Print("Exit the recordings viewer before changing loaded runs.");
+    if (ViewerRunning()) return console::Print("replay: exit the recordings viewer before changing loaded runs");
     if (argc < 2) return console::Print("usage: fd_replay_load <file.jsonl> (in the recordings folder, or a full path)");
     Load(argv[1]);
 }
@@ -248,7 +249,7 @@ void ClearAll() {
 void CmdClear(int, const char* const*) {
     if (ViewerRunning()) return EndViewer(true);
     ClearAll();
-    console::Print("fd_replay_clear: no recordings loaded");
+    console::Print("replay: no recordings loaded");
 }
 
 int Loaded(const char* name) {
@@ -325,7 +326,7 @@ bool ViewerRunning() { return g_viewPending || g_viewActive; }
 bool ViewError(const char* text) {
     lstrcpynA(g_viewError, text, sizeof(g_viewError));
     log::Warn("viewer: %s", text);
-    console::Print("Recordings: %s", text);
+    console::Print("replay: %s", text);
     return false;
 }
 
@@ -374,7 +375,7 @@ void CmdView(int argc, const char* const* argv) {
     if (argc < 3) return console::Print("usage: fd_replay_view <stage> <file.jsonl> [second.jsonl]");
     const auto& state = state::Current();
     if (state.gameState != 1 || !SameMap(state.map, argv[1]))
-        return console::Print("fd_replay_view: use Recordings on the briefing, or load that stage first");
+        return console::Print("replay: use Recordings on the briefing, or load that stage first");
     PrepareView(argv[1], argv[2], argc > 3 ? argv[3] : nullptr);
 }
 
@@ -572,7 +573,8 @@ void CmdToggle(int, const char* const*) {
     if (ViewerRunning()) return ViewerAction(spectator::Action::TogglePlay);
     ClosePicker();
     if (g_map[0] && VisibleDuration() <= 0 && !AutoLoad())
-        return console::Print("replay: no recordings of %s in the recordings folder (fd_record 1 records your runs)", g_map);
+        return notify::Show("No recordings of this map"),
+               console::Print("replay: no recordings of %s in the recordings folder (fd_record 1 records your runs)", g_map);
     const float dur = VisibleDuration();
     if (dur <= 0) return console::Print("replay: no loaded recording is for this map ('%s')", g_map);
     if (!g_playing && g_time >= dur) g_time = 0;
@@ -580,6 +582,7 @@ void CmdToggle(int, const char* const*) {
     g_lastTick = GetTickCount();
     console::Print("replay: %s at %ld.%01ld s", g_playing ? "playing" : "paused", static_cast<long>(g_time) / 1000,
                    static_cast<long>(g_time) % 1000 / 100);
+    notify::Show("Replay %s", g_playing ? "playing" : "paused");
 }
 
 void CmdList(int, const char* const*) {
@@ -590,20 +593,20 @@ void CmdList(int, const char* const*) {
     int n = 0;
     for (BOOL more = h != INVALID_HANDLE_VALUE; more; more = FindNextFileA(h, &fd)) console::Print("  %s", fd.cFileName), ++n;
     if (h != INVALID_HANDLE_VALUE) FindClose(h);
-    console::Print("%d recording(s) in %s; loaded: %d", n, pattern, g_nRec);
+    console::Print("replay: %d recording(s) in %s; loaded: %d", n, pattern, g_nRec);
 }
 
 // fd_replay: the picker; fd_replay <text>: load the first recording (by name) containing text.
 void CmdReplay(int argc, const char* const* argv) {
-    if (ViewerRunning()) return console::Print("Exit the recordings viewer before changing loaded runs.");
+    if (ViewerRunning()) return console::Print("replay: exit the recordings viewer before changing loaded runs");
     if (argc < 2) {
         if (g_pickerOpen) return ClosePicker();
-        if (!g_map[0]) return console::Print("fd_replay: load a level first");
+        if (!g_map[0]) return console::Print("replay: load a level first");
         return OpenPicker();
     }
     Scan(nullptr);
     const int i = d::Match(g_files, g_nFiles, argv[1]);
-    if (i < 0) return console::Print("fd_replay: no recording's name contains '%s' (fd_replay_list)", argv[1]);
+    if (i < 0) return console::Print("replay: no recording's name contains '%s' (fd_replay_list)", argv[1]);
     if (Loaded(g_files[i].name) < 0) Load(g_files[i].name);
 }
 
@@ -797,6 +800,7 @@ bool Init() {
     cmd::SetPracticeOnly("fd_replay");
     cmd::SetPracticeOnly("fd_replay_ghost");
     binds::BindDefault("v", "fd_replay_toggle");  // D37
+    cmd::SetLabel("fd_replay_xray", "Replay through walls");
     binds::DescribeKey("1 2 3 4 5 6 7 8 9", "replay picker: show / hide that run", "while the fd_replay list is open");
     g_panel = textdraw::Create("replay_picker", textdraw::CENTER, 0, -120, 1, textdraw::C_TEXT);
     textdraw::Show(g_panel, false);

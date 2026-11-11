@@ -11,6 +11,7 @@
 #include "hooks.h"
 #include "log.h"
 #include "modules.h"
+#include "notify.h"
 #include "num.h"
 #include "state.h"
 
@@ -35,10 +36,10 @@ uint32_t Player() {
     return player;
 }
 
-bool InLevel(const char* who) {
+bool InLevel() {
     const state::State& s = state::Current();
     if (s.gameState != 1 || !s.playerValid || !s.map[0] || !Player()) {
-        console::Print("%s: not in a level", who);
+        console::Print("tp: not in a level");
         return false;
     }
     return true;
@@ -51,13 +52,13 @@ void Describe(char* out, const float* p) {
 }
 
 void CmdSave(int, const char* const*) {
-    if (!InLevel("fd_tp_save")) return;
+    if (!InLevel()) return;
     const uint32_t pl = Player();
     Saved s{};
     if (!addr::SafeRead(pl + addr::Field(Id::player_f_pos), s.pos, 12) ||
         !addr::SafeRead(pl + addr::Field(Id::player_f_pitch), &s.pitch, 4) ||
         !addr::SafeRead(pl + addr::Field(Id::player_f_yaw), &s.yaw, 4)) {
-        console::Print("fd_tp_save: could not read the player");
+        console::Print("tp: could not read the player");
         return;
     }
     lstrcpynA(s.map, state::Current().map, sizeof(s.map));
@@ -65,19 +66,22 @@ void CmdSave(int, const char* const*) {
     g_saved = s;
     char where[80];
     Describe(where, s.pos);
-    console::Print("fd_tp_save: saved %s on %s", where, s.map);
+    console::Print("tp: saved %s on %s", where, s.map);
+    notify::Show("Position saved");
     log::Info("tp: saved %s on '%s'", where, s.map);
 }
 
 void CmdLoad(int, const char* const*) {
     if (!g_saved.valid) {
-        console::Print("fd_tp_load: nothing saved (fd_tp_save first)");
+        console::Print("tp: nothing saved (fd_tp_save first)");
+        notify::Show("No saved position");
         return;
     }
-    if (!InLevel("fd_tp_load")) return;
+    if (!InLevel()) return;
     const char* map = state::Current().map;
     if (lstrcmpiA(map, g_saved.map) != 0) {  // map gate: the location belongs to its map
-        console::Print("fd_tp_load: saved on %s, this is %s -- refused", g_saved.map, map);
+        console::Print("tp: saved on %s, this is %s: refused", g_saved.map, map);
+        notify::Show("Saved position is on another map");
         log::Info("tp: refused load: saved on '%s', current map '%s'", g_saved.map, map);
         return;
     }
@@ -104,7 +108,8 @@ void Apply() {
         log::Warn("tp: write failed");
         return;
     }
-    console::Print("fd_tp_load: %s", where);
+    console::Print("tp: loaded %s", where);
+    notify::Show("Teleported");
     log::Info("tp: loaded %s on '%s'", where, g_saved.map);
 }
 

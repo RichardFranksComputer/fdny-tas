@@ -107,6 +107,7 @@ bool Init() {
     cmd::RegisterCvar(&g_fdHudPlayer);
     cmd::SetPracticeOnly("fd_hud_player");
     binds::BindDefault("h", "toggle fd_hud_player");  // D37
+    cmd::SetLabel("fd_hud_player", "Player HUD");
     hooks::OnFrameEnd(Draw);
 #ifdef FDCORE_DEBUG
     testpipe::Register("hud", [](const char*, char* resp, int cap) { LastDrawn(resp, cap); });

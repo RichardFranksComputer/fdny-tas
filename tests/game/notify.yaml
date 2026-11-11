@@ -1,0 +1,67 @@
+name: notify
+# D64: an action taken with a key is confirmed on screen, in the game's own hint text (binds
+# fire only while the console is closed, so a console line confirms nothing a player sees).
+# Proved here: `toggle` shows a labelled variable's name and state, a command shows its own
+# line, the profile gate shows a refusal, and nothing is drawn over a pause (the hint's timer
+# is the paused game clock) though the text is still logged. That the hint is the game's own
+# widget is checkpoints' test (game_hints); the screenshots show it.
+pre_files:
+  - {src: tests/game/data/game_cfg_player.cfg, dst: FDNYFireFighter.cfg}
+  - {src: null, dst: FDNYCore.cfg}
+setup: load_training
+record: false
+steps:
+  - console: "fd_watermark 0"
+  - assert_log: {contains: "notify: ready (game hint text)"}
+  - focus: {}
+  - wait_s: 1
+  - sample_pipe: {cmd: notify, as: start}
+  # H: a labelled variable through `toggle`
+  - key: {key: h, hold: 0.1}
+  - wait_s: 0.5
+  - assert_pipe_contains: {cmd: notify, contains: "last=Player HUD on"}
+  - assert_pipe_stat: {cmd: notify, key: shown, since: start, equals: 1}
+  - screenshot: 01_player_hud_on
+  - key: {key: h, hold: 0.1}
+  - wait_s: 0.5
+  - assert_pipe_contains: {cmd: notify, contains: "last=Player HUD off"}
+  # K / L: a command's own line
+  - key: {key: k, hold: 0.1}
+  - wait_s: 0.5
+  - assert_pipe_contains: {cmd: notify, contains: "last=Position saved"}
+  - screenshot: 02_position_saved
+  - key: {key: l, hold: 0.1}
+  - wait_s: 0.5
+  - assert_pipe_contains: {cmd: notify, contains: "last=Teleported"}
+  # T: the cycle says which state it reached
+  - key: {key: t, hold: 0.1}
+  - wait_s: 0.5
+  - assert_pipe_contains: {cmd: notify, contains: "last=Trigger boxes on"}
+  - key: {key: t, hold: 0.1}
+  - wait_s: 0.5
+  - assert_pipe_contains: {cmd: notify, contains: "last=Trigger boxes on, through walls"}
+  - key: {key: t, hold: 0.1}
+  - wait_s: 0.5
+  - assert_pipe_contains: {cmd: notify, contains: "last=Trigger boxes off"}
+  # a practice-only key under fd_profile run: the refusal is shown
+  - console: "fd_profile run"
+  - focus: {}
+  - wait_s: 1
+  - key: {key: h, hold: 0.1}
+  - wait_s: 0.5
+  - assert_pipe_contains: {cmd: notify, contains: "last=Practice only: the profile is run"}
+  - screenshot: 03_practice_only
+  - console: "fd_profile practice"
+  # over a pause nothing is drawn; the text is still logged and counted
+  - console: "fd_pause 1"
+  - wait_s: 0.5
+  - sample_pipe: {cmd: notify, as: paused}
+  - console: "fd_tp_save"
+  - wait_s: 0.5
+  - assert_pipe_stat: {cmd: notify, key: count, since: paused, equals: 1}
+  - assert_pipe_stat: {cmd: notify, key: shown, since: paused, equals: 0}
+  - assert_log: {contains: "notify> Position saved"}
+  - console: "fd_pause 0"
+expect:
+  no_crash: true
+  log_errors: 0
